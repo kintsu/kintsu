@@ -138,7 +138,7 @@ macro_rules! gen_from_expr {
         generator! {
             $name: $desc = || {
                 let mut g = kintsu_test_suite::many::GraphGenerator::new();
-                let specs = $e(&mut g);
+                let specs = ($e)(&mut g);
                 let deps = g.create_root_with_dependencies(vec![
                     specs
                 ]);
