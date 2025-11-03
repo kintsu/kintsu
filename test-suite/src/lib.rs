@@ -1,5 +1,5 @@
 use kintsu_fs::{FileSystem, memory::MemoryFileSystem};
-use kintsu_parser::ctx::CompileCtx;
+pub use kintsu_parser::ctx::CompileCtx;
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},

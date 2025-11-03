@@ -20,6 +20,7 @@ kintsu-fs = { path = "../fs", features = ["fs-test"] }
 kintsu-parser = { path = "../parser" }
 kintsu-manifests = { path = "../manifests" }
 kintsu-testing = { path = "../testing" }
+kintsu-test-macros = { path = "../test-macros" }
 
 
 ctor = "0.6"

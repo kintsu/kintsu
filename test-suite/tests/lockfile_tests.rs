@@ -1,45 +1,40 @@
 use kintsu_fs::memory;
+use kintsu_test_macros::compiler_test;
 use kintsu_test_suite::*;
 
-/// Lockfile Test 1: Lockfile Generation from Scratch
-/// Purpose: Verify lockfile creation when none exists.
-#[tokio::test]
-async fn test_lockfile_01_generation_from_scratch() {
-    let fs = memory! {
-        "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
-        "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-        "pkg/schema.toml" => r#"[package]
-name = "pkg"
-version = "1.0.0"
+compiler_test! {
+    id: test_lockfile_generation_from_scratch,
+    name: "Lockfile Generation from Scratch",
+    purpose: "Verify lockfile creation when none exists",
+    expect_pass: true,
+    tags: vec![Tag::Lockfile],
+    root: "pkg",
+    memory: || {
+        memory! {
+                "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
+                "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
+                "pkg/schema.toml" => r#"[package]
+        name = "pkg"
+        version = "1.0.0"
 
-[dependencies]
-dep = { path = "../dep" }
-"#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nuse dep;\nstruct Wrapper { data: Data }",
-    };
+        [dependencies]
+        dep = { path = "../dep" }
+        "#,
+                "pkg/schema/lib.ks" => "namespace pkg;\nuse dep;\nstruct Wrapper { data: Data }",
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        // Lockfile should be created
+        harness.assert_lockfile_written();
+        harness.assert_lockfile_contains("dep");
+        harness.assert_lockfile_contains("1.0.0");
 
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "test_lockfile_01_generation_from_scratch",
-        "Lockfile Generation from Scratch",
-        "Verify lockfile creation when none exists",
-        true,
-        vec![Tag::Lockfile],
-    )
-    .with_root("pkg");
-
-    let _ = harness.compile_pass().await;
-
-    // Lockfile should be created
-    harness.assert_lockfile_written();
-    harness.assert_lockfile_contains("dep");
-    harness.assert_lockfile_contains("1.0.0");
-
-    let lockfile = harness.read_lockfile().unwrap();
-    assert!(
-        lockfile.contains("checksum"),
-        "Lockfile should contain checksum"
-    );
+        let lockfile = harness.read_lockfile().unwrap();
+        assert!(
+            lockfile.contains("checksum"),
+            "Lockfile should contain checksum"
+        );
+    }
 }
 
 #[tokio::test]
@@ -141,45 +136,42 @@ dep-b = { path = "../dep-b" }
     harness.assert_lockfile_contains("dep-b");
 }
 
-#[tokio::test]
-async fn test_lockfile_04_version_pruning() {
-    let fs = memory! {
-        "lib/schema.toml" => r#"[package]
+compiler_test! {
+    id: test_lockfile_04_version_pruning,
+    name: "Lockfile Pruning - Version Management",
+    purpose: "Test that version pruning removes lower compatible versions",
+    expect_pass: true,
+    tags: vec![Tag::Lockfile],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "lib/schema.toml" => r#"[package]
 name = "lib"
 version = "1.5.0"
 "#,
-        "lib/schema/lib.ks" => "namespace lib;\nstruct Item { id: u64 }",
-        "pkg/schema.toml" => r#"[package]
+            "lib/schema/lib.ks" => "namespace lib;\nstruct Item { id: u64 }",
+            "pkg/schema.toml" => r#"[package]
 name = "pkg"
 version = "1.0.0"
 
 [dependencies]
 lib = { path = "../lib", version = "^1.0" }
 "#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nuse lib;",
-    };
+            "pkg/schema/lib.ks" => "namespace pkg;\nuse lib;",
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_written();
+        let lockfile = harness.read_lockfile().unwrap();
 
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "test_lockfile_04_version_pruning",
-        "Lockfile Pruning - Version Management",
-        "Test that version pruning removes lower compatible versions",
-        true,
-        vec![Tag::Lockfile],
-    );
+        assert!(
+            lockfile.contains("1.5.0"),
+            "Lockfile should contain version 1.5.0"
+        );
 
-    let _ = harness.compile_pass().await;
-
-    harness.assert_lockfile_written();
-    let lockfile = harness.read_lockfile().unwrap();
-
-    assert!(
-        lockfile.contains("1.5.0"),
-        "Lockfile should contain version 1.5.0"
-    );
-
-    let lib_count = lockfile.matches("name = \"lib\"").count();
-    assert_eq!(lib_count, 1, "Should have exactly one lib entry");
+        let lib_count = lockfile.matches("name = \"lib\"").count();
+        assert_eq!(lib_count, 1, "Should have exactly one lib entry");
+    }
 }
 
 #[tokio::test]

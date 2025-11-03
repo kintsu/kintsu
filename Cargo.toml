@@ -12,6 +12,7 @@ members = [
     "test-suite",
     "env",
     "registry",
+    "test-macros",
 ]
 resolver = "3"
 

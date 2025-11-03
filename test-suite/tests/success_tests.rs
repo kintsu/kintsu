@@ -1,152 +1,156 @@
 use kintsu_fs::memory;
+use kintsu_test_macros::compiler_test;
 use kintsu_test_suite::*;
 
-#[tokio::test]
-async fn compile_minimal_reproducible() {
-    let fs = memory! {
-        "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/minimal_lib.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_minimal_reproducible",
-        "Minimal Reproducible Example",
-        "Verify basic compilation of a single-file project with no dependencies",
-        true,
-        vec![Tag::Smoke],
-    );
-
-    let ctx = harness.compile_pass().await;
-    assert_eq!(ctx.type_registry().all_types().len(), 1);
+compiler_test! {
+    id: compile_minimal_reproducible,
+    name: "Minimal Reproducible Example",
+    purpose: "Verify basic compilation of a single-file project with no dependencies",
+    expect_pass: true,
+    tags: vec![Tag::Smoke],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/minimal_lib.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        assert_eq!(ctx.type_registry().all_types().len(), 1);
+    }
 }
 
-#[tokio::test]
-async fn compile_namespace_by_file() {
-    let fs = memory! {
-        "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/use_bar.ks"),
-        "pkg/schema/bar.ks" => include_str!("../fragments/bar_enum.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_namespace_by_file",
-        "Public Namespace by File",
-        "Test importing a namespace defined in a sibling file",
-        true,
-        vec![Tag::Smoke, Tag::Namespace],
-    );
-
-    let ctx = harness.compile_pass().await;
-    assert_eq!(ctx.type_registry().all_types().len(), 1);
+compiler_test! {
+    id: compile_empty_package,
+    name: "Empty Package Compilation",
+    purpose: "Verify compilation of a package with no types defined",
+    expect_pass: true,
+    tags: vec![Tag::Smoke],
+    root: "empty_pkg",
+    memory: || {
+        memory! {
+            "empty_pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "empty_pkg/schema/lib.ks" => "namespace pkg;",
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        assert_eq!(ctx.type_registry().all_types().len(), 0);
+    }
 }
 
-#[tokio::test]
-async fn compile_namespace_by_directory() {
-    let fs = memory! {
-        "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/use_bar.ks"),
-        "pkg/schema/bar/test.ks" => include_str!("../fragments/bar_enum.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_namespace_by_directory",
-        "Public Namespace by Directory",
-        "Test importing a namespace defined via directory structure",
-        true,
-        vec![Tag::Smoke, Tag::Namespace],
-    );
-
-    let ctx = harness.compile_pass().await;
-    assert_eq!(ctx.type_registry().all_types().len(), 1);
+compiler_test! {
+    id: compile_namespace_by_file,
+    name: "Public Namespace by File",
+    purpose: "Test importing a namespace defined in a sibling file",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Namespace],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/use_bar.ks"),
+            "pkg/schema/bar.ks" => include_str!("../fragments/bar_enum.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        assert_eq!(ctx.type_registry().all_types().len(), 1);
+    }
 }
 
-#[tokio::test]
-async fn compile_external_path_dependency() {
-    let fs = memory! {
-        "abc-corp/schema.toml" => include_str!("../fragments/abc_corp_manifest.toml"),
-        "abc-corp/schema/lib.ks" => include_str!("../fragments/abc_corp_lib.ks"),
-        "pkg/schema.toml" => include_str!("../fragments/pkg_with_dep_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/use_foo.ks"),
-        "pkg/schema/foo/test.ks" => include_str!("../fragments/bar_with_external_type.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_external_path_dependency",
-        "Smoke Package with External Path Dependency",
-        "Test compilation with a path-based external dependency",
-        true,
-        vec![Tag::Smoke, Tag::Dependencies],
-    );
-
-    let _ = harness.compile_pass().await;
-    harness.assert_lockfile_contains("abc-corp");
+compiler_test! {
+    id: compile_namespace_by_directory,
+    name: "Public Namespace by Directory",
+    purpose: "Test importing a namespace defined via directory structure",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Namespace],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/use_bar.ks"),
+            "pkg/schema/bar/test.ks" => include_str!("../fragments/bar_enum.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        assert_eq!(ctx.type_registry().all_types().len(), 1);
+    }
 }
 
-#[tokio::test]
-async fn compile_transitive_dependencies() {
-    let fs = memory! {
-        "base/schema.toml" => include_str!("../fragments/base_manifest.toml"),
-        "base/schema/lib.ks" => include_str!("../fragments/base_lib.ks"),
-        "middle/schema.toml" => include_str!("../fragments/middle_manifest.toml"),
-        "middle/schema/lib.ks" => include_str!("../fragments/middle_lib.ks"),
-        "top/schema.toml" => include_str!("../fragments/top_manifest.toml"),
-        "top/schema/lib.ks" => include_str!("../fragments/top_lib.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_transitive_dependencies",
-        "Nested Path Dependencies (Transitive)",
-        "Test transitive dependency resolution",
-        true,
-        vec![Tag::Smoke, Tag::Dependencies],
-    );
-    harness.set_root("top");
-
-    let _ = harness.compile_pass().await;
-    harness.assert_lockfile_contains("middle");
-    harness.assert_lockfile_contains("base");
+compiler_test! {
+    id: compile_external_path_dependency,
+    name: "Smoke Package with External Path Dependency",
+    purpose: "Test compilation with a path-based external dependency",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Dependencies],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "abc-corp/schema.toml" => include_str!("../fragments/abc_corp_manifest.toml"),
+            "abc-corp/schema/lib.ks" => include_str!("../fragments/abc_corp_lib.ks"),
+            "pkg/schema.toml" => include_str!("../fragments/pkg_with_dep_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/use_foo.ks"),
+            "pkg/schema/foo/test.ks" => include_str!("../fragments/bar_with_external_type.ks"),
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_contains("abc-corp");
+    }
 }
 
-#[tokio::test]
-async fn compile_diamond_dependency() {
-    let fs = memory! {
-        "common/schema.toml" => include_str!("../fragments/common_manifest.toml"),
-        "common/schema/lib.ks" => include_str!("../fragments/common_lib.ks"),
-        "lib-a/schema.toml" => include_str!("../fragments/lib_a_manifest.toml"),
-        "lib-a/schema/lib.ks" => include_str!("../fragments/lib_a_lib.ks"),
-        "lib-b/schema.toml" => include_str!("../fragments/lib_b_manifest.toml"),
-        "lib-b/schema/lib.ks" => include_str!("../fragments/lib_b_lib.ks"),
-        "app/schema.toml" => include_str!("../fragments/app_manifest.toml"),
-        "app/schema/lib.ks" => include_str!("../fragments/app_lib.ks"),
-    };
+compiler_test! {
+    id: compile_transitive_dependencies,
+    name: "Nested Path Dependencies (Transitive)",
+    purpose: "Test transitive dependency resolution",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Dependencies],
+    root: "top",
+    memory: || {
+        memory! {
+            "base/schema.toml" => include_str!("../fragments/base_manifest.toml"),
+            "base/schema/lib.ks" => include_str!("../fragments/base_lib.ks"),
+            "middle/schema.toml" => include_str!("../fragments/middle_manifest.toml"),
+            "middle/schema/lib.ks" => include_str!("../fragments/middle_lib.ks"),
+            "top/schema.toml" => include_str!("../fragments/top_manifest.toml"),
+            "top/schema/lib.ks" => include_str!("../fragments/top_lib.ks"),
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_contains("middle");
+        harness.assert_lockfile_contains("base");
+    }
+}
 
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_diamond_dependency",
-        "Diamond Dependency Resolution",
-        "Test multiple dependencies with shared transitive dependency",
-        true,
-        vec![Tag::Smoke, Tag::Dependencies],
-    );
-    harness.set_root("app");
+compiler_test! {
+    id: compile_diamond_dependency,
+    name: "Diamond Dependency Resolution",
+    purpose: "Test multiple dependencies with shared transitive dependency",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Dependencies],
+    root: "app",
+    memory: || {
 
-    let _ = harness.compile_pass().await;
-
-    harness.assert_lockfile_contains("common");
-    harness.assert_lockfile_contains("lib-a");
-    harness.assert_lockfile_contains("lib-b");
-
-    let lockfile = harness.read_lockfile().unwrap();
-    let common_count = lockfile.matches("name = \"common\"").count();
-    assert_eq!(
-        common_count, 1,
-        "Common should appear exactly once in lockfile"
-    );
+        memory! {
+            "common/schema.toml" => include_str!("../fragments/common_manifest.toml"),
+            "common/schema/lib.ks" => include_str!("../fragments/common_lib.ks"),
+            "lib-a/schema.toml" => include_str!("../fragments/lib_a_manifest.toml"),
+            "lib-a/schema/lib.ks" => include_str!("../fragments/lib_a_lib.ks"),
+            "lib-b/schema.toml" => include_str!("../fragments/lib_b_manifest.toml"),
+            "lib-b/schema/lib.ks" => include_str!("../fragments/lib_b_lib.ks"),
+            "app/schema.toml" => include_str!("../fragments/app_manifest.toml"),
+            "app/schema/lib.ks" => include_str!("../fragments/app_lib.ks"),
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_contains("common");
+        harness.assert_lockfile_contains("lib-a");
+        harness.assert_lockfile_contains("lib-b");
+        let lockfile = harness.read_lockfile().unwrap();
+        let common_count = lockfile.matches("name = \"common\"").count();
+        assert_eq!(
+            common_count, 1,
+            "Common should appear exactly once in lockfile"
+        );
+    }
 }
 
 #[tokio::test]
@@ -193,74 +197,68 @@ dep = { path = "../dep" }
     );
 }
 
-#[tokio::test]
-async fn compile_version_pruning() {
-    let fs = memory! {
-        "lib/schema.toml" => r#"[package]
+compiler_test! {
+    id: compile_version_pruning,
+    name: "Version Compatibility - Multiple Compatible Versions",
+    purpose: "Test version pruning keeps highest compatible version",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::VersionResolution],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "lib/schema.toml" => r#"[package]
 name = "lib"
 version = "1.2.3"
 "#,
-        "lib/schema/lib.ks" => "namespace lib;\nnamespace types {\n\tstruct Item { id: i32 };\n};",
-        "pkg/schema.toml" => r#"[package]
+            "lib/schema/lib.ks" => "namespace lib;\nnamespace types {\n\tstruct Item { id: i32 };\n};",
+            "pkg/schema.toml" => r#"[package]
 name = "pkg"
 version = "1.0.0"
 
 [dependencies]
 lib = { path = "../lib", version = "^1.0" }
 "#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nnamespace foo {\nuse lib;\ntype Foo = lib::types::Item;\n};",
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_version_pruning",
-        "Version Compatibility - Multiple Compatible Versions",
-        "Test version pruning keeps highest compatible version",
-        true,
-        vec![Tag::Smoke, Tag::VersionResolution],
-    );
-
-    let _ = harness.compile_pass().await;
-    harness.assert_lockfile_written();
-    harness.assert_lockfile_contains("lib");
+            "pkg/schema/lib.ks" => "namespace pkg;\nnamespace foo {\nuse lib;\ntype Foo = lib::types::Item;\n};",
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_written();
+        harness.assert_lockfile_contains("lib");
+    }
 }
 
-#[tokio::test]
-async fn compile_string_enum() {
-    let fs = memory! {
-        "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/string_enum.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_string_enum",
-        "Enum with String Values",
-        "Test string-based enum compilation",
-        true,
-        vec![Tag::Smoke, Tag::Soundness],
-    );
-
-    let _ = harness.compile_pass().await;
-    harness.assert_lockfile_written();
+compiler_test! {
+    id: compile_string_enum,
+    name: "Enum with String Values",
+    purpose: "Test string-based enum compilation",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Soundness],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/string_enum.ks"),
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_written();
+    }
 }
 
-#[tokio::test]
-async fn compile_oneof_mixed_types() {
-    let fs = memory! {
-        "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => include_str!("../fragments/oneof_mixed.ks"),
-    };
-
-    let mut harness = TestHarness::with_metadata(
-        fs,
-        "compile_oneof_mixed_types",
-        "OneOf with Multiple Types",
-        "Test union type compilation with mixed types",
-        true,
-        vec![Tag::Smoke, Tag::Soundness],
-    );
-
-    let _ = harness.compile_pass().await;
-    harness.assert_lockfile_written();
+compiler_test! {
+    id: compile_oneof_mixed_types,
+    name: "OneOf with Multiple Types",
+    purpose: "Test union type compilation with mixed types",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Soundness],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/oneof_mixed.ks"),
+        }
+    },
+    assertions: |harness, _: CompileCtx| {
+        harness.assert_lockfile_written();
+    }
 }
