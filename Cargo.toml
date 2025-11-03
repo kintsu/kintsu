@@ -1,0 +1,76 @@
+[workspace]
+members = [
+    "sdk",
+    "derives",
+    "core",
+    "cli",
+    "examples/*",
+    "testing",
+    "parser",
+    "manifests",
+    "fs",
+    "test-suite",
+    "env",
+    "registry",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license-file = "../LICENSE.md"
+homepage = "https://github.com/joshua-auchincloss/kintsu"
+authors = ["Joshua Auchincloss <joshua.auchincloss@proton.me>"]
+
+
+[workspace.dependencies]
+bon = "3"
+cfg-if = "1"
+chrono = "0.4"
+config = "0.15"
+convert_case = "0.8"
+darling = "0.21"
+divan = { version = "4", package = "codspeed-divan-compat" }
+dyn-inventory = "0.2"
+glob = "0.3"
+insta = "1.43.1"
+inventory = "0.3"
+miette = "7"
+paste = "1"
+pest = "2.8"
+pest_derive = "2.8"
+proc-macro2 = "1"
+quote = "1"
+rand = "0.8"
+rayon = "1"
+serde = "1"
+serde_json = "1"
+serde_repr = "0.1"
+serde_yaml = "0.9"
+syn = "2"
+tempfile = "3"
+test-case = "3"
+thiserror = "2"
+time = "0.3"
+tokio = "1"
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+validator = "0.20"
+clap = "4.5"
+clap-markdown = "0.1.5"
+human-panic = "2"
+tracing-indicatif = "0.3"
+diesel = "2"
+diesel-async = "0.7"
+prettyprint = "*"
+regex = "*"
+semver = "1"
+async-channel = "2.3"
+console = "0.16"
+futures-util = "*"
+indicatif = "0.18"
+logos = "*"
+num_cpus = "1.16"
+pathfinding = "4"
+crossbeam = "0.8"

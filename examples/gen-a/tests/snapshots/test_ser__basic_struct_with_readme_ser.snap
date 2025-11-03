@@ -1,0 +1,5 @@
+---
+source: examples/gen-a/tests/test_ser.rs
+expression: de
+---
+a: 42

@@ -1,0 +1,31 @@
+type = "struct@v1"
+name = "CommentWithTestChrono"
+namespace = "abc.corp.exts"
+version = 1
+
+[fields.comment]
+name = "comment"
+namespace = "abc.corp.exts"
+type = "string"
+optional = false
+
+[fields.created_at]
+name = "created_at"
+namespace = "abc.corp.exts"
+type = "date_time"
+optional = false
+
+[fields.deleted_at]
+name = "deleted_at"
+namespace = "abc.corp.exts"
+optional = false
+
+[fields.deleted_at.type.compound_type]
+kind = "option"
+type = "date_time"
+
+[fields.id]
+name = "id"
+namespace = "abc.corp.exts"
+type = "i64"
+optional = false

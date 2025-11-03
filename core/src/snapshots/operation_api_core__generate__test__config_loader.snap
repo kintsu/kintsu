@@ -1,0 +1,388 @@
+---
+source: core/src/generate.rs
+expression: ctx.namespaces
+---
+abc.corp.exts:
+  name: abc.corp.exts
+  version: 1
+  fields: {}
+  ops: {}
+  defs:
+    CommentWithTestChrono:
+      name: CommentWithTestChrono
+      namespace: abc.corp.exts
+      description: ~
+      version: 1
+      fields:
+        comment:
+          name: comment
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: string
+          optional: false
+        created_at:
+          name: created_at
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: date_time
+          optional: false
+        deleted_at:
+          name: deleted_at
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: option
+              type: date_time
+          optional: false
+        id:
+          name: id
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: i64
+          optional: false
+    CommentWithTestTime:
+      name: CommentWithTestTime
+      namespace: abc.corp.exts
+      description: ~
+      version: 1
+      fields:
+        comment:
+          name: comment
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: string
+          optional: false
+        created_at:
+          name: created_at
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: date_time
+          optional: false
+        deleted_at:
+          name: deleted_at
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: option
+              type: date_time
+          optional: false
+        id:
+          name: id
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type: i64
+          optional: false
+    StructWithOneOf:
+      name: StructWithOneOf
+      namespace: abc.corp.exts
+      description: ~
+      version: 1
+      fields:
+        my_flag:
+          name: my_flag
+          namespace: abc.corp.exts
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: one_of
+              ref: MaybeFlagType
+          optional: false
+  enums: {}
+  one_ofs:
+    MaybeFlagType:
+      name: MaybeFlagType
+      namespace: abc.corp.exts
+      description: ~
+      version: 1
+      variants:
+        BoolFlag:
+          name: BoolFlag
+          description: ~
+          ty: never
+        Int:
+          name: Int
+          description: some doc
+          ty: i32
+        Str:
+          name: Str
+          description: ~
+          ty: string
+  errors: {}
+abc.corp.namespace:
+  name: abc.corp.namespace
+  version: 1
+  fields: {}
+  ops: {}
+  defs:
+    some_struct:
+      name: some_struct
+      namespace: abc.corp.namespace
+      description: ~
+      version: 2
+      fields:
+        a:
+          name: ~
+          namespace: ~
+          description: ~
+          version: ~
+          type: i32
+          optional: false
+        b:
+          name: ~
+          namespace: ~
+          description: ~
+          version: ~
+          type: f32
+          optional: true
+        c:
+          name: ~
+          namespace: ~
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: sized_array
+              size: 4
+              type:
+                compound_type:
+                  kind: sized_array
+                  size: 4
+                  type: f32
+          optional: false
+        d:
+          name: ~
+          namespace: ~
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: sized_array
+              size: 4
+              type:
+                compound_type:
+                  kind: sized_array
+                  size: 4
+                  type: f32
+          optional: false
+  enums: {}
+  one_ofs: {}
+  errors: {}
+abc.corp.test:
+  name: abc.corp.test
+  version: 1
+  fields: {}
+  ops: {}
+  defs:
+    BasicStruct:
+      name: BasicStruct
+      namespace: abc.corp.test
+      description: Some struct
+      version: 1
+      fields:
+        a:
+          name: a
+          namespace: abc.corp.test
+          description: field a
+          version: ~
+          type: i32
+          optional: false
+        b:
+          name: b
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: option
+              type: i32
+          optional: false
+        c:
+          name: c
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: array
+              type: f32
+          optional: false
+        d:
+          name: d
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: sized_array
+              size: 4
+              type:
+                compound_type:
+                  kind: sized_array
+                  size: 4
+                  type: f32
+          optional: false
+    BasicStructWithReadme:
+      name: BasicStructWithReadme
+      namespace: abc.corp.test
+      description: "# test\nthis is a struct description\n"
+      version: 1
+      fields:
+        a:
+          name: a
+          namespace: abc.corp.test
+          description: field a
+          version: ~
+          type: i32
+          optional: false
+    KnownError:
+      name: KnownError
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      fields:
+        code:
+          name: code
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          type:
+            compound_type:
+              kind: enum
+              ref: ErrorCode
+          optional: false
+        desc:
+          name: desc
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          type: string
+          optional: false
+    OperationErrorUnknown:
+      name: OperationErrorUnknown
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      fields:
+        desc:
+          name: desc
+          namespace: abc.corp.test
+          description: some nested doc
+          version: ~
+          type: string
+          optional: false
+    SomeStructWithEnum:
+      name: SomeStructWithEnum
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      fields:
+        enum_value:
+          name: enum_value
+          namespace: abc.corp.test
+          description: field doc
+          version: ~
+          type:
+            compound_type:
+              kind: enum
+              ref: SomeEnum
+          optional: false
+  enums:
+    BasicIntEnum:
+      name: BasicIntEnum
+      namespace: abc.corp.test
+      description: some int based enum
+      version: 1
+      variants:
+        A:
+          name: A
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          value: 0
+        B:
+          name: B
+          namespace: abc.corp.test
+          description: B is 99
+          version: ~
+          value: 99
+    BasicStrEnum:
+      name: BasicStrEnum
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      variants:
+        A:
+          name: A
+          namespace: abc.corp.test
+          description: some doc
+          version: ~
+          value: a
+        B:
+          name: B
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          value: b
+    ErrorCode:
+      name: ErrorCode
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      variants:
+        Baz:
+          name: Baz
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          value: 2
+        Foo:
+          name: Foo
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          value: 1
+    SomeEnum:
+      name: SomeEnum
+      namespace: abc.corp.test
+      description: some doc
+      version: 1
+      variants:
+        A:
+          name: A
+          namespace: abc.corp.test
+          description: ~
+          version: ~
+          value: 0
+  one_ofs: {}
+  errors:
+    OperationError:
+      name: OperationError
+      namespace: abc.corp.test
+      description: ~
+      version: 1
+      variants:
+        Known:
+          name: Known
+          description: ~
+          ty:
+            compound_type:
+              kind: struct
+              ref: KnownError
+        Unknown:
+          name: Unknown
+          description: ~
+          ty:
+            compound_type:
+              kind: struct
+              ref: OperationErrorUnknown

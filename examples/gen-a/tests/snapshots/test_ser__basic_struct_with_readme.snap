@@ -1,0 +1,17 @@
+---
+source: examples/gen-a/tests/test_ser.rs
+expression: def
+---
+type: struct@v1
+name: BasicStructWithReadme
+namespace: abc.corp.test
+description: "# test\nthis is a struct description\n"
+version: 1
+fields:
+  a:
+    name: a
+    namespace: abc.corp.test
+    description: field a
+    version: ~
+    type: i32
+    optional: false

@@ -1,0 +1,7 @@
+Error:   × syntax error
+   ╭─[samples/errors/invalid.ks:3:1]
+ 2 │
+ 3 │ 123
+   · ┬
+   · ╰── here
+   ╰────

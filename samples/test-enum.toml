@@ -1,0 +1,16 @@
+type = "enum@v1"
+name = "BasicIntEnum"
+namespace = "abc.corp.test"
+description = "some int based enum"
+version = 1
+
+[variants.A]
+name = "A"
+namespace = "abc.corp.test"
+value = 0
+
+[variants.B]
+name = "B"
+namespace = "abc.corp.test"
+description = "B is 99"
+value = 99

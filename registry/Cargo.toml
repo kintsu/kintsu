@@ -1,0 +1,17 @@
+[package]
+name = "kintsu-registry"
+edition = "2024"
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]
+kintsu-manifests = { path = "../manifests" }
+kintsu-fs = { path = "../fs" }
+kintsu-parser = { path = "../parser" }
+
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+actix-web = "4"

@@ -1,0 +1,18 @@
+type = "error@v1"
+name = "OperationError"
+namespace = "abc.corp.test"
+version = 1
+
+[variants.Known]
+name = "Known"
+
+[variants.Known.ty.compound_type]
+kind = "struct"
+ref = "KnownError"
+
+[variants.Unknown]
+name = "Unknown"
+
+[variants.Unknown.ty.compound_type]
+kind = "struct"
+ref = "OperationErrorUnknown"

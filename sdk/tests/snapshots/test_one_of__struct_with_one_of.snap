@@ -1,0 +1,20 @@
+---
+source: sdk/tests/test_one_of.rs
+expression: ser
+---
+type: struct@v1
+name: StructWithOneOf
+namespace: abc.corp.exts
+description: ~
+version: 1
+fields:
+  my_flag:
+    name: my_flag
+    namespace: abc.corp.exts
+    description: ~
+    version: ~
+    type:
+      compound_type:
+        kind: one_of
+        ref: MaybeFlagType
+    optional: false

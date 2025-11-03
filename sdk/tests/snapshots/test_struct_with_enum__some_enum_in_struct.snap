@@ -1,0 +1,16 @@
+---
+source: sdk/tests/test_struct_with_enum.rs
+expression: ser
+---
+type: enum@v1
+name: SomeEnum
+namespace: abc.corp.test
+description: some doc
+version: 1
+variants:
+  A:
+    name: A
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    value: 0

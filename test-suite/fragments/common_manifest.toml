@@ -1,0 +1,4 @@
+[package]
+name = "common"
+version = "1.0.0"
+description = "Common shared package"

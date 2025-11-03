@@ -1,0 +1,19 @@
+type = "struct@v1"
+name = "KnownError"
+namespace = "abc.corp.test"
+version = 1
+
+[fields.code]
+name = "code"
+namespace = "abc.corp.test"
+optional = false
+
+[fields.code.type.compound_type]
+kind = "enum"
+ref = "ErrorCode"
+
+[fields.desc]
+name = "desc"
+namespace = "abc.corp.test"
+type = "string"
+optional = false

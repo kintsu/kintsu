@@ -1,0 +1,19 @@
+[env]
+LOG_LEVEL = "trace"
+
+[tasks]
+gen-a = [
+    "cargo run --bin kintsu -- gen -d examples/gen-a",
+    "cargo +nightly fmt",
+]
+config-sync = "sed 's/samples/..\\/samples/g' examples/gen-a/op-gen.toml > samples/config-a/op-gen.toml"
+clean-snap = "rm -rf ./**/tests/snapshots/*.snap"
+
+[tasks.compile-tape]
+run = ["vhs ../kintsu-docs/demos/compile.vhs.tape"]
+env.LOG_LEVEL = "error"
+
+
+[tools]
+node = "latest"
+prek = "latest"

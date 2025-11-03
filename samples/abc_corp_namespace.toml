@@ -1,0 +1,50 @@
+type = "namespace@v1"
+name = "abc.corp.namespace"
+version = 1
+
+[fields]
+
+[ops]
+
+[defs.some_struct]
+name = "some_struct"
+namespace = "abc.corp.namespace"
+version = 2
+
+[defs.some_struct.fields.a]
+type = "i32"
+optional = false
+
+[defs.some_struct.fields.b]
+type = "f32"
+optional = true
+
+[defs.some_struct.fields.c]
+optional = false
+
+[defs.some_struct.fields.c.type.compound_type]
+kind = "sized_array"
+size = 4
+
+[defs.some_struct.fields.c.type.compound_type.type.compound_type]
+kind = "sized_array"
+size = 4
+type = "f32"
+
+[defs.some_struct.fields.d]
+optional = false
+
+[defs.some_struct.fields.d.type.compound_type]
+kind = "sized_array"
+size = 4
+
+[defs.some_struct.fields.d.type.compound_type.type.compound_type]
+kind = "sized_array"
+size = 4
+type = "f32"
+
+[enums]
+
+[one_ofs]
+
+[errors]

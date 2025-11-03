@@ -1,0 +1,44 @@
+type = "struct@v1"
+name = "BasicStruct"
+namespace = "abc.corp.test"
+description = "Some struct"
+version = 1
+
+[fields.a]
+name = "a"
+namespace = "abc.corp.test"
+description = "field a"
+type = "i32"
+optional = false
+
+[fields.b]
+name = "b"
+namespace = "abc.corp.test"
+optional = false
+
+[fields.b.type.compound_type]
+kind = "option"
+type = "i32"
+
+[fields.c]
+name = "c"
+namespace = "abc.corp.test"
+optional = false
+
+[fields.c.type.compound_type]
+kind = "array"
+type = "f32"
+
+[fields.d]
+name = "d"
+namespace = "abc.corp.test"
+optional = false
+
+[fields.d.type.compound_type]
+kind = "sized_array"
+size = 4
+
+[fields.d.type.compound_type.type.compound_type]
+kind = "sized_array"
+size = 4
+type = "f32"

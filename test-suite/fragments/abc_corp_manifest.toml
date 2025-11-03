@@ -1,0 +1,4 @@
+[package]
+name = "abc-corp"
+version = "1.0.0"
+description = "ABC Corp namespace package"

@@ -1,0 +1,7 @@
+---
+source: examples/gen-a/tests/test_ser.rs
+expression: de
+---
+type: known
+code: 1
+desc: some desc

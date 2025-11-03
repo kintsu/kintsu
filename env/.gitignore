@@ -1,0 +1,3 @@
+*/.diesel_lock
+*.sqlite
+*.env

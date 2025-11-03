@@ -1,0 +1,30 @@
+type = "struct@v1"
+
+name = "some_struct"
+
+namespace = "abc.corp.namespace"
+
+version = 2
+
+[fields.a]
+type = "i32"
+
+[fields.b]
+type = "f32"
+optional = true
+
+[fields.c]
+optional = false
+
+[fields.c.type.compound_type]
+size = 4
+kind = "sized_array"
+
+[fields.c.type.compound_type.type.compound_type]
+kind = "sized_array"
+size = 4
+type = "f32"
+
+
+[fields.d]
+ref = "c"

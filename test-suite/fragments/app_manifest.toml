@@ -1,0 +1,8 @@
+[package]
+name = "app"
+version = "1.0.0"
+description = "Application package"
+
+[dependencies]
+lib-a = { path = "../lib-a" }
+lib-b = { path = "../lib-b" }

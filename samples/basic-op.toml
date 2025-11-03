@@ -1,0 +1,21 @@
+type = "operation@v1"
+
+name = "add"
+
+namespace = "abc.corp.namespace"
+
+description = "add a sequence of numbers together"
+
+version = 1
+
+infallible = true
+
+[inputs.values]
+
+[inputs.values.type.compound_type]
+kind = "array"
+type = "u32"
+
+
+[outputs.value]
+type = "u32"

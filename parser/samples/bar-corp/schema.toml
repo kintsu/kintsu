@@ -1,0 +1,9 @@
+[package]
+name = "bar-corp"
+description = "abc foo package"
+version = "0.1.0"
+authors = []
+homepage = "https://github.com/joshua-auchincloss/kintsu"
+
+
+[dependencies]

@@ -1,0 +1,17 @@
+type = "one_of@v1"
+name = "MaybeFlagType"
+namespace = "abc.corp.exts"
+version = 1
+
+[variants.BoolFlag]
+name = "BoolFlag"
+ty = "never"
+
+[variants.Int]
+name = "Int"
+description = "some doc"
+ty = "i32"
+
+[variants.Str]
+name = "Str"
+ty = "string"

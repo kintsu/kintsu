@@ -1,0 +1,47 @@
+[package]
+name = "kintsu-parser"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+
+[[bin]]
+name = "emit"
+
+[features]
+default = []
+emit = ["serde_json"]
+
+[dependencies]
+kintsu-fs = { path = "../fs" }
+kintsu-manifests = { path = "../manifests" }
+bon = { workspace = true }
+console = { workspace = true }
+convert_case = { workspace = true }
+dyn-inventory = { workspace = true }
+futures-util = { workspace = true }
+glob = { workspace = true }
+indicatif = { workspace = true }
+inventory = { workspace = true }
+logos = { workspace = true }
+miette = { workspace = true, features = ["fancy"] }
+num_cpus = { workspace = true }
+paste = { workspace = true }
+pathfinding = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync", "time", "rt", "macros"] }
+tracing = { workspace = true }
+tracing-indicatif = { workspace = true }
+validator = { workspace = true, features = ["derive"] }
+crossbeam = { workspace = true }
+
+[dev-dependencies]
+kintsu-testing = { path = "../testing" }
+serde_json = { workspace = true }
+test-case = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

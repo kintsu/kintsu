@@ -1,0 +1,10 @@
+type = "enum@v1"
+name = "SomeEnum"
+namespace = "abc.corp.test"
+description = "some doc"
+version = 1
+
+[variants.A]
+name = "A"
+namespace = "abc.corp.test"
+value = 0

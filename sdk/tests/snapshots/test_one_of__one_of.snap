@@ -1,0 +1,22 @@
+---
+source: sdk/tests/test_one_of.rs
+expression: ser
+---
+type: one_of@v1
+name: MaybeFlagType
+namespace: abc.corp.exts
+description: ~
+version: 1
+variants:
+  BoolFlag:
+    name: BoolFlag
+    description: ~
+    ty: never
+  Int:
+    name: Int
+    description: some doc
+    ty: i32
+  Str:
+    name: Str
+    description: ~
+    ty: string

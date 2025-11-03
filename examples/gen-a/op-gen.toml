@@ -1,0 +1,30 @@
+languages = ["rust"]
+targets = ["client", "server", "types"]
+
+[sources]
+include = [
+    "samples/basic-op.toml",
+    "samples/basic-struct.toml",
+    "samples/test-enum.toml",
+    "samples/test-str-enum.toml",
+    "samples/test-enum-in-struct.toml",
+    "samples/test-one-of.toml",
+    "samples/test-operation-error.toml",
+    "samples/test-error-code.toml",
+    "samples/test-struct*.toml",
+]
+exclude = ["*basic-op*"]
+
+
+[[sources.remote]]
+url = "http://localhost:9009/dynamic.toml"
+
+[rust.vis]
+default = "public"
+
+[rust.vis.overrides."abc.corp.test"]
+BasicStruct = "crate"
+
+
+[rust]
+output-dir = "examples/gen-a/src/operations"

@@ -1,0 +1,33 @@
+[package]
+name = "kintsu-cli"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[features]
+emit = ["clap-markdown"]
+
+[[bin]]
+name = "kintsu"
+
+[[bin]]
+name = "emit"
+
+[dependencies]
+kintsu-core = { path = "../core", features = ["generate", "chrono", "time"] }
+kintsu-fs = { path = "../fs" }
+kintsu-manifests = { path = "../manifests" }
+kintsu-parser = { path = "../parser" }
+clap = {  features = ["derive", "env"], workspace = true}
+clap-markdown = {  optional = true, workspace = true}
+human-panic = {  features = [], workspace = true}
+tokio = {  features = ["full"], workspace = true}
+tracing = { workspace = true, features = [] }
+tracing-indicatif = {workspace = true}
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[dev-dependencies]
+kintsu-testing = { path = "../testing" }
+

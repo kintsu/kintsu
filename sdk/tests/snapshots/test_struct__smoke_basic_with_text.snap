@@ -1,0 +1,52 @@
+---
+source: sdk/tests/test_struct.rs
+expression: ser
+---
+type: struct@v1
+name: BasicStruct
+namespace: abc.corp.test
+description: Some struct
+version: 1
+fields:
+  a:
+    name: a
+    namespace: abc.corp.test
+    description: field a
+    version: ~
+    type: i32
+    optional: false
+  b:
+    name: b
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    type:
+      compound_type:
+        kind: option
+        type: i32
+    optional: false
+  c:
+    name: c
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    type:
+      compound_type:
+        kind: array
+        type: f32
+    optional: false
+  d:
+    name: d
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    type:
+      compound_type:
+        kind: sized_array
+        size: 4
+        type:
+          compound_type:
+            kind: sized_array
+            size: 4
+            type: f32
+    optional: false

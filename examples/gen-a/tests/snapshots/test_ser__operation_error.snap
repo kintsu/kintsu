@@ -1,0 +1,24 @@
+---
+source: examples/gen-a/tests/test_ser.rs
+expression: def
+---
+type: error@v1
+name: OperationError
+namespace: abc.corp.test
+description: ~
+version: 1
+variants:
+  Known:
+    name: Known
+    description: ~
+    ty:
+      compound_type:
+        kind: struct
+        ref: KnownError
+  Unknown:
+    name: Unknown
+    description: ~
+    ty:
+      compound_type:
+        kind: struct
+        ref: OperationErrorUnknown

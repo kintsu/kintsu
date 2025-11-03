@@ -1,0 +1,7 @@
+[package]
+name = "top"
+version = "1.0.0"
+description = "Top-level package"
+
+[dependencies]
+middle = { path = "../middle" }

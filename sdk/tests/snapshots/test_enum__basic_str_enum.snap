@@ -1,0 +1,22 @@
+---
+source: sdk/tests/test_enum.rs
+expression: ser
+---
+type: enum@v1
+name: BasicStrEnum
+namespace: abc.corp.test
+description: ~
+version: 1
+variants:
+  A:
+    name: A
+    namespace: abc.corp.test
+    description: some doc
+    version: ~
+    value: a
+  B:
+    name: B
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    value: b

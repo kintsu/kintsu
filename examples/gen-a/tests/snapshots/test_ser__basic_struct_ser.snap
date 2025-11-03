@@ -1,0 +1,27 @@
+---
+source: examples/gen-a/tests/test_ser.rs
+expression: de
+---
+a: 42
+b: 12
+c:
+  - 0
+  - 0
+  - 0
+d:
+  - - 1
+    - 1
+    - 1
+    - 1
+  - - 1
+    - 1
+    - 1
+    - 1
+  - - 1
+    - 1
+    - 1
+    - 1
+  - - 1
+    - 1
+    - 1
+    - 1

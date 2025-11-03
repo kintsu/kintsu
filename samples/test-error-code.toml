@@ -1,0 +1,14 @@
+type = "enum@v1"
+name = "ErrorCode"
+namespace = "abc.corp.test"
+version = 1
+
+[variants.Baz]
+name = "Baz"
+namespace = "abc.corp.test"
+value = 2
+
+[variants.Foo]
+name = "Foo"
+namespace = "abc.corp.test"
+value = 1

@@ -1,0 +1,22 @@
+---
+source: sdk/tests/test_enum.rs
+expression: ser
+---
+type: enum@v1
+name: BasicIntEnum
+namespace: abc.corp.test
+description: some int based enum
+version: 1
+variants:
+  A:
+    name: A
+    namespace: abc.corp.test
+    description: ~
+    version: ~
+    value: 0
+  B:
+    name: B
+    namespace: abc.corp.test
+    description: B is 99
+    version: ~
+    value: 99
