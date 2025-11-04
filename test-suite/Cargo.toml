@@ -17,19 +17,18 @@ harness = false
 
 [dependencies]
 kintsu-fs = { path = "../fs", features = ["fs-test"] }
-kintsu-parser = { path = "../parser" }
 kintsu-manifests = { path = "../manifests" }
-kintsu-testing = { path = "../testing" }
+kintsu-parser = { path = "../parser" }
 kintsu-test-macros = { path = "../test-macros" }
-
-
-ctor = "0.6"
-serde-jsonlines = "0.7"
-serde_json.workspace = true
-paste.workspace = true
+kintsu-testing = { path = "../testing" }
 bon = { workspace = true }
-serde = { workspace = true }
-tracing = { workspace = true }
+ctor = {workspace = true}
 divan = { workspace = true }
+paste = {workspace = true}
 rand = { workspace = true }
+serde = { workspace = true }
+serde-jsonlines = {workspace = true}
+serde_json = {workspace = true}
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+

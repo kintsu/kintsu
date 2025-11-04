@@ -120,6 +120,9 @@ pub struct Version {
     minor: Option<usize>,
     patch: Option<usize>,
     ext: Variant,
+
+    #[cfg(feature = "diesel")]
+    qualified: String,
 }
 
 impl Version {
@@ -149,17 +152,22 @@ impl Version {
 
         maj && min && patch && self.ext.is_compatible(&other.ext)
     }
+
+    pub fn is_stable(&self) -> bool {
+        matches!(self.ext, Variant::Stable)
+    }
 }
 
 impl Version {
-    pub fn parse(s: &str) -> Result<Self, VersionError> {
-        if s.is_empty() {
+    pub fn parse(target: &str) -> Result<Self, VersionError> {
+        if target.is_empty() {
             return Err(VersionError::Expected {
                 expect: "major version",
-                given: s.into(),
+                given: target.into(),
             });
         }
-        let mut s = s.split(".");
+
+        let mut s = target.split(".");
 
         let maj = s.next().unwrap().parse()?;
 
@@ -206,6 +214,8 @@ impl Version {
             minor,
             patch,
             ext,
+            #[cfg(feature = "diesel")]
+            qualified: target.to_string(),
         })
     }
 
@@ -224,6 +234,14 @@ impl Version {
     }
 }
 
+impl TryInto<Version> for String {
+    type Error = VersionError;
+
+    fn try_into(self) -> Result<Version, Self::Error> {
+        Version::parse(&self)
+    }
+}
+
 impl Display for Version {
     fn fmt(
         &self,
@@ -233,6 +251,29 @@ impl Display for Version {
             (Some(minor), Some(patch)) => write!(f, "{}.{}.{}{}", self.maj, minor, patch, self.ext),
             (Some(minor), None) => write!(f, "{}.{}", self.maj, minor),
             _ => write!(f, "{}", self.maj),
+        }
+    }
+}
+
+#[cfg(feature = "diesel")]
+mod diesel {
+    use super::Version;
+    use diesel::{deserialize::FromSql, pg::Pg, serialize::ToSql, sql_types::VarChar};
+
+    impl ToSql<VarChar, Pg> for Version {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, Pg>,
+        ) -> diesel::serialize::Result {
+            <String as ToSql<VarChar, Pg>>::to_sql(&self.qualified, out)
+        }
+    }
+
+    impl FromSql<VarChar, Pg> for Version {
+        fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            let s: String = <String as FromSql<VarChar, Pg>>::from_sql(bytes)?;
+            Version::parse(&s)
+                .map_err(|err| format!("failed to parse version from database: {}", err).into())
         }
     }
 }

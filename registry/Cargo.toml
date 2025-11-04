@@ -6,12 +6,29 @@ license-file.workspace = true
 homepage.workspace = true
 authors.workspace = true
 
-[dependencies]
-kintsu-manifests = { path = "../manifests" }
-kintsu-fs = { path = "../fs" }
-kintsu-parser = { path = "../parser" }
+[[bin]]
+name = "kintsu-registry"
 
+[dependencies]
+kintsu-fs = { path = "../fs" }
+kintsu-manifests = { path = "../manifests" }
+kintsu-parser = { path = "../parser" }
+kintsu-registry-db = { path = "../registry-db" }
+actix-web = { workspace = true, features = ["secure-cookies"] }
+chrono = { workspace = true, features = ["serde"] }
+diesel-async = { workspace = true, features = ["bb8", "postgres"] }
+dotenvy = { workspace = true }
+octocrab = { workspace = true }
+reqwest = { workspace = true }
+secrecy = { features = ["serde"], workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-actix-web = "4"
+url = { features = ["serde"], workspace = true }
+utoipa = { features = ["actix_extras", "chrono"], workspace = true }
+utoipa-actix-web = { version = "0.1" }
+utoipa-redoc = { features = ["actix-web"], version = "6" }
+validator = { workspace = true }

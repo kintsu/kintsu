@@ -20,6 +20,7 @@ kintsu-manifests = { path = "../manifests" }
 bon = { workspace = true }
 console = { workspace = true }
 convert_case = { workspace = true }
+crossbeam = { workspace = true }
 dyn-inventory = { workspace = true }
 futures-util = { workspace = true }
 glob = { workspace = true }
@@ -37,7 +38,6 @@ tokio = { workspace = true, features = ["fs", "sync", "time", "rt", "macros"] }
 tracing = { workspace = true }
 tracing-indicatif = { workspace = true }
 validator = { workspace = true, features = ["derive"] }
-crossbeam = { workspace = true }
 
 [dev-dependencies]
 kintsu-testing = { path = "../testing" }
@@ -45,3 +45,4 @@ serde_json = { workspace = true }
 test-case = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+

@@ -8,6 +8,6 @@ authors.workspace = true
 
 [dependencies]
 insta = { workspace = true, features = ["yaml", "filters"] }
-
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+

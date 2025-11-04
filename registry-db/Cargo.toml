@@ -1,0 +1,21 @@
+[package]
+name = "kintsu-registry-db"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]
+kintsu-manifests = { path = "../manifests" }
+chrono = { workspace = true, features = ["serde"] }
+diesel = { workspace = true, features = ["postgres", "chrono"] }
+diesel-async = { workspace = true, features = ["bb8", "postgres"] }
+rand = { workspace = true }
+secrecy = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+sha256 = { workspace = true }
+thiserror = { workspace = true }
+validator = { workspace = true, features = ["derive"] }
+
+utoipa = { workspace = true }
