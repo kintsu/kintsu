@@ -2,7 +2,7 @@ use crate::schema::org_admin;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 
-#[derive(Insertable, Associations, Identifiable, Debug, Clone)]
+#[derive(Insertable, Associations, Identifiable, Debug, Clone, utoipa::ToSchema)]
 #[diesel(
     table_name = org_admin,
     check_for_backend(diesel::pg::Pg),

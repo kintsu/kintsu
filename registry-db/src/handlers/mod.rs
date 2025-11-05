@@ -1,7 +1,7 @@
 pub mod auth;
-pub mod downloads;
+pub mod org;
 pub mod packages;
 
 pub use auth::*;
-pub use downloads::*;
+pub use org::*;
 pub use packages::*;

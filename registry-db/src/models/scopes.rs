@@ -2,7 +2,6 @@ use diesel::{deserialize::FromSql, pg::Pg, serialize::ToSql, sql_types::Text};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-#[serde(transparent)]
 pub struct Scope {
     #[schema(example = "my-package-*")]
     pub pattern: String,
@@ -74,6 +73,16 @@ impl Into<&'static str> for &Permission {
             Permission::YankPackage => "yank-package",
             Permission::ChangeOwnership => "change-ownership",
         }
+    }
+}
+
+impl std::fmt::Display for Permission {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        let s: &'static str = self.into();
+        write!(f, "{}", s)
     }
 }
 

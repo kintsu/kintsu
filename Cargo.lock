@@ -2486,6 +2486,7 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-actix-web",
+ "utoipa-rapidoc",
  "utoipa-redoc",
  "validator",
 ]
@@ -2498,11 +2499,13 @@ dependencies = [
  "diesel",
  "diesel-async",
  "kintsu-manifests",
+ "paste",
  "rand 0.9.2",
  "secrecy",
  "serde",
  "sha256",
  "thiserror 2.0.17",
+ "tokio",
  "utoipa",
  "validator",
 ]
@@ -4859,6 +4862,18 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.108",
+]
+
+[[package]]
+name = "utoipa-rapidoc"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5f8f5abd341cce16bb4f09a8bafc087d4884a004f25fb980e538d51d6501dab"
+dependencies = [
+ "actix-web",
+ "serde",
+ "serde_json",
+ "utoipa",
 ]
 
 [[package]]

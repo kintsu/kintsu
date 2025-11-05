@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 pub mod handlers;
 pub mod models;
 pub(crate) mod schema;
@@ -24,6 +26,9 @@ pub enum Error {
 
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("Resource conflict: {0}")]
+    Conflict(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

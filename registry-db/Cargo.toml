@@ -18,4 +18,6 @@ sha256 = { workspace = true }
 thiserror = { workspace = true }
 validator = { workspace = true, features = ["derive"] }
 
-utoipa = { workspace = true }
+tokio = { workspace = true }
+utoipa = { workspace = true, features = ["chrono"] }
+paste.workspace = true

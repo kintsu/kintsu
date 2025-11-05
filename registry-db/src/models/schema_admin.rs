@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use serde::Serialize;
 
-#[derive(Debug, Insertable, Associations, Identifiable, Clone, Serialize)]
+#[derive(Debug, Insertable, Associations, Identifiable, Clone, Serialize, utoipa::ToSchema)]
 #[diesel(
     table_name = schema_admin,
     check_for_backend(diesel::pg::Pg),

@@ -32,3 +32,4 @@ utoipa = { features = ["actix_extras", "chrono"], workspace = true }
 utoipa-actix-web = { version = "0.1" }
 utoipa-redoc = { features = ["actix-web"], version = "6" }
 validator = { workspace = true }
+utoipa-rapidoc = { version = "6", features = ["actix-web"] }

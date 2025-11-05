@@ -69,6 +69,7 @@ pub fn init(
             homepage: None,
             license: None,
             readme: None,
+            repository: None,
         },
         dependencies: Default::default(),
         files: Default::default(),

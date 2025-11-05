@@ -30,7 +30,8 @@ create unique index user_email_idx on users(email);
 create table org (
     id bigserial primary key not null,
     name varchar not null,
-    gh_id int not null
+    gh_id int not null,
+    gh_avatar varchar not null
 );
 
 comment on table org is 'An organization represents a group of users that can own and administer packages (from github).';
@@ -157,6 +158,40 @@ create table downloads (
 );
 
 comment on table downloads is 'A downloads record represents the number of times a specific version of a package was downloaded on a particular day.';
+
+/*
+ -------------------
+ */
+create table user_favourite (
+    user_id bigint not null references users(id),
+    package_id bigint not null references package(id),
+    primary key (user_id, package_id)
+);
+
+comment on table user_favourite is 'A user_favourite represents a package that a user has marked as a favorite.';
+
+/*
+ -------------------
+ */
+create table user_favourite_org (
+    user_id bigint not null references users(id),
+    org_id bigint not null references org(id),
+    primary key (user_id, org_id)
+);
+
+comment on table user_favourite_org is 'A user_favourite_org represents an organization that a user has marked as a favorite.';
+
+/*
+ -------------------
+ */
+create table org_invitation (
+    id bigserial primary key not null,
+    org_id bigint not null references org(id),
+    invited_by_user_id bigint not null references users(id),
+    created_at timestamptz not null default now(),
+    accepted_at timestamptz,
+    revoked_at timestamptz
+);
 
 /*
  -------------------

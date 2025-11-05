@@ -110,6 +110,11 @@ pub struct PackageMeta {
     #[serde(default)]
     pub readme: Option<PathOrText>,
 
+    /// The repository URL of the package
+    #[serde(default)]
+    #[validate(url)]
+    pub repository: Option<String>,
+
     /// Keywords associated with the package
     #[serde(default)]
     #[validate(custom(function = validate_keywords))]
@@ -202,6 +207,7 @@ mod test {
             keywords: vec![],
             license: None,
             readme: None,
+            repository: None,
         };
         p.validate().unwrap();
     }
@@ -233,6 +239,7 @@ mod test {
             keywords,
             license: None,
             readme: None,
+            repository: None,
         };
         let err = p.validate().unwrap_err();
         let msg = format!("{}", err);

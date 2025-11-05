@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-const SCOPES: &[&str] = &["user:email", "read:user"];
+const SCOPES: &[&str] = &["user:email", "read:user", "read:org"];
 
 pub fn scopes() -> String {
     SCOPES.join("%20")
