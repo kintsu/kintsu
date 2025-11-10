@@ -33,7 +33,7 @@ jobs:
           components: cargo
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.15.6
+        uses: cargo-bins/cargo-binstall@v1.15.11
 
       - name: Install cargo deps
         run: |
