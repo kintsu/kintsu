@@ -116,7 +116,7 @@ impl GraphGenerator {
         // middle layers (diamond shape)
         for _ in 0..layers {
             let mut next_layer = vec![];
-            let width = self.rng.gen_range(2..=4);
+            let width = self.rng.random_range(2..=4);
 
             for _ in 0..width {
                 let name = self.next_name("mid");
@@ -203,7 +203,7 @@ impl GraphGenerator {
         // add edges (only forward to maintain DAG property)
         for i in 0..nodes {
             for j in 0..i {
-                if self.rng.gen_bool(edge_probability) {
+                if self.rng.random_bool(edge_probability) {
                     specs[i].dependencies.push(names[j].clone());
                 }
             }
@@ -294,6 +294,11 @@ pub fn populate_fs_with_options(
     specs: &[PackageSpec],
     options: PopulateOptions,
 ) {
+    // Generate compilation order and create order.json
+    let order = compute_compilation_order(specs);
+    let order_json = serde_json::to_string_pretty(&order).unwrap();
+    fs.add_file("order.json", order_json.as_bytes());
+
     for spec in specs {
         // create manifest
         let manifest = generate_manifest(&spec.name, &spec.dependencies);
@@ -324,6 +329,64 @@ pub fn populate_fs_with_options(
             fs.add_file(nested_path, nested_content.as_bytes());
         }
     }
+}
+
+/// Compute a valid compilation order using topological sort
+fn compute_compilation_order(specs: &[PackageSpec]) -> Vec<String> {
+    use std::collections::{HashMap, HashSet};
+
+    let mut order = Vec::new();
+    let mut visited = HashSet::new();
+    let mut visiting = HashSet::new();
+
+    // Build a map of package name to its spec
+    let spec_map: HashMap<&str, &PackageSpec> = specs
+        .iter()
+        .map(|spec| (spec.name.as_str(), spec))
+        .collect();
+
+    fn visit<'a>(
+        name: &'a str,
+        spec_map: &HashMap<&'a str, &'a PackageSpec>,
+        visited: &mut HashSet<String>,
+        visiting: &mut HashSet<String>,
+        order: &mut Vec<String>,
+    ) {
+        if visited.contains(name) {
+            return;
+        }
+
+        if visiting.contains(name) {
+            // Circular dependency - shouldn't happen in a DAG
+            return;
+        }
+
+        visiting.insert(name.to_string());
+
+        // Visit all dependencies first
+        if let Some(spec) = spec_map.get(name) {
+            for dep in &spec.dependencies {
+                visit(dep, spec_map, visited, visiting, order);
+            }
+        }
+
+        visiting.remove(name);
+        visited.insert(name.to_string());
+        order.push(name.to_string());
+    }
+
+    // Visit all packages
+    for spec in specs {
+        visit(
+            &spec.name,
+            &spec_map,
+            &mut visited,
+            &mut visiting,
+            &mut order,
+        );
+    }
+
+    order
 }
 
 fn generate_operations(
@@ -417,14 +480,25 @@ fn generate_manifest(
     dependencies: &[String],
 ) -> String {
     let mut manifest = format!(
-        "[package]\nname = \"{}\"\nversion = \"1.0.0\"\ndescription = \"Generated package\"\n",
-        name
+        "[package]
+name = \"{name}\"
+version = \"1.0.0\"
+description = \"Generated package\"
+license = \"MIT\"
+license_text = \"MIT License\"
+authors = [{{ name = \"Kintsu\", email = \"foo@bar.com\" }}]
+readme = \"# foo\"
+repository = \"https://github.com/kintsu/kintsu\"
+",
     );
 
     if !dependencies.is_empty() {
         manifest.push_str("\n[dependencies]\n");
         for dep in dependencies {
-            manifest.push_str(&format!("{} = {{ path = \"../{}\" }}\n", dep, dep));
+            manifest.push_str(&format!(
+                "{} = {{ path = \"../{}\", version = \"1.0.0\" }}\n",
+                dep, dep
+            ));
         }
     }
 
@@ -633,5 +707,59 @@ mod tests {
 
         // Verify root is indeed the root
         assert_eq!(find_root_package(&all_specs), Some("my-root".to_string()));
+    }
+
+    #[test]
+    fn test_compilation_order() {
+        use std::path::Path;
+
+        let mut g = GraphGenerator::new();
+        // Create diamond: d <- b,c <- a
+        let specs = vec![
+            PackageSpec {
+                name: "d".into(),
+                path: "d".into(),
+                dependencies: vec![],
+            },
+            PackageSpec {
+                name: "b".into(),
+                path: "b".into(),
+                dependencies: vec!["d".into()],
+            },
+            PackageSpec {
+                name: "c".into(),
+                path: "c".into(),
+                dependencies: vec!["d".into()],
+            },
+            PackageSpec {
+                name: "a".into(),
+                path: "a".into(),
+                dependencies: vec!["b".into(), "c".into()],
+            },
+        ];
+
+        let mut fs = MemoryFileSystem::new();
+        populate_fs(&mut fs, &specs);
+
+        // Check that order.json exists
+        let order_path = Path::new("order.json");
+        assert!(fs.exists_sync(order_path));
+
+        // Parse and verify order
+        let order_json = fs.read_to_string_sync(order_path).unwrap();
+        let order: Vec<String> = serde_json::from_str(&order_json).unwrap();
+
+        assert_eq!(order.len(), 4);
+
+        // d should come before b and c
+        let d_pos = order.iter().position(|s| s == "d").unwrap();
+        let b_pos = order.iter().position(|s| s == "b").unwrap();
+        let c_pos = order.iter().position(|s| s == "c").unwrap();
+        let a_pos = order.iter().position(|s| s == "a").unwrap();
+
+        assert!(d_pos < b_pos);
+        assert!(d_pos < c_pos);
+        assert!(b_pos < a_pos);
+        assert!(c_pos < a_pos);
     }
 }

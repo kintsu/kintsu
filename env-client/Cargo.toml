@@ -1,0 +1,22 @@
+[package]
+name = "kintsu-env-client"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]
+kintsu-fs = { path = "../fs" }
+kintsu-manifests = { path = "../manifests" }
+kintsu-registry-core = { path = "../registry-core" }
+bytes = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+secrecy = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = {workspace = true}
+url = { workspace = true }
+validator = { workspace = true }
+

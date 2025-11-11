@@ -33,6 +33,28 @@ pub enum Error {
     SerError(#[from] toml::ser::Error),
     #[error("{0}")]
     DeError(#[from] toml::de::Error),
+
+    #[error("{0}")]
+    ManifestError(#[from] InvalidManifest),
+}
+
+#[derive(thiserror::Error, Debug, serde::Serialize)]
+#[serde(tag = "type", content = "details", rename_all = "snake_case")]
+pub enum InvalidManifest {
+    #[error("Package license is required in manifest for publication in registries.")]
+    PackageMissingLicense,
+    #[error("Package readme is required in manifest for publication in registries.")]
+    PackageMissingReadme,
+    #[error("Package repository is required in manifest for publication in registries.")]
+    PackageMissingRepository,
+
+    #[error("Package manifest specifies an unresolved dependency: {name}@{}", version.clone().map(|v| format!("{}", v)).unwrap_or("unknown".into()))]
+    UnresolvedDependency {
+        name: String,
+        version: Option<version::Version>,
+    },
+    #[error("Package manifest contains unresolved dependencies. See sources for details.")]
+    UnresolvedDependencies { sources: Vec<InvalidManifest> },
 }
 
 impl Error {

@@ -3,19 +3,29 @@
 // - uses sha256 crate for hashing instead of sha2 crate
 // https://github.com/rust-lang/crates.io/blob/main/crates/crates_io_database/src/utils/token.rs
 
-use diesel::{
-    AsExpression, FromSqlRow, deserialize::FromSql, pg::Pg, serialize::ToSql, sql_types::Bytea,
-};
 use rand::{Rng, distr::Alphanumeric};
+use sea_orm::{prelude::StringLen, sea_query::ValueTypeErr};
 use secrecy::{ExposeSecret, SecretSlice, SecretString};
 use sha256::digest;
 
 const TOKEN_LENGTH: usize = 64;
 const TOKEN_PREFIX: &str = "kintsu_";
 
-#[derive(FromSqlRow, AsExpression)]
-#[diesel(sql_type = Bytea)]
+pub const MAX_TOKEN_HEADER_LENGTH: usize = TOKEN_LENGTH + "Bearer ".len();
+
+#[derive(Clone)]
 pub struct TokenHash(SecretSlice<u8>);
+
+impl PartialEq for TokenHash {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
+    }
+}
+
+impl Eq for TokenHash {}
 
 impl std::fmt::Debug for TokenHash {
     fn fmt(
@@ -42,19 +52,40 @@ impl TokenHash {
     }
 }
 
-impl ToSql<Bytea, Pg> for TokenHash {
-    fn to_sql<'b>(
-        &'b self,
-        out: &mut diesel::serialize::Output<'b, '_, Pg>,
-    ) -> diesel::serialize::Result {
-        diesel::serialize::ToSql::<Bytea, Pg>::to_sql(self.0.expose_secret(), out)
+impl From<TokenHash> for sea_orm::Value {
+    fn from(token_hash: TokenHash) -> Self {
+        sea_orm::Value::Bytes(Some(token_hash.0.expose_secret().to_vec()))
     }
 }
 
-impl FromSql<Bytea, Pg> for TokenHash {
-    fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-        let vec: Vec<u8> = diesel::deserialize::FromSql::<Bytea, Pg>::from_sql(bytes)?;
-        Ok(TokenHash(SecretSlice::new(vec.into())))
+impl sea_orm::TryGetable for TokenHash {
+    fn try_get_by<I: sea_orm::ColIdx>(
+        res: &sea_orm::QueryResult,
+        index: I,
+    ) -> Result<Self, sea_orm::TryGetError> {
+        let v: Vec<u8> = sea_orm::TryGetable::try_get_by(res, index)?;
+        Ok(TokenHash(SecretSlice::new(v.into())))
+    }
+}
+
+impl sea_orm::sea_query::ValueType for TokenHash {
+    fn type_name() -> String {
+        std::any::type_name::<Self>().to_string()
+    }
+
+    fn array_type() -> sea_orm::sea_query::ArrayType {
+        sea_orm::sea_query::ArrayType::Bytes
+    }
+
+    fn column_type() -> sea_orm::sea_query::ColumnType {
+        sea_orm::sea_query::ColumnType::VarBinary(StringLen::None)
+    }
+
+    fn try_from(v: sea_orm::Value) -> Result<Self, ValueTypeErr> {
+        match v {
+            sea_orm::Value::Bytes(Some(b)) => Ok(TokenHash(SecretSlice::new(b.into()))),
+            _ => Err(ValueTypeErr),
+        }
     }
 }
 

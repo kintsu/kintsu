@@ -7,23 +7,25 @@ homepage.workspace = true
 authors.workspace = true
 
 [features]
-default = ["diesel"]
-diesel = ["dep:diesel"]
+default = []
+api = ["dep:utoipa"]
+# db = ["dep:sea-orm"]
 
 [dependencies]
 kintsu-fs = { path = "../fs" }
 config = { workspace = true, features = ["toml"] }
 convert_case = { workspace = true }
-diesel = { workspace = true, features = ["postgres"], optional = true }
 glob = { workspace = true }
 prettyprint = { workspace = true }
 regex = { workspace = true }
+sea-orm = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true, features = ["serde"] }
 tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

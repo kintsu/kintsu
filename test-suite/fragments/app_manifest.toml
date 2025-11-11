@@ -4,5 +4,5 @@ version = "1.0.0"
 description = "Application package"
 
 [dependencies]
-lib-a = { path = "../lib-a" }
-lib-b = { path = "../lib-b" }
+lib-a = { path = "../lib-a", version = "1.0.0" }
+lib-b = { path = "../lib-b", version = "1.0.0" }

@@ -7,10 +7,7 @@ use kintsu_manifests::{
 };
 use tokio::sync::RwLock;
 
-use super::{
-    resolver::PackageResolver, state::SharedCompilationState,
-    utils::normalize_import_to_package_name,
-};
+use super::{state::SharedCompilationState, utils::normalize_import_to_package_name};
 
 pub struct LockfileManager;
 
@@ -54,7 +51,9 @@ impl LockfileManager {
 
     pub async fn write_lockfile(
         state: &Arc<RwLock<SharedCompilationState>>,
-        resolver: &PackageResolver,
+        // resolver: &PathPackageResolver,
+        fs: Arc<dyn kintsu_fs::FileSystem>,
+
         root_path: &PathBuf,
         root_package_name: &str,
         root_version: Version,
@@ -97,9 +96,14 @@ impl LockfileManager {
             );
         }
 
-        let root_checksum = resolver
-            .compute_content_hash(root_path)
-            .await?;
+        let root_checksum = super::resolver::ResolvedDependency {
+            version: root_version.clone(),
+            fs: fs.clone(),
+            path: root_path.clone(),
+            mutability: super::resolver::DependencyMutability::Mutable,
+        }
+        .compute_content_hash()
+        .await?;
 
         let root_pkg_name = normalize_import_to_package_name(root_package_name);
 
@@ -130,13 +134,12 @@ impl LockfileManager {
 
         let lockfiles = Lockfiles::V1(lockfile);
         let lockfile_content = NewForNamed::dump::<PathBuf>(&lockfiles)?;
-        resolver
-            .fs
-            .write(
-                &<Lockfiles as NewForNamed>::path(root_path),
-                lockfile_content.into_bytes(),
-            )
-            .await?;
+
+        fs.write(
+            &<Lockfiles as NewForNamed>::path(root_path),
+            lockfile_content.into_bytes(),
+        )
+        .await?;
 
         Ok(())
     }

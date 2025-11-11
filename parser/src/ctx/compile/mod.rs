@@ -6,7 +6,7 @@ pub(crate) mod coordinator;
 pub(crate) mod loader;
 pub(crate) mod lockfile;
 pub(crate) mod progress;
-pub(crate) mod resolver;
+pub mod resolver;
 pub(crate) mod schema_compiler;
 pub(crate) mod state;
 pub(crate) mod utils;

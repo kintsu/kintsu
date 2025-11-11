@@ -120,9 +120,6 @@ pub struct Version {
     minor: Option<usize>,
     patch: Option<usize>,
     ext: Variant,
-
-    #[cfg(feature = "diesel")]
-    qualified: String,
 }
 
 impl Version {
@@ -214,8 +211,6 @@ impl Version {
             minor,
             patch,
             ext,
-            #[cfg(feature = "diesel")]
-            qualified: target.to_string(),
         })
     }
 
@@ -251,29 +246,6 @@ impl Display for Version {
             (Some(minor), Some(patch)) => write!(f, "{}.{}.{}{}", self.maj, minor, patch, self.ext),
             (Some(minor), None) => write!(f, "{}.{}", self.maj, minor),
             _ => write!(f, "{}", self.maj),
-        }
-    }
-}
-
-#[cfg(feature = "diesel")]
-mod diesel {
-    use super::Version;
-    use diesel::{deserialize::FromSql, pg::Pg, serialize::ToSql, sql_types::VarChar};
-
-    impl ToSql<VarChar, Pg> for Version {
-        fn to_sql<'b>(
-            &'b self,
-            out: &mut diesel::serialize::Output<'b, '_, Pg>,
-        ) -> diesel::serialize::Result {
-            <String as ToSql<VarChar, Pg>>::to_sql(&self.qualified, out)
-        }
-    }
-
-    impl FromSql<VarChar, Pg> for Version {
-        fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-            let s: String = <String as FromSql<VarChar, Pg>>::from_sql(bytes)?;
-            Version::parse(&s)
-                .map_err(|err| format!("failed to parse version from database: {}", err).into())
         }
     }
 }
@@ -315,6 +287,56 @@ impl Serialize for Version {
     where
         S: serde::Serializer, {
         serializer.serialize_str(&format!("{self}"))
+    }
+}
+
+mod db {
+    use super::*;
+
+    impl sea_orm::sea_query::ValueType for Version {
+        fn type_name() -> String {
+            "Version".to_owned()
+        }
+
+        fn array_type() -> sea_orm::sea_query::ArrayType {
+            sea_orm::sea_query::ArrayType::String
+        }
+
+        fn column_type() -> sea_orm::ColumnType {
+            sea_orm::ColumnType::String(sea_orm::sea_query::StringLen::N(32))
+        }
+
+        fn try_from(
+            v: sea_orm::sea_query::Value
+        ) -> std::result::Result<Self, sea_orm::sea_query::ValueTypeErr> {
+            if let sea_orm::sea_query::Value::String(Some(s)) = v {
+                Version::parse(&s).map_err(|e| {
+                    tracing::error!("Failed to parse Version from string: {}", e);
+                    sea_orm::sea_query::ValueTypeErr
+                })
+            } else {
+                Err(sea_orm::sea_query::ValueTypeErr)
+            }
+        }
+    }
+
+    impl sea_orm::TryGetable for Version {
+        fn try_get_by<I: sea_orm::ColIdx>(
+            res: &sea_orm::QueryResult,
+            index: I,
+        ) -> Result<Self, sea_orm::TryGetError> {
+            let s: String = sea_orm::TryGetable::try_get_by(res, index)?;
+            Version::parse(&s).map_err(|e| {
+                tracing::error!("Failed to parse Version from database string: {}", e);
+                sea_orm::TryGetError::DbErr(sea_orm::DbErr::Type(format!("{}", e)))
+            })
+        }
+    }
+
+    impl From<Version> for sea_orm::Value {
+        fn from(v: Version) -> Self {
+            sea_orm::Value::String(Some(format!("{}", v)))
+        }
     }
 }
 

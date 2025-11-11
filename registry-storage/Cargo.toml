@@ -1,0 +1,27 @@
+[package]
+name = "kintsu-registry-storage"
+edition = "2024"
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[features]
+test = ["dep:testcontainers"]
+
+[dependencies]
+kintsu-fs = { path = "../fs" }
+aws-config = { features = ["behavior-version-latest"], workspace = true }
+aws-sdk-s3 = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+futures-util = { workspace = true }
+secrecy = { workspace = true, features = ["serde"] }
+serde = { features = ["derive"], workspace = true }
+serde_json = { workspace = true }
+sha256 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+tracing = { workspace = true }
+
+testcontainers = { workspace = true, optional = true }

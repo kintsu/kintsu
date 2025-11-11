@@ -1,4 +1,4 @@
-use crate::{DbPool, config::SessionConfig, oauth::AuthClient, session::SessionData};
+use crate::{DbConn, config::SessionConfig, oauth::AuthClient, session::SessionData};
 use actix_web::{
     Responder, cookie, delete, get, post,
     web::{self, Redirect},
@@ -27,7 +27,7 @@ pub async fn callback(
     cookie_key: web::Data<cookie::Key>,
     session_config: web::Data<SessionConfig>,
     code: web::Query<CallbackQuery>,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
     let token = client
         .exchange_token(code.into_inner().code)
@@ -37,10 +37,8 @@ pub async fn callback(
         .saturate_user_data(&token.access_token)
         .await?;
 
-    let mut conn = pool.get().await?;
-
-    let created = kintsu_registry_db::handlers::auth::create_or_update_user_from_oauth(
-        &mut conn,
+    let created = kintsu_registry_db::engine::user::create_or_update_user_from_oauth(
+        conn.as_ref(),
         user.id.0 as i32,
         &user.login,
         Some(user.avatar_url.as_str()),
@@ -92,9 +90,9 @@ pub async fn logout(session: crate::session::SessionData) -> impl Responder {
 
 #[utoipa::path(
     tag = AUTH,
-    request_body = crate::models::CreateTokenRequest,
+    request_body = kintsu_registry_core::models::CreateTokenRequest,
     responses(
-        (status = 200, description = "Successfully created auth token", body = kintsu_registry_db::models::api_key::OneTimeApiKey),
+        (status = 200, description = "Successfully created auth token", body = kintsu_registry_db::engine::OneTimeApiKey),
         (status = 400, description = "Invalid request", body = crate::ErrorResponse),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
     ),
@@ -102,15 +100,13 @@ pub async fn logout(session: crate::session::SessionData) -> impl Responder {
 )]
 #[post("/auth/token")]
 pub async fn create_auth_token(
-    pool: DbPool,
+    conn: DbConn,
     session: SessionData,
-    req: web::Json<crate::models::CreateTokenRequest>,
+    req: web::Json<kintsu_registry_core::models::CreateTokenRequest>,
 ) -> crate::Result<impl Responder> {
     use chrono::Duration;
 
     req.validate()?;
-
-    let mut conn = pool.get().await?;
 
     let expires = chrono::Utc::now() + Duration::days(req.expires_in_days.unwrap_or(90));
 
@@ -118,7 +114,7 @@ pub async fn create_auth_token(
         .user
         .user
         .request_personal_token(
-            &mut conn,
+            conn.as_ref(),
             req.description.clone(),
             req.scopes.clone(),
             req.permissions.clone(),
@@ -132,19 +128,18 @@ pub async fn create_auth_token(
 #[utoipa::path(
     tag = AUTH,
     responses(
-        (status = 200, description = "List of user API tokens", body = Vec<kintsu_registry_db::models::api_key::ApiKey>),
+        (status = 200, description = "List of user API tokens", body = Vec<kintsu_registry_db::entities::ApiKey>),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
     ),
     security(("session" = []))
 )]
 #[get("/auth/tokens")]
 pub async fn get_user_tokens(
-    pool: DbPool,
+    conn: DbConn,
     session: SessionData,
 ) -> crate::Result<impl Responder> {
-    let mut conn = pool.get().await?;
     let tokens =
-        kintsu_registry_db::models::user::User::tokens(&mut conn, session.user.user.id).await?;
+        kintsu_registry_db::entities::User::tokens(conn.as_ref(), session.user.user.id).await?;
     Ok(web::Json(tokens))
 }
 
@@ -170,17 +165,15 @@ pub async fn redirect_to_login(client: web::Data<AuthClient>) -> impl Responder 
 )]
 #[delete("/auth/tokens/{id}")]
 pub async fn revoke_auth_token(
-    pool: DbPool,
+    conn: DbConn,
     session: SessionData,
     id: web::Path<i64>,
 ) -> crate::Result<impl Responder> {
-    let mut conn = pool.get().await?;
-
     let api_key =
-        kintsu_registry_db::models::api_key::ApiKey::by_id(&mut conn, id.into_inner()).await?;
+        kintsu_registry_db::entities::ApiKey::by_id(conn.as_ref(), id.into_inner()).await?;
 
     api_key
-        .revoke_token(&mut conn, &session.user.user)
+        .revoke_token(conn.as_ref(), &session.user.user)
         .await?;
 
     Ok(web::Json(()))

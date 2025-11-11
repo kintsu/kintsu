@@ -5,14 +5,15 @@ use std::{
     sync::Arc,
 };
 
-use kintsu_fs::{FileSystem, physical::Physical};
+use kintsu_fs::FileSystem;
 use kintsu_manifests::{
     config::NewForNamed,
-    package::{Dependency, PackageManifest},
+    package::{Dependency, GitDependency, PathDependency, RemoteDependency},
     version::Version,
 };
 
-use super::utils::normalize_import_to_package_name;
+pub mod path;
+pub use path::PathPackageResolver;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DependencyMutability {
@@ -29,70 +30,9 @@ pub struct ResolvedDependency {
     pub version: Version,
 }
 
-pub struct PackageResolver {
-    pub(crate) fs: Arc<dyn FileSystem>,
-}
-
-impl PackageResolver {
-    pub fn new() -> Self {
-        Self {
-            fs: Arc::new(Physical),
-        }
-    }
-
-    pub fn with_fs(fs: Arc<dyn FileSystem>) -> Self {
-        Self { fs }
-    }
-
-    pub fn resolve(
-        &self,
-        root_path: &Path,
-        manifest: &PackageManifest,
-        dep_name: &str,
-    ) -> crate::Result<ResolvedDependency> {
-        let package_name = normalize_import_to_package_name(dep_name);
-
-        let dep = manifest
-            .dependencies
-            .get(&package_name)
-            .ok_or_else(|| {
-                crate::Error::UnresolvedDependency {
-                    name: format!("{} (normalized from import '{}')", package_name, dep_name),
-                }
-            })?;
-
-        match dep {
-            Dependency::Path { path } => {
-                let resolved_path = root_path.join(path);
-
-                // Load the dependency's manifest to get its version
-                let dep_manifest = PackageManifest::new(self.fs.as_ref(), &resolved_path)
-                    .map_err(crate::Error::ManifestError)?;
-
-                let version = Version::parse(&dep_manifest.package.version.to_string())?;
-
-                Ok(ResolvedDependency {
-                    fs: self.fs.clone(),
-                    path: resolved_path,
-                    mutability: DependencyMutability::Mutable,
-                    version,
-                })
-            },
-            Dependency::Git { .. } | Dependency::Remote { .. } => {
-                // TODO: Implement git and remote dependency resolution
-                Err(crate::Error::UnresolvedDependency {
-                    name: format!("{} (git/remote dependencies not yet supported)", dep_name),
-                })
-            },
-        }
-    }
-
-    /* TODO: this should be revised, DefaultHasher is NOT deterministic */
-    pub async fn compute_content_hash(
-        &self,
-        path: &Path,
-    ) -> crate::Result<String> {
-        let schema_dir = path.join("schema");
+impl ResolvedDependency {
+    pub async fn compute_content_hash(&self) -> crate::Result<String> {
+        let schema_dir = self.path.join("schema");
         let include = vec![format!("{}/**/*.ks", schema_dir.display())];
         let exclude: Vec<String> = vec![];
 
@@ -103,8 +43,9 @@ impl PackageResolver {
         let mut sorted_files = files;
         sorted_files.sort();
 
-        for file in sorted_files {
+        for file in sorted_files.into_iter() {
             let content = self.fs.read_to_string(&file).await?;
+
             file.to_string_lossy().hash(&mut hasher);
             content.hash(&mut hasher);
         }
@@ -113,8 +54,99 @@ impl PackageResolver {
     }
 }
 
-impl Default for PackageResolver {
-    fn default() -> Self {
-        Self::new()
+pub trait RemoteResolver {
+    fn resolve_remote(
+        &self,
+        dep_name: &str,
+        remote: &RemoteDependency,
+    ) -> crate::Result<ResolvedDependency>;
+}
+
+pub trait PathResolver {
+    fn resolve_path(
+        &self,
+        dep_name: &str,
+        root_path: &Path,
+        path: &PathDependency,
+    ) -> crate::Result<ResolvedDependency>;
+}
+
+pub trait GitResolver {
+    fn resolve_git(
+        &self,
+        dep_name: &str,
+        git: &GitDependency,
+    ) -> crate::Result<ResolvedDependency>;
+}
+
+pub trait PackageResolver: Send + Sync + PathResolver + RemoteResolver + GitResolver {
+    fn dependency_as_remote(&self) -> bool {
+        false
+    }
+
+    fn resolve(
+        &self,
+        root_path: &Path,
+        dep_name: &str,
+        dependency: &Dependency,
+    ) -> crate::Result<ResolvedDependency> {
+        match dependency {
+            Dependency::Path(path) => self.resolve_path(dep_name, root_path, path),
+            Dependency::Git(git) => self.resolve_git(dep_name, git),
+            Dependency::Remote(remote) => self.resolve_remote(dep_name, remote),
+            Dependency::PathWithRemote(pwr) => {
+                if self.dependency_as_remote() {
+                    self.resolve_remote(dep_name, &pwr.remote)
+                } else {
+                    self.resolve_path(dep_name, root_path, &pwr.path)
+                }
+            },
+        }
     }
 }
+
+pub struct Resolver {
+    pub path: PathPackageResolver,
+}
+
+impl Resolver {
+    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
+        Self {
+            path: PathPackageResolver::with_fs(fs),
+        }
+    }
+}
+
+impl PathResolver for Resolver {
+    fn resolve_path(
+        &self,
+        dep_name: &str,
+        root_path: &Path,
+        path: &PathDependency,
+    ) -> crate::Result<ResolvedDependency> {
+        self.path
+            .resolve_path(dep_name, root_path, path)
+    }
+}
+
+impl GitResolver for Resolver {
+    fn resolve_git(
+        &self,
+        dep_name: &str,
+        git: &GitDependency,
+    ) -> crate::Result<ResolvedDependency> {
+        todo!()
+    }
+}
+
+impl RemoteResolver for Resolver {
+    fn resolve_remote(
+        &self,
+        dep_name: &str,
+        remote: &RemoteDependency,
+    ) -> crate::Result<ResolvedDependency> {
+        todo!()
+    }
+}
+
+impl PackageResolver for Resolver {}

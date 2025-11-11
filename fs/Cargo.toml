@@ -8,11 +8,19 @@ authors.workspace = true
 
 [features]
 fs-test = []
+api = ["dep:utoipa"]
+db = ["dep:sea-orm", "dep:serde_json"]
+
 
 [dependencies]
-glob = {workspace = true}
+bytes = { workspace = true }
+dashmap = { workspace = true }
+glob = { workspace = true }
+sea-orm = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-thiserror = {workspace = true}
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
-tracing = {workspace = true}
+tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }
 

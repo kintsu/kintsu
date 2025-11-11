@@ -1,3 +1,11 @@
 [session]
 domain = "localhost"
 key = "super_secret_key1234567890abcdef"
+
+
+[s3]
+endpoint = "http://localhost:9000"
+bucket = "kintsu-registry"
+access_key_id = "rustfsadmin"
+secret_access_key = "rustfsadmin"
+region = "ca-central-1"

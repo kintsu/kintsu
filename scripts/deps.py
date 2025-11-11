@@ -53,15 +53,12 @@ def mutate_member_dep(dep_table: Table, dep: str, version: str):
     """Remove version from dep_table[dep] and set workspace = true in-place."""
     spec = dep_table[dep]
     if isinstance(spec, str):
-        # simple version string -> replace with inline table
         inline = tomlkit.inline_table()
         inline["workspace"] = True
         dep_table[dep] = inline
     elif isinstance(spec, (Table, InlineTable)):
-        # remove version key if present
         if "version" in spec:
             del spec["version"]
-        # set workspace = true
         spec["workspace"] = True
 
 
@@ -84,7 +81,7 @@ def hoist(
     files = [root_toml] + files
 
     docs: Dict[Path, Table] = {p: tomlkit.parse(p.read_text()) for p in files}
-    
+
     # collect deps from members
     needed = defaultdict(list)  # dep -> [(sec, p, spec), ...]
     for p in files[1:]:
@@ -111,7 +108,7 @@ def hoist(
                     break
             elif version is None:
                 version = v
-        
+
         if skip or version is None:
             skipped += 1
             if verbose:
@@ -141,7 +138,9 @@ def hoist(
     if added:
         bak = backup_file(root_toml)
         modified.append((root_toml.relative_to(root), bak.name))
-        root_toml.write_text(tomlkit.dumps(docs[root_toml]), )
+        root_toml.write_text(
+            tomlkit.dumps(docs[root_toml]),
+        )
 
     seen = set()
     for sec, p, _ in [x for occ in needed.values() for x in occ]:
@@ -167,7 +166,7 @@ def restore(
     """Restore Cargo.toml files from .bak backups."""
     root = Path(root)
     backups = sorted(root.rglob("Cargo.toml.bak"))
-    
+
     if not backups:
         typer.echo("No Cargo.toml.bak files found")
         raise typer.Exit()
@@ -200,12 +199,12 @@ def sort_deps_table(tbl: Table) -> Table:
     others = sorted((k, v) for k, v in items if not k.startswith("kintsu"))
     out = tomlkit.table()
     for k, v in kintsu + others:
-
         t = tomlkit.inline_table()
         t.update(v) if isinstance(v, Table) else None
 
         out[k] = t if t else v
     return out
+
 
 @app.command()
 def sort(
@@ -215,31 +214,37 @@ def sort(
     """Sort dependencies in all Cargo.toml files (kintsu* first, then alphabetical)."""
     root = Path(root)
     files = find_cargo_tomls(root)
-    
+
     sorted_count = 0
     for p in files:
         backup_file(p)
 
         doc = tomlkit.parse(p.read_text())
         modified = False
-        
+
         for sec in SECTIONS:
             if sec in doc and isinstance(doc[sec], Table):
                 doc[sec] = sort_deps_table(doc[sec])
                 modified = True
-        
+
         if "workspace" in doc and isinstance(doc["workspace"], Table):
             ws = doc["workspace"]
             if "dependencies" in ws and isinstance(ws["dependencies"], Table):
                 ws["dependencies"] = sort_deps_table(ws["dependencies"])
                 modified = True
-        
+
+            if "members" in ws and isinstance(ws["members"], list):
+                ws["members"] = sorted(ws["members"])
+                modified = True
+
         if modified:
             sorted_count += 1
             if not dry_run:
-                p.write_text(tomlkit.dumps(doc), )
+                p.write_text(
+                    tomlkit.dumps(doc),
+                )
                 typer.echo(f"sorted {p.relative_to(root)}")
-    
+
     if dry_run:
         typer.echo(f"[dry-run] would sort {sorted_count} files")
     else:

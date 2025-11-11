@@ -4,4 +4,4 @@ version = "1.0.0"
 description = "Package with dependencies"
 
 [dependencies]
-abc-corp = { path = "../abc-corp" }
+abc-corp = { path = "../abc-corp", version = "1.0.0" }

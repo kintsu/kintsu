@@ -16,6 +16,13 @@ pub struct EnumValue<Value: Parse> {
     pub value: Spanned<Value>,
 }
 
+impl<Value: Parse> EnumValue<Value> {
+    /// Get the inner value
+    pub fn inner(&self) -> &Value {
+        &self.value.value
+    }
+}
+
 impl<Value: Parse> Peek for EnumValue<Value> {
     fn is(token: &crate::tokens::toks::Token) -> bool {
         <Token![=]>::is(token)
@@ -49,6 +56,18 @@ pub struct EnumVariant<Value: Parse> {
     pub comments: Spanned<CommentStream>,
     pub name: Spanned<IdentToken>,
     pub value: Option<EnumValue<Value>>,
+}
+
+impl<Value: Parse> EnumVariant<Value> {
+    /// Get the variant name as a string
+    pub fn name(&self) -> &str {
+        self.name.borrow_string()
+    }
+
+    /// Get the enum value if present
+    pub fn enum_value(&self) -> Option<&EnumValue<Value>> {
+        self.value.as_ref()
+    }
 }
 
 impl<Value: Parse + Peek> Peek for EnumVariant<Value> {

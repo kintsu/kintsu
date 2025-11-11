@@ -4,6 +4,10 @@ use tracing::Level;
 
 #[tokio::main]
 async fn main() -> kintsu_registry::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .unwrap();
+
     dotenvy::dotenv().ok();
 
     tracing_subscriber::fmt()

@@ -19,8 +19,7 @@ use crate::routes::*;
     tags(
         (name = "kintsu-registry", description = "Kintsu Registry API")
     ),
-    modifiers(&SecurityAddon),
-    modifiers(&SharedErrorsAddon),
+    modifiers(&SecurityAddon, &SharedErrorsAddon),
 )]
 struct ApiDoc;
 
@@ -36,10 +35,6 @@ impl Modify for SecurityAddon {
             "api_key",
             SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("apikey"))),
         );
-        // components.add_security_scheme(
-        //     "session",
-        //     SecurityScheme::
-        // );
     }
 }
 
@@ -66,6 +61,13 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
         session_config.key.expose_secret().as_bytes(),
     ));
 
+    let s3 = web::Data::new(
+        kintsu_registry_storage::s3::S3Storage::<kintsu_parser::declare::DeclarationVersion>::managed(
+            &config.s3,
+        )
+        .await,
+    );
+
     tracing::info!(
         "starting server on {}://{addr}",
         if config.insecure {
@@ -74,6 +76,7 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             "https"
         }
     );
+
     HttpServer::new(move || {
         App::new()
             .into_utoipa_app()
@@ -82,6 +85,7 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             .app_data(db.clone())
             .app_data(client.clone())
             .app_data(cookie_key.clone())
+            .app_data(s3.clone())
             // Auth routes
             .service(auth::callback)
             .service(auth::whoami)
@@ -99,7 +103,11 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             .service(org::discover_orgs)
             .service(org::import_org)
             // Package routes
+            .service(packages::publish_package)
             .service(packages::get_package_version)
+            .service(packages::get_package_dependencies)
+            .service(packages::package_declarations)
+            .service(packages::get_dependent_packages)
             .service(packages::download_package_version)
             .service(packages::get_package_total_downloads)
             .service(packages::get_package_download_history)

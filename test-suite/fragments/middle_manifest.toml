@@ -4,4 +4,4 @@ version = "1.0.0"
 description = "Middle-tier package"
 
 [dependencies]
-base = { path = "../base" }
+base = { path = "../base", version = "1.0.0" }

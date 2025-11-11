@@ -7,6 +7,7 @@
 
 pub mod ast;
 pub mod ctx;
+pub mod declare;
 pub mod defs;
 pub mod diagnostics;
 pub mod fmt;

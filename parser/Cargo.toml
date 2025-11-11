@@ -12,7 +12,9 @@ name = "emit"
 
 [features]
 default = []
-emit = ["serde_json"]
+emit = ["dep:serde_json"]
+api = ["dep:utoipa"]
+db = ["dep:sea-orm", "dep:serde_json"]
 
 [dependencies]
 kintsu-fs = { path = "../fs" }
@@ -31,12 +33,15 @@ miette = { workspace = true, features = ["fancy"] }
 num_cpus = { workspace = true }
 paste = { workspace = true }
 pathfinding = { workspace = true }
+sea-orm = { optional = true, workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
+sha256 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "sync", "time", "rt", "macros"] }
 tracing = { workspace = true }
 tracing-indicatif = { workspace = true }
+utoipa = { workspace = true, optional = true }
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

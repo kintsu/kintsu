@@ -1,19 +1,22 @@
 [workspace]
 members = [
-    "sdk",
-    "derives",
-    "core",
     "cli",
-    "examples/*",
-    "testing",
-    "parser",
-    "manifests",
-    "fs",
-    "test-suite",
+    "core",
+    "derives",
     "env",
+    "env-client",
+    "examples/*",
+    "fs",
+    "manifests",
+    "parser",
     "registry",
-    "test-macros",
+    "registry-core",
     "registry-db",
+    "registry-storage",
+    "sdk",
+    "test-macros",
+    "test-suite",
+    "testing",
 ]
 resolver = "3"
 
@@ -28,7 +31,10 @@ authors = ["Joshua Auchincloss <joshua.auchincloss@proton.me>"]
 [workspace.dependencies]
 actix-web = "4"
 async-channel = "2.3"
+aws-config = "1"
+aws-sdk-s3 = "1"
 bon = "3"
+bytes = "1.10"
 cfg-if = "1"
 chrono = "0.4"
 clap = "4.5"
@@ -39,6 +45,7 @@ convert_case = "0.8"
 crossbeam = "0.8"
 ctor = "0.6"
 darling = "0.21"
+dashmap = "6"
 diesel = "2"
 diesel-async = "0.7"
 divan = { version = "4", package = "codspeed-divan-compat" }
@@ -65,6 +72,8 @@ rand = "0.9"
 rayon = "1"
 regex = "1"
 reqwest = "0.12"
+rustls = "0.23"
+sea-orm = "2.0.0-rc.18"
 secrecy = "0.10"
 semver = "1"
 serde = "1"
@@ -76,6 +85,8 @@ sha256 = "1"
 syn = "2"
 tempfile = "3"
 test-case = "3"
+testcontainers = "*"
+testcontainers-modules = "*"
 thiserror = "2"
 time = "0.3"
 tokio = "1"
@@ -85,6 +96,8 @@ tracing-indicatif = "0.3"
 tracing-subscriber = "0.3"
 url = "2"
 utoipa = "5"
+utoipa-actix-web = "0.1"
+utoipa-rapidoc = "6"
+utoipa-redoc = "6"
 utoipa-swagger-ui = "9"
 validator = "0.20"
-

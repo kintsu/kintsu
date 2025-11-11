@@ -81,6 +81,9 @@ pub enum Error {
 
     #[error("{0}")]
     Miette(miette::Error),
+
+    #[error("{0}")]
+    Client(#[from] kintsu_env_client::Error),
 }
 
 impl From<miette::Error> for Error {

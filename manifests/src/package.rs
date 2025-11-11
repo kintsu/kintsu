@@ -1,36 +1,54 @@
-use std::{
-    collections::BTreeMap,
-    path::PathBuf,
-    sync::{Arc, LazyLock},
-};
-use validator::{Validate, ValidationError};
+#![allow(clippy::declare_interior_mutable_const)]
 
 use crate::config::NewForNamed;
+use regex::Regex;
+use std::{collections::BTreeMap, path::PathBuf, sync::LazyLock};
+use validator::{Validate, ValidationError, ValidationErrors};
 
-#[allow(clippy::declare_interior_mutable_const)]
-const PACKAGE_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new("[a-z]([a-z0-9\\-]*)[a-z0-9]").expect("package re"));
+const REGISTRY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("[a-z]([a-z0-9\\-]*)[a-z0-9]").expect("registry re"));
 
-#[allow(clippy::declare_interior_mutable_const)]
-const TAG_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new("[a-z]([a-z0-9\\-]*)[a-z0-9]").expect("tag re"));
+const PACKAGE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("[a-z]([a-z0-9\\-]*)[a-z0-9]").expect("package re"));
 
+const TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("[a-z]([a-z0-9\\-]*)[a-z0-9]").expect("tag re"));
+
+static GIT_REF_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"refs\/(heads|tags)\/[a-zA-Z0-9\-_]+").unwrap());
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum PathOrText {
-    Path { path: PathBuf },
+    Path {
+        #[cfg_attr(feature = "api", schema(value_type = String, format = "path"))]
+        path: PathBuf,
+    },
     Text(String),
 }
 
 impl PathOrText {
-    pub fn text(
+    pub fn text<F: kintsu_fs::FileSystem>(
         &self,
-        fs: &Arc<dyn kintsu_fs::FileSystem>,
+        fs: &F,
     ) -> crate::Result<String> {
         Ok(match self {
             Self::Path { path } => fs.read_to_string_sync(path)?,
             Self::Text(text) => text.clone(),
         })
+    }
+}
+
+impl PathOrText {
+    pub fn text_opt<F: kintsu_fs::FileSystem>(
+        this: Option<&Self>,
+        fs: &F,
+    ) -> crate::Result<Option<String>> {
+        match this {
+            Some(pot) => Ok(Some(pot.text(fs)?)),
+            None => Ok(None),
+        }
     }
 }
 
@@ -48,6 +66,7 @@ fn validate_name(name: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
 pub struct Author {
     #[validate(length(min = 1))]
@@ -79,10 +98,11 @@ fn validate_keywords(keywords: &Vec<String>) -> Result<(), ValidationError> {
 /// This package is first deserialized from the manifest file, requiring `.validate()` to be called
 /// to ensure all fields are valid. After validation, the `resolve` method should be called
 /// to resolve any paths to text content if the package will interact with the registry
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
 pub struct PackageMeta {
     /// The name of the package
-    #[validate(length(min = 2, max = 128), custom(function = validate_name))]
+    #[validate(length(min = 2, max = 128), custom(function = "validate_name"))]
     pub name: String,
 
     /// A short description of the package
@@ -90,7 +110,7 @@ pub struct PackageMeta {
     pub description: Option<PathOrText>,
 
     /// The version of the package
-    #[validate(custom(function = super::version::Version::valid_for_package))]
+    #[cfg_attr(feature = "api", schema(value_type = String, format = "version"))]
     pub version: super::version::Version,
 
     /// The authors of the package
@@ -121,12 +141,16 @@ pub struct PackageMeta {
     pub keywords: Vec<String>,
 }
 
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate, Default)]
 pub struct FileConfig {
     #[serde(default)]
     pub exclude: Vec<String>,
 }
 
+pub type NamedDependencies = BTreeMap<String, Dependency>;
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, validator::Validate, serde::Serialize, Clone)]
 pub struct PackageManifest {
     #[validate(nested)]
@@ -136,24 +160,94 @@ pub struct PackageManifest {
     pub files: FileConfig,
 
     #[serde(default = "BTreeMap::new")]
-    pub dependencies: BTreeMap<String, Dependency>,
+    pub dependencies: NamedDependencies,
 }
 
 impl PackageManifest {
-    pub fn resolve(
+    fn dependency_error(
+        name: &str,
+        reason: &str,
+    ) -> ValidationError {
+        ValidationError::new("dependencies")
+            .with_message(format!("'dependencies.{name}' is invalid: {reason}").into())
+    }
+
+    fn with_dependency_error(
+        errors: &mut ValidationErrors,
+        name: &str,
+        reason: &str,
+    ) {
+        errors.add("dependencies", Self::dependency_error(name, reason));
+    }
+
+    fn validate_remote(
+        errors: &mut ValidationErrors,
+        package_version: &crate::version::Version,
+        name: &str,
+        remote: &mut RemoteDependency,
+    ) {
+        if package_version.is_stable() && !remote.version.is_stable() {
+            Self::with_dependency_error(
+                errors,
+                name,
+                "cannot depend on pre-release versions from a stable package",
+            );
+        }
+    }
+
+    pub fn prepare_publish(&mut self) -> Result<(), validator::ValidationErrors> {
+        self.validate()?;
+        let mut errors = ValidationErrors::new();
+        for (name, dep) in self.dependencies.iter_mut() {
+            match dep {
+                Dependency::Path(_) => {
+                    Self::with_dependency_error(
+                        &mut errors,
+                        name,
+                        "path dependencies are not allowed for publishing",
+                    );
+                },
+                Dependency::Git(_) => {
+                    Self::with_dependency_error(
+                        &mut errors,
+                        name,
+                        "git dependencies are not allowed for publishing",
+                    )
+                },
+                Dependency::PathWithRemote(pwr) => {
+                    Self::validate_remote(
+                        &mut errors,
+                        &self.package.version,
+                        name,
+                        &mut pwr.remote,
+                    );
+                    *dep = Dependency::Remote(pwr.remote.clone());
+                },
+                Dependency::Remote(remote) => {
+                    Self::validate_remote(&mut errors, &self.package.version, name, remote);
+                },
+            }
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(())
+    }
+
+    pub fn resolve<F: kintsu_fs::FileSystem>(
         &mut self,
-        fs: Arc<dyn kintsu_fs::FileSystem>,
+        fs: &F,
     ) -> crate::Result<()> {
         if let Some(desc) = &mut self.package.description {
-            *desc = PathOrText::Text(desc.text(&fs)?);
+            *desc = PathOrText::Text(desc.text(fs)?);
         }
 
         if let Some(license) = &mut self.package.license {
-            *license = PathOrText::Text(license.text(&fs)?);
+            *license = PathOrText::Text(license.text(fs)?);
         }
 
         if let Some(readme) = &mut self.package.readme {
-            *readme = PathOrText::Text(readme.text(&fs)?);
+            *readme = PathOrText::Text(readme.text(fs)?);
         }
 
         Ok(())
@@ -164,23 +258,86 @@ impl NewForNamed for PackageManifest {
     const NAME: &str = "schema.toml";
 }
 
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
+pub struct GitDependency {
+    #[validate(url)]
+    #[cfg_attr(feature = "api", schema(value_type = String, format = "url"))]
+    pub git: String,
+
+    #[validate(length(min = 1), regex(path = *GIT_REF_RE, message = "git ref must be in the format refs/heads/<branch> or refs/tags/<tag>"))]
+    #[cfg_attr(feature = "api", schema(value_type = String, format = "ref"))]
+    #[serde(rename = "ref")]
+    pub git_ref: String,
+}
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
+pub struct PathDependency {
+    #[cfg_attr(feature = "api", schema(value_type = String, format = "path"))]
+    pub path: PathBuf,
+}
+
+fn default_registry() -> Option<String> {
+    Some("kintsu-public".to_string())
+}
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
+pub struct RemoteDependency {
+    #[serde(default = "default_registry")]
+    #[validate(regex(path = *REGISTRY_RE, message = "registry must be a valid URL"))]
+    pub name: Option<String>,
+
+    #[cfg_attr(feature = "api", schema(value_type = String, format = "version"))]
+    pub version: crate::version::Version,
+
+    pub registry: Option<String>,
+}
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
+pub struct PathWithRemote {
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub path: PathDependency,
+    #[serde(flatten)]
+    #[validate(nested)]
+    pub remote: RemoteDependency,
+}
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum Dependency {
-    Git {
-        git: String,
-        #[serde(rename = "ref")]
-        git_ref: String,
-        rev: String,
-    },
-    Path {
-        path: PathBuf,
-    },
-    Remote {
-        name: String,
-        version: crate::version::Version,
-        registry: Option<String>,
-    },
+    PathWithRemote(PathWithRemote),
+
+    Remote(RemoteDependency),
+    Path(PathDependency),
+
+    Git(GitDependency),
+}
+
+impl Dependency {
+    pub fn version(&self) -> Option<&crate::version::Version> {
+        match self {
+            Dependency::Git(_) => None,
+            Dependency::Path(_) => None,
+            Dependency::Remote(dep) => Some(&dep.version),
+            Dependency::PathWithRemote(dep) => Some(&dep.remote.version),
+        }
+    }
+}
+
+impl validator::Validate for Dependency {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        match self {
+            Dependency::Git(dep) => dep.validate(),
+            Dependency::Path(dep) => dep.validate(),
+            Dependency::Remote(dep) => dep.validate(),
+            Dependency::PathWithRemote(dep) => dep.validate(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -189,7 +346,6 @@ mod test {
 
     use crate::version::Version;
 
-    #[test_case::test_case("abc_types", "0.1.0", "https://github.com/abc/foo.git"; "valid name with underscore")]
     #[test_case::test_case("abc-types", "0.1.0", "https://github.com/abc/foo.git"; "valid name with dash")]
     #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git"; "simple name")]
     #[test_case::test_case("abc", "0.1.0.rc0", "https://github.com/abc/foo.git"; "version with rc")]
@@ -212,16 +368,17 @@ mod test {
         p.validate().unwrap();
     }
 
+    #[test_case::test_case("abc_types", "0.1.0", "https://github.com/abc/foo.git", vec![], "name: package name"; "invalid name with underscore")]
     #[test_case::test_case("a", "0.1.0", "https://github.com/abc/foo.git", vec![], "name: Validation error: length"; "name too short")]
     #[test_case::test_case("a".repeat(129).as_str(),
         "0.1.0", "https://github.com/abc/foo.git", vec![],
         "name: Validation error: length"; "name too long")]
     #[test_case::test_case("abc_types!", "0.1.0", "https://github.com/abc/foo.git", vec![], "name: package name must be provided without spaces or special characters"; "invalid character in name")]
     #[test_case::test_case("abc_types", "0.1.0", "not-a-url", vec![], "homepage: Validation error: url [{\"value\": String(\"not-a-url\")}]"; "invalid homepage url")]
-    #[test_case::test_case("abc", "0.1", "https://github.com/abc/foo.git", vec![], "version: Validation error:"; "version without patch")]
-    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec![" foo".into()], "keywords: Validation error:"; "keyword prefixed with space")]
-    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["foo bar".into()], "keywords: Validation error:"; "keyword with space inside")]
-    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["".into()], "keywords: Validation error:"; "empty keyword")]
+    #[test_case::test_case("abc", "0.1", "https://github.com/abc/foo.git", vec![], "version: patch version"; "version without patch")]
+    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec![" foo".into()], "keywords: keywords must be provided"; "keyword prefixed with space")]
+    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["foo bar".into()], "keywords: keywords must be provided"; "keyword with space inside")]
+    #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["".into()], "keywords: keywords must be provided"; "empty keyword")]
 
     fn test_pkg_validate_err(
         name: &str,

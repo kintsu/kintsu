@@ -1,6 +1,6 @@
-use crate::{DbPool, session::SessionData};
+use crate::{DbConn, session::SessionData};
 use actix_web::{Responder, get, post, web};
-use kintsu_registry_db::models::org::Org;
+use kintsu_registry_db::entities::Org;
 use validator::Validate;
 
 const ORGS: &str = "orgs";
@@ -12,18 +12,16 @@ const ORGS: &str = "orgs";
         ("id" = i64, Path, description = "Organization ID"),
     ),
     responses(
-        (status = 200, description = "Organization metadata", body = kintsu_registry_db::models::org::Org),
+        (status = 200, description = "Organization metadata", body = kintsu_registry_db::entities::Org),
         (status = 404, description = "Organization not found", body = crate::ErrorResponse),
     )
 )]
 #[get("/org/{id}")]
 pub async fn get_org_by_id(
     org_id: web::Path<i64>,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
-    let mut conn = pool.get().await?;
-
-    let org = kintsu_registry_db::models::org::Org::by_id(&mut conn, *org_id)
+    let org = kintsu_registry_db::entities::Org::by_id(conn.as_ref(), *org_id)
         .await?
         .ok_or_else(|| {
             crate::Error::Database(kintsu_registry_db::Error::NotFound(
@@ -48,7 +46,7 @@ pub async fn get_org_by_id(
 #[get("/orgs/exists/{name}")]
 pub async fn check_org_exists(
     name: web::Path<String>,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
     let name = name.into_inner();
 
@@ -61,11 +59,9 @@ pub async fn check_org_exists(
         ));
     }
 
-    let mut conn = pool.get().await?;
-
     // Use the Org model to check existence by name
-    use kintsu_registry_db::models::org::Org;
-    let exists = Org::by_name(&mut conn, &name)
+    use kintsu_registry_db::entities::Org;
+    let exists = Org::by_name(conn.as_ref(), &name)
         .await?
         .is_some();
 
@@ -79,7 +75,7 @@ pub async fn check_org_exists(
 #[utoipa::path(
     tag = ORGS,
     responses(
-        (status = 200, description = "User's organizations", body = Vec<kintsu_registry_db::models::org::OrgWithAdmin>),
+        (status = 200, description = "User's organizations", body = Vec<kintsu_registry_db::engine::OrgWithAdmin>),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
     ),
     security(("session" = []))
@@ -87,11 +83,9 @@ pub async fn check_org_exists(
 #[get("/orgs/mine")]
 pub async fn get_my_orgs(
     session: SessionData,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
-    let mut conn = pool.get().await?;
-
-    let orgs = session.user.user.orgs(&mut conn).await?;
+    let orgs = session.user.user.orgs(conn.as_ref()).await?;
 
     Ok(web::Json(orgs))
 }
@@ -102,9 +96,9 @@ pub async fn get_my_orgs(
     params(
         ("id" = i64, Path, description = "Organization ID"),
     ),
-    request_body = crate::models::CreateTokenRequest,
+    request_body = kintsu_registry_core::models::CreateTokenRequest,
     responses(
-        (status = 200, description = "Successfully created org token", body = kintsu_registry_db::models::api_key::OneTimeApiKey),
+        (status = 200, description = "Successfully created org token", body = kintsu_registry_db::engine::OneTimeApiKey),
         (status = 400, description = "Invalid request", body = crate::ErrorResponse),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
         (status = 403, description = "User is not an org admin", body = crate::ErrorResponse),
@@ -115,14 +109,12 @@ pub async fn get_my_orgs(
 pub async fn create_org_token(
     org_id: web::Path<i64>,
     session: SessionData,
-    pool: DbPool,
-    req: web::Json<crate::models::CreateTokenRequest>,
+    conn: DbConn,
+    req: web::Json<kintsu_registry_core::models::CreateTokenRequest>,
 ) -> crate::Result<impl Responder> {
     use chrono::Duration;
 
     req.validate()?;
-
-    let mut conn = pool.get().await?;
 
     let expires = chrono::Utc::now() + Duration::days(req.expires_in_days.unwrap_or(90));
 
@@ -131,7 +123,7 @@ pub async fn create_org_token(
         .user
         .user
         .request_org_token(
-            &mut conn,
+            conn.as_ref(),
             req.description.clone(),
             req.scopes.clone(),
             req.permissions.clone(),
@@ -150,7 +142,7 @@ pub async fn create_org_token(
         ("id" = i64, Path, description = "Organization ID"),
     ),
     responses(
-        (status = 200, description = "List of org API tokens", body = Vec<kintsu_registry_db::models::api_key::ApiKey>),
+        (status = 200, description = "List of org API tokens", body = Vec<kintsu_registry_db::entities::ApiKey>),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
         (status = 403, description = "User is not an org admin", body = crate::ErrorResponse),
         (status = 404, description = "Organization not found", body = crate::ErrorResponse),
@@ -161,12 +153,10 @@ pub async fn create_org_token(
 pub async fn get_org_tokens(
     org_id: web::Path<i64>,
     session: SessionData,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
-    let mut conn = pool.get().await?;
-
     // Verify user is org admin
-    let org = kintsu_registry_db::models::org::Org::by_id(&mut conn, *org_id)
+    let org = kintsu_registry_db::entities::Org::by_id(conn.as_ref(), *org_id)
         .await?
         .ok_or_else(|| {
             crate::Error::Database(kintsu_registry_db::Error::NotFound(
@@ -174,11 +164,11 @@ pub async fn get_org_tokens(
             ))
         })?;
 
-    org.must_be_admin(&mut conn, session.user.user.id)
+    org.must_be_admin(conn.as_ref(), session.user.user.id)
         .await?;
 
     // Get org tokens
-    let tokens = kintsu_registry_db::models::org::Org::tokens(&mut conn, *org_id).await?;
+    let tokens = kintsu_registry_db::entities::Org::tokens(conn.as_ref(), *org_id).await?;
 
     Ok(web::Json(tokens))
 }
@@ -187,7 +177,7 @@ pub async fn get_org_tokens(
 #[utoipa::path(
     tag = ORGS,
     responses(
-        (status = 200, description = "List of candidate organizations", body = Vec<crate::models::CandidateOrg>),
+        (status = 200, description = "List of candidate organizations", body = Vec<kintsu_registry_core::models::CandidateOrg>),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
         (status = 502, description = "GitHub API error", body = crate::ErrorResponse),
     ),
@@ -196,11 +186,9 @@ pub async fn get_org_tokens(
 #[get("/orgs/discover")]
 pub async fn discover_orgs(
     session: SessionData,
-    pool: DbPool,
+    conn: DbConn,
 ) -> crate::Result<impl Responder> {
     use secrecy::SecretString;
-
-    let mut conn = pool.get().await?;
 
     // Build Octocrab client with user's token
     let github = octocrab::Octocrab::builder()
@@ -223,7 +211,7 @@ pub async fn discover_orgs(
         .collect();
 
     let existing_orgs = Org::exists_bulk(
-        &mut conn,
+        conn.as_ref(),
         &admin_orgs
             .iter()
             .map(|org| org.organization.login.as_str())
@@ -232,11 +220,11 @@ pub async fn discover_orgs(
     .await?;
 
     // Build response
-    let candidates: Vec<crate::models::CandidateOrg> = admin_orgs
+    let candidates: Vec<kintsu_registry_core::models::CandidateOrg> = admin_orgs
         .into_iter()
         .map(|membership| {
             let gh_id = membership.organization.id.0 as i32;
-            crate::models::CandidateOrg {
+            kintsu_registry_core::models::CandidateOrg {
                 gh_id,
                 name: membership.organization.login.clone(),
                 avatar_url: membership
@@ -254,9 +242,9 @@ pub async fn discover_orgs(
 /// Import a GitHub organization into the registry
 #[utoipa::path(
     tag = ORGS,
-    request_body = crate::models::ImportOrgRequest,
+    request_body = kintsu_registry_core::models::ImportOrgRequest,
     responses(
-        (status = 200, description = "Organization imported successfully", body = kintsu_registry_db::models::org::Org),
+        (status = 200, description = "Organization imported successfully", body = kintsu_registry_db::entities::Org),
         (status = 400, description = "Invalid request", body = crate::ErrorResponse),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
         (status = 403, description = "User is not an admin of the organization", body = crate::ErrorResponse),
@@ -268,15 +256,13 @@ pub async fn discover_orgs(
 #[post("/orgs/import")]
 pub async fn import_org(
     session: SessionData,
-    pool: DbPool,
-    req: web::Json<crate::models::ImportOrgRequest>,
+    conn: DbConn,
+    req: web::Json<kintsu_registry_core::models::ImportOrgRequest>,
 ) -> crate::Result<impl Responder> {
     use secrecy::SecretString;
 
     // Validate request
     req.validate()?;
-
-    let mut conn = pool.get().await?;
 
     // Build Octocrab client with user's token
     let github = octocrab::Octocrab::builder()
@@ -305,11 +291,11 @@ pub async fn import_org(
     }
 
     // Import organization to database
-    let org = kintsu_registry_db::handlers::org::import_organization(
-        &mut conn,
+    let org = kintsu_registry_db::engine::org::import_organization(
+        conn.as_ref(),
         gh_org.id.0 as i32,
-        &gh_org.login,
-        &gh_org.avatar_url.to_string(),
+        gh_org.login,
+        gh_org.avatar_url.to_string(),
         session.user.user.id,
     )
     .await?;

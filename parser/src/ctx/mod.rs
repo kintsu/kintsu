@@ -1,6 +1,6 @@
 pub mod cache;
 mod common;
-pub(crate) mod compile;
+pub mod compile;
 pub(crate) mod graph;
 mod namespace;
 mod paths;

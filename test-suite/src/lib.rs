@@ -361,6 +361,7 @@ pub async fn compile_pass(
     match CompileCtx::with_fs(fs, root).await {
         Ok(ctx) => {
             ctx.finalize().await?;
+            ctx.emit_declarations().await?;
             Ok(ctx)
         },
         Err(e) => Err(e),

@@ -15,13 +15,14 @@ use tokio::sync::RwLock;
 use crate::ctx::{
     SchemaCtx,
     cache::{CacheKey, CachedSchema, SchemaCache},
+    compile::resolver::PackageResolver,
     registry::TypeRegistry,
 };
 
 use super::{
     coordinator::{CoordinatorState, dependency_coordinator, dependency_worker},
     progress::CompilationProgress,
-    resolver::{DependencyMutability, PackageResolver, ResolvedDependency},
+    resolver::ResolvedDependency,
     state::{ResolvedMetadata, SharedCompilationState},
     utils::{normalize_import_to_package_name, normalize_package_to_import_name},
 };
@@ -58,7 +59,7 @@ impl DependencyLoader {
     pub async fn load_dependencies_parallel(
         root: &SchemaCtx,
         state: Arc<RwLock<SharedCompilationState>>,
-        resolver: Arc<PackageResolver>,
+        resolver: Arc<dyn super::resolver::PackageResolver>,
         cache: SchemaCache,
         type_registry: TypeRegistry,
         root_path: PathBuf,
@@ -189,7 +190,7 @@ impl DependencyLoader {
     pub(super) async fn process_dependency_task(
         task: CompilationTask,
         state: Arc<RwLock<SharedCompilationState>>,
-        resolver: Arc<PackageResolver>,
+        resolver: Arc<dyn PackageResolver>,
         cache: SchemaCache,
         registry: TypeRegistry,
     ) -> crate::Result<DependencyTaskResult> {
@@ -219,24 +220,24 @@ impl DependencyLoader {
                 .insert(dep_name.clone());
         }
 
-        let resolved = resolver.resolve(parent_path, parent_manifest, dep_name)?;
+        let dep = parent_manifest
+            .dependencies
+            .get(&normalize_import_to_package_name(dep_name))
+            .ok_or_else(|| {
+                crate::Error::InternalError {
+                    message: format!("Dependency '{}' not found in parent manifest", dep_name),
+                }
+            })?;
+
+        let resolved = resolver.resolve(parent_path, dep_name, dep)?;
 
         let use_version = Self::resolve_version(&state, dep_name, &resolved).await?;
 
-        let checksum = resolver
-            .compute_content_hash(&resolved.path)
-            .await?;
+        let cache_key = Self::build_cache_key(dep_name, &use_version, &resolved).await?;
 
-        Self::validate_checksum(&state, dep_name, &use_version, &checksum).await;
+        let content_hash = cache_key.content_hash.clone().unwrap();
 
-        let cache_key = Self::build_cache_key(
-            dep_name,
-            &use_version,
-            &resolved.path,
-            resolved.mutability,
-            &resolver,
-        )
-        .await?;
+        Self::validate_checksum(&state, dep_name, &use_version, &content_hash).await;
 
         let dep_schema = Self::load_or_cache_schema(
             &cache,
@@ -248,7 +249,7 @@ impl DependencyLoader {
         .await?;
 
         if let Some(dep_lockfile) =
-            Self::load_dependency_lockfile(resolver.fs.as_ref(), &resolved.path).await
+            Self::load_dependency_lockfile(resolved.fs.as_ref(), &resolved.path).await
         {
             Self::merge_dependency_lockfile(&state, dep_lockfile).await;
         }
@@ -275,8 +276,9 @@ impl DependencyLoader {
                 dep_name.clone(),
                 ResolvedMetadata {
                     version: use_version.clone(),
+                    checksum: content_hash.clone(),
+
                     source,
-                    checksum,
                     provides,
                     dependencies: dependency_names,
                 },
@@ -371,19 +373,14 @@ impl DependencyLoader {
     async fn build_cache_key(
         package_name: &str,
         version: &Version,
-        path: &Path,
-        mutability: DependencyMutability,
-        resolver: &PackageResolver,
+        resolved: &ResolvedDependency,
     ) -> crate::Result<CacheKey> {
-        let content_hash = match mutability {
-            DependencyMutability::Immutable => None,
-            DependencyMutability::Mutable => Some(resolver.compute_content_hash(path).await?),
-        };
+        let content_hash = resolved.compute_content_hash().await?;
 
         Ok(CacheKey::new(
             package_name.to_string(),
             version.clone(),
-            content_hash,
+            Some(content_hash),
         ))
     }
 
@@ -474,17 +471,32 @@ impl DependencyLoader {
             .dependencies
             .get(&normalize_import_to_package_name(dep_name))
         {
-            Some(Dependency::Path { path }) => LockedSource::Path { path: path.clone() },
-            Some(Dependency::Git { git, git_ref, rev }) => {
-                LockedSource::Git {
-                    url: git.clone(),
-                    git_ref: git_ref.clone(),
-                    rev: rev.clone(),
+            Some(Dependency::Path(path)) => {
+                LockedSource::Path {
+                    path: path.path.clone(),
                 }
             },
-            Some(Dependency::Remote { registry, .. }) => {
+            Some(Dependency::Git(git)) => {
+                LockedSource::Git {
+                    url: git.git.clone(),
+                    git_ref: git.git_ref.clone(),
+                }
+            },
+            Some(Dependency::PathWithRemote(path)) => {
                 LockedSource::Registry {
-                    url: registry
+                    // todo: this should be the api download url from the remote config
+                    url: path
+                        .remote
+                        .registry
+                        .clone()
+                        .unwrap_or_else(|| "https://registry.kintsu.dev".to_string()),
+                }
+            },
+            Some(Dependency::Remote(remote)) => {
+                LockedSource::Registry {
+                    // todo: this should be the api download url from the remote config
+                    url: remote
+                        .registry
                         .clone()
                         .unwrap_or_else(|| "https://registry.kintsu.dev".to_string()),
                 }

@@ -14,7 +14,7 @@ def get_downloads_mocked(version_ids: List[int], days: int = 90) -> List[Dict]:
             day = today - timedelta(days=day_offset)
 
             variation = random.uniform(0.5, 1.5)
-            downloads = int(baseline * variation * (float(day_offset) / days) * 100)
+            downloads = int(baseline * variation)
 
             recency_boost = 1.0 + (1.0 - day_offset / days) * 0.3
             downloads = int(downloads * recency_boost)
@@ -46,7 +46,7 @@ VALUES
 
 
 if __name__ == "__main__":
-    version_ids = [1, 2, 3]
+    version_ids = list(range(1, 25))
 
     mock_data = get_downloads_mocked(version_ids, days=365)
 

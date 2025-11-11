@@ -75,6 +75,36 @@ impl Cli {
 
                 Ok(kintsu_parser::fmt::fmt(args.config.config_dir, targets, args.dry).await?)
             },
+            Command::Registry { command } => {
+                match command {
+                    RegistryCommand::Publish(opts) => {
+                        let root_dir = opts.config.config_dir.unwrap_or("./".into());
+                        let ctx = kintsu_parser::ctx::CompileCtx::from_entry_point_with_progress(
+                            root_dir.clone(),
+                            !opts.no_progress,
+                        )
+                        .await
+                        .map_err(|err| err.to_report(None, None, None))?;
+
+                        ctx.finalize().await?;
+
+                        let client = kintsu_env_client::RegistryClient::new(
+                            &opts.registry.base_url,
+                            Some(opts.registry.token),
+                        )?;
+
+                        client
+                            .publish_compiled_package(
+                                ctx.root.package.clone(),
+                                ctx.root_fs.clone(),
+                                root_dir.clone(),
+                            )
+                            .await?;
+
+                        Ok(())
+                    },
+                }
+            },
         }
     }
 }
@@ -96,6 +126,26 @@ enum Command {
     #[clap(alias = "f")]
     /// formats schemas
     Fmt(FmtArgs),
+
+    #[clap(alias = "r")]
+    /// registry sub commands
+    Registry {
+        #[clap(subcommand)]
+        command: RegistryCommand,
+    },
+}
+
+#[derive(clap::Args, Debug, Clone)]
+struct WithRegistry {
+    #[clap(short = 'r', long, help = "the base url of the registry.")]
+    base_url: String,
+
+    #[clap(
+        long,
+        env = "KINTSU_REGISTRY_TOKEN",
+        help = "the API key for the registry."
+    )]
+    token: secrecy::SecretString,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -165,4 +215,21 @@ struct FmtArgs {
 
     #[clap(short = 'W', long, help = "fail if warnings are encountered")]
     warn_is_fail: bool,
+}
+
+#[derive(clap::Subcommand, Debug, Clone)]
+enum RegistryCommand {
+    Publish(PublishArgs),
+}
+
+#[derive(clap::Args, Debug, Clone)]
+struct PublishArgs {
+    #[clap(flatten)]
+    config: WithConfig,
+
+    #[clap(flatten)]
+    registry: WithRegistry,
+
+    #[clap(long, default_value_t = false, help = "disable compilation progress")]
+    no_progress: bool,
 }

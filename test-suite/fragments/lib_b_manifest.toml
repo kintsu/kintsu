@@ -4,4 +4,4 @@ version = "1.0.0"
 description = "Library B package"
 
 [dependencies]
-common = { path = "../common" }
+common = { path = "../common", version = "1.0.0" }

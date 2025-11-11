@@ -8,7 +8,7 @@ const COOKIE_SESSION_DAYS: i64 = 7;
 #[derive(serde::Deserialize, serde::Serialize, Debug, ToSchema)]
 pub struct PublicData {
     #[serde(flatten)]
-    pub user: kintsu_registry_db::models::user::User,
+    pub user: kintsu_registry_db::entities::User,
     pub authenticated_at: chrono::DateTime<chrono::Utc>,
     pub expires_at: chrono::DateTime<chrono::Utc>,
 }
@@ -25,7 +25,7 @@ pub struct SessionData {
 
 impl SessionData {
     pub fn new(
-        user: kintsu_registry_db::models::user::User,
+        user: kintsu_registry_db::entities::User,
         token: SecretString,
     ) -> Self {
         Self {

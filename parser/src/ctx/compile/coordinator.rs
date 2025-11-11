@@ -13,7 +13,6 @@ use crate::ctx::{cache::SchemaCache, registry::TypeRegistry};
 use super::{
     loader::{CompilationTask, DependencyTaskResult},
     progress::CompilationProgress,
-    resolver::PackageResolver,
     state::SharedCompilationState,
 };
 
@@ -84,7 +83,7 @@ pub(super) async fn dependency_worker(
     task_rx: Arc<tokio::sync::Mutex<UnboundedReceiver<CompilationTask>>>,
     result_tx: UnboundedSender<Result<DependencyTaskResult, crate::Error>>,
     coord_state: CoordinatorState,
-    resolver: Arc<PackageResolver>,
+    resolver: Arc<dyn super::resolver::PackageResolver>,
     cache: SchemaCache,
     registry: TypeRegistry,
 ) {

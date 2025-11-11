@@ -1,11 +1,12 @@
 use std::{
-    collections::BTreeMap,
-    ops::{Deref, DerefMut},
+    collections::HashMap,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
 };
 
+use bytes::Bytes;
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, FileSystem, Result};
@@ -37,63 +38,101 @@ pub enum FsOperation {
     },
 }
 
-fn de_with_utf<'de, D>(
-    deserializer: D
-) -> std::result::Result<BTreeMap<PathBuf, Vec<u8>>, D::Error>
+fn de_with_utf<'de, D>(deserializer: D) -> std::result::Result<HashMap<PathBuf, Bytes>, D::Error>
 where
     D: serde::Deserializer<'de>, {
-    let map: BTreeMap<PathBuf, String> = BTreeMap::deserialize(deserializer)?;
+    let map: HashMap<PathBuf, String> = HashMap::deserialize(deserializer)?;
     Ok(map
         .into_iter()
-        .map(|(k, v)| (k, v.into_bytes()))
+        .map(|(k, v)| (k, Bytes::from(v.into_bytes())))
         .collect())
 }
 
 fn ser_with_utf<S>(
-    orig: &BTreeMap<PathBuf, Vec<u8>>,
+    orig: &DashMap<PathBuf, Bytes>,
     serializer: S,
 ) -> std::result::Result<S::Ok, S::Error>
 where
     S: serde::Serializer, {
-    let map: BTreeMap<PathBuf, String> = orig
+    let map: HashMap<PathBuf, String> = orig
         .iter()
-        .map(|(k, v)| (k.clone(), String::from_utf8_lossy(v).into_owned()))
+        .map(|ref_multi| {
+            (
+                ref_multi.key().clone(),
+                String::from_utf8_lossy(ref_multi.value().as_ref()).into_owned(),
+            )
+        })
         .collect();
     map.serialize(serializer)
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Default)]
-struct FilesInner {
-    #[serde(serialize_with = "ser_with_utf", deserialize_with = "de_with_utf")]
-    map: BTreeMap<PathBuf, Vec<u8>>,
+#[allow(dead_code)]
+#[cfg(feature = "api")]
+#[derive(utoipa::ToSchema)]
+struct MemoryFileSystemSerdeHelper {
+    files: HashMap<String, String>,
 }
 
-impl FilesInner {
-    fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Deref for FilesInner {
-    type Target = BTreeMap<PathBuf, Vec<u8>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl DerefMut for FilesInner {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
-    }
-}
-
+#[cfg_attr(feature = "db", derive(sea_orm::prelude::FromJsonQueryResult))]
 #[derive(Clone, Debug)]
 pub struct MemoryFileSystem {
-    files: Arc<RwLock<FilesInner>>,
-    #[cfg(fs_test)]
-    operations: Arc<RwLock<Vec<FsOperation>>>,
+    files: Arc<DashMap<PathBuf, Bytes>>,
+
+    pattern_cache: Arc<Mutex<HashMap<String, glob::Pattern>>>,
+
+    #[cfg(feature = "fs-test")]
+    operations: Arc<Mutex<Vec<FsOperation>>>,
 }
+
+impl PartialEq for MemoryFileSystem {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
+        let self_keys: Vec<_> = self
+            .files
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+        let other_keys: Vec<_> = other
+            .files
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+
+        if self_keys.len() != other_keys.len() {
+            return false;
+        }
+
+        for key in &self_keys {
+            let self_value = self.files.get(key);
+            let other_value = other.files.get(key);
+
+            match (self_value, other_value) {
+                (Some(sv), Some(ov)) => {
+                    if sv.value() != ov.value() {
+                        return false;
+                    }
+                },
+                _ => return false,
+            }
+        }
+
+        true
+    }
+}
+
+impl Eq for MemoryFileSystem {}
+
+#[cfg(feature = "api")]
+impl utoipa::PartialSchema for MemoryFileSystem {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        MemoryFileSystemSerdeHelper::schema()
+    }
+}
+
+#[cfg(feature = "api")]
+impl utoipa::ToSchema for MemoryFileSystem {}
 
 impl serde::Serialize for MemoryFileSystem {
     fn serialize<S>(
@@ -102,8 +141,7 @@ impl serde::Serialize for MemoryFileSystem {
     ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer, {
-        let files = self.files.read().unwrap();
-        files.serialize(serializer)
+        ser_with_utf(&self.files, serializer)
     }
 }
 
@@ -111,11 +149,16 @@ impl<'de> serde::Deserialize<'de> for MemoryFileSystem {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>, {
-        let files_inner = FilesInner::deserialize(deserializer)?;
+        let files_map = de_with_utf(deserializer)?;
+        let files = Arc::new(DashMap::new());
+        for (k, v) in files_map {
+            files.insert(k, v);
+        }
         Ok(Self {
-            files: Arc::new(RwLock::new(files_inner)),
-            #[cfg(fs_test)]
-            operations: Arc::new(RwLock::new(Vec::new())),
+            files,
+            pattern_cache: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(feature = "fs-test")]
+            operations: Arc::new(Mutex::new(Vec::new())),
         })
     }
 }
@@ -164,23 +207,25 @@ fn remove_relative(path: &Path) -> PathBuf {
 impl MemoryFileSystem {
     pub fn new() -> Self {
         Self {
-            files: Arc::new(RwLock::new(FilesInner::new())),
-            #[cfg(fs_test)]
-            operations: Arc::new(RwLock::new(Vec::new())),
+            files: Arc::new(DashMap::new()),
+            pattern_cache: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(feature = "fs-test")]
+            operations: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
     pub fn with_files(
         files: impl IntoIterator<Item = (impl Into<PathBuf>, impl Into<Vec<u8>>)>
     ) -> Self {
-        let mut map = BTreeMap::new();
+        let map = DashMap::new();
         for (path, contents) in files {
-            map.insert(path.into(), contents.into());
+            map.insert(path.into(), Bytes::from(contents.into()));
         }
         Self {
-            files: Arc::new(RwLock::new(FilesInner { map })),
-            #[cfg(fs_test)]
-            operations: Arc::new(RwLock::new(Vec::new())),
+            files: Arc::new(map),
+            pattern_cache: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(feature = "fs-test")]
+            operations: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -189,97 +234,136 @@ impl MemoryFileSystem {
         path: impl Into<PathBuf>,
         contents: impl AsRef<[u8]>,
     ) {
-        let mut files = self.files.write().unwrap();
-        files.insert(path.into(), contents.as_ref().to_vec());
+        self.files
+            .insert(path.into(), Bytes::from(contents.as_ref().to_vec()));
     }
 
     pub fn remove_file(
         &self,
         path: &Path,
     ) -> bool {
-        let mut files = self.files.write().unwrap();
-        files.remove(path).is_some()
+        self.files.remove(path).is_some()
     }
 
     pub fn clear(&self) {
-        let mut files = self.files.write().unwrap();
-        files.clear();
-        #[cfg(fs_test)]
+        self.files.clear();
+        #[cfg(feature = "fs-test")]
         self.clear_operations();
     }
 
     pub fn list_files(&self) -> Vec<PathBuf> {
-        let files = self.files.read().unwrap();
-        files.keys().cloned().collect()
+        self.files
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     pub fn get_file_content(
         &self,
         path: &Path,
     ) -> Option<Vec<u8>> {
-        let files = self.files.read().unwrap();
-        files.get(&remove_relative(path)).cloned()
+        self.files
+            .get(&remove_relative(path))
+            .map(|entry| entry.value().to_vec())
     }
 
-    #[cfg(fs_test)]
+    #[cfg(feature = "fs-test")]
     pub fn operations(&self) -> Vec<FsOperation> {
-        let ops = self.operations.read().unwrap();
+        let ops = self.operations.lock().unwrap();
         ops.clone()
     }
 
-    #[cfg(fs_test)]
+    #[cfg(feature = "fs-test")]
     pub fn clear_operations(&self) {
-        let mut ops = self.operations.write().unwrap();
-        ops.clear();
+        let mut ops = self.operations.lock().unwrap();
+        ops.clear()
     }
 
-    #[cfg(fs_test)]
+    #[cfg(feature = "fs-test")]
     fn track_operation(
         &self,
         op: FsOperation,
     ) {
-        let mut ops = self.operations.write().unwrap();
+        let mut ops = self.operations.lock().unwrap();
         ops.push(op);
     }
 
-    fn matches_glob(
-        path: &Path,
-        pattern: &str,
-    ) -> bool {
-        match glob::Pattern::new(
-            &remove_relative(&PathBuf::from(pattern))
-                .display()
-                .to_string(),
-        ) {
-            Ok(pat) => pat.matches_path(&remove_relative(path)),
-            Err(_) => false,
-        }
-    }
-
-    #[cfg(fs_test)]
+    #[cfg(feature = "fs-test")]
     pub fn debug_print_files(&self) {
-        let files = self.files.read().unwrap();
-        for (path, contents) in files.iter() {
+        for entry in self.files.iter() {
+            let (path, contents) = (entry.key(), entry.value());
             println!("File: {} ({} bytes)", path.display(), contents.len());
-            println!("```\n{}\n```", String::from_utf8_lossy(contents));
+            println!("```\n{}\n```", String::from_utf8_lossy(contents.as_ref()));
         }
     }
 
+    /// Writes all in-memory files to the physical filesystem at the specified root path.
+    /// Creates directories as needed.
     pub fn danger_write_to_physical(
         &self,
         root_path: impl AsRef<Path>,
     ) -> std::io::Result<()> {
-        let files = self.files.read().unwrap();
-        for (path, contents) in files.iter() {
+        for entry in self.files.iter() {
+            let (path, contents) = (entry.key(), entry.value());
             let full_path = root_path.as_ref().join(path);
             if let Some(parent) = full_path.parent()
                 && !parent.exists()
             {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::write(full_path, contents)?;
+            std::fs::write(full_path, contents.as_ref())?;
         }
         Ok(())
+    }
+
+    pub fn merge(
+        root_path: impl AsRef<Path>,
+        many: Vec<MemoryFileSystem>,
+    ) -> Self {
+        let root_path = root_path.as_ref();
+        let merged = MemoryFileSystem::new();
+        for fs in many {
+            for entry in fs.files.iter() {
+                merged.files.insert(
+                    root_path.join(entry.key()).to_path_buf(),
+                    entry.value().clone(),
+                );
+            }
+        }
+        merged
+    }
+
+    pub async fn extract_from<Fs: crate::FileSystem + Send + Sync>(
+        fs: &Fs,
+        root_path: impl AsRef<Path>,
+        include: &[impl std::fmt::Display],
+        exclude: &[impl std::fmt::Display],
+    ) -> std::result::Result<Self, Error> {
+        let root_path = root_path.as_ref();
+        let memory_fs = MemoryFileSystem::new();
+
+        let include = include
+            .iter()
+            .map(|s| format!("{}{}", root_path.display(), s))
+            .collect::<Vec<_>>();
+
+        let exclude = exclude
+            .iter()
+            .map(|s| format!("{}{}", root_path.display(), s))
+            .collect::<Vec<_>>();
+
+        let all_files = fs.find_glob(&include, &exclude)?;
+
+        for file_path in all_files {
+            let relative_path = file_path
+                .strip_prefix(root_path)
+                .unwrap_or(&file_path);
+            let content = fs.read(&file_path).await?;
+            memory_fs
+                .files
+                .insert(relative_path.to_path_buf(), Bytes::from(content));
+        }
+        Ok(memory_fs)
     }
 }
 
@@ -294,9 +378,10 @@ impl FileSystem for MemoryFileSystem {
         &self,
         path: &Path,
     ) -> bool {
-        let files = self.files.read().unwrap();
-        let exists = files.contains_key(&remove_relative(path));
-        #[cfg(fs_test)]
+        let exists = self
+            .files
+            .contains_key(&remove_relative(path));
+        #[cfg(feature = "fs-test")]
         self.track_operation(FsOperation::ExistsSync {
             path: path.to_path_buf(),
             exists,
@@ -309,18 +394,59 @@ impl FileSystem for MemoryFileSystem {
         include: &[String],
         exclude: &[String],
     ) -> Result<Vec<PathBuf>> {
-        let files = self.files.read().unwrap();
+        let mut pattern_cache = self.pattern_cache.lock().unwrap();
+
+        let include_patterns: Result<Vec<glob::Pattern>> = include
+            .iter()
+            .map(|pattern| {
+                if let Some(compiled) = pattern_cache.get(pattern) {
+                    Ok(compiled.clone())
+                } else {
+                    let normalized = remove_relative(&PathBuf::from(pattern))
+                        .display()
+                        .to_string();
+                    let compiled = glob::Pattern::new(&normalized)?;
+                    pattern_cache.insert(pattern.clone(), compiled.clone());
+                    Ok(compiled)
+                }
+            })
+            .collect();
+
+        let exclude_patterns: Result<Vec<glob::Pattern>> = exclude
+            .iter()
+            .map(|pattern| {
+                if let Some(compiled) = pattern_cache.get(pattern) {
+                    Ok(compiled.clone())
+                } else {
+                    let normalized = remove_relative(&PathBuf::from(pattern))
+                        .display()
+                        .to_string();
+                    let compiled = glob::Pattern::new(&normalized)?;
+                    pattern_cache.insert(pattern.clone(), compiled.clone());
+                    Ok(compiled)
+                }
+            })
+            .collect();
+
+        drop(pattern_cache);
+
+        let include_patterns = include_patterns?;
+        let exclude_patterns = exclude_patterns?;
+
         let mut results = Vec::new();
 
-        for path in files.keys() {
-            let matches_include = include.is_empty()
-                || include
-                    .iter()
-                    .any(|pattern| Self::matches_glob(path, pattern));
+        for entry in self.files.iter() {
+            let path = entry.key();
+            let normalized_path = remove_relative(path);
 
-            let matches_exclude = exclude
+            let matches_include = include.is_empty()
+                || include_patterns
+                    .iter()
+                    .any(|pattern| pattern.matches_path(&normalized_path));
+
+            let matches_exclude = exclude_patterns
                 .iter()
-                .any(|pattern| Self::matches_glob(path, pattern));
+                .any(|pattern| pattern.matches_path(&normalized_path));
 
             if matches_include && !matches_exclude {
                 results.push(path.clone());
@@ -329,7 +455,7 @@ impl FileSystem for MemoryFileSystem {
 
         results.sort();
 
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         self.track_operation(FsOperation::FindGlob {
             include: include.to_vec(),
             exclude: exclude.to_vec(),
@@ -345,22 +471,24 @@ impl FileSystem for MemoryFileSystem {
     ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + Send + Sync>> {
         let files = self.files.clone();
 
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         let operations = self.operations.clone();
 
         let path = remove_relative(path);
         Box::pin(async move {
-            let files = files.read().unwrap();
-            let result = files.get(&path).cloned().ok_or_else(|| {
-                Error::IoError(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("File not found: {}", path.display()),
-                ))
-            });
+            let result = files
+                .get(&path)
+                .map(|entry| entry.value().to_vec())
+                .ok_or_else(|| {
+                    Error::IoError(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("File not found: {}", path.display()),
+                    ))
+                });
 
-            #[cfg(fs_test)]
+            #[cfg(feature = "fs-test")]
             if result.is_ok() {
-                let mut ops = operations.write().unwrap();
+                let mut ops = operations.lock().unwrap();
                 ops.push(FsOperation::Read { path: path.clone() });
             }
 
@@ -374,30 +502,34 @@ impl FileSystem for MemoryFileSystem {
     ) -> Pin<Box<dyn std::future::Future<Output = Result<String>> + Send + Sync>> {
         let files = self.files.clone();
 
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         let operations = self.operations.clone();
 
         let path = remove_relative(path);
         Box::pin(async move {
-            let files = files.read().unwrap();
-            let bytes = files.get(&path).ok_or_else(|| {
-                Error::IoError(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("File not found: {}", path.display()),
-                ))
-            })?;
-            let result = String::from_utf8(bytes.clone()).map_err(|e| {
+            let bytes = files
+                .get(&path)
+                .map(|entry| entry.value().clone())
+                .ok_or_else(|| {
+                    Error::IoError(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("File not found: {}", path.display()),
+                    ))
+                })?;
+
+            let result = String::from_utf8(bytes.to_vec()).map_err(|e| {
                 Error::IoError(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     format!("Invalid UTF-8: {}", e),
                 ))
             });
 
-            #[cfg(fs_test)]
+            #[cfg(feature = "fs-test")]
             if result.is_ok() {
-                let mut ops = operations.write().unwrap();
+                let mut ops = operations.lock().unwrap();
                 ops.push(FsOperation::ReadToString { path: path.clone() });
             }
+
             result
         })
     }
@@ -406,22 +538,26 @@ impl FileSystem for MemoryFileSystem {
         &self,
         path: &Path,
     ) -> Result<String> {
-        let files = self.files.read().unwrap();
         let path = remove_relative(path);
-        let bytes = files.get(&path).ok_or_else(|| {
-            Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("File not found: {}", path.display()),
-            ))
-        })?;
-        let result = String::from_utf8(bytes.clone()).map_err(|e| {
+        let bytes = self
+            .files
+            .get(&path)
+            .map(|entry| entry.value().clone())
+            .ok_or_else(|| {
+                Error::IoError(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("File not found: {}", path.display()),
+                ))
+            })?;
+
+        let result = String::from_utf8(bytes.to_vec()).map_err(|e| {
             Error::IoError(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid UTF-8: {}", e),
             ))
         });
 
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         if result.is_ok() {
             self.track_operation(FsOperation::ReadToString {
                 path: path.to_path_buf(),
@@ -439,19 +575,17 @@ impl FileSystem for MemoryFileSystem {
         let files = self.files.clone();
         let path = remove_relative(path);
 
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         let operations = self.operations.clone();
-        #[cfg(fs_test)]
+        #[cfg(feature = "fs-test")]
         let size = contents.len();
 
         Box::pin(async move {
-            let mut files = files.write().unwrap();
+            files.insert(path.clone(), Bytes::from(contents));
 
-            files.insert(path.clone(), contents);
-
-            #[cfg(fs_test)]
+            #[cfg(feature = "fs-test")]
             {
-                let mut ops = operations.write().unwrap();
+                let mut ops = operations.lock().unwrap();
                 ops.push(FsOperation::Write {
                     path: path.clone(),
                     size,

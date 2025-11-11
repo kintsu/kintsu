@@ -63,7 +63,6 @@ pub enum LockedSource {
         url: String,
         #[serde(rename = "ref")]
         git_ref: String,
-        rev: String,
     },
     Path {
         path: PathBuf,

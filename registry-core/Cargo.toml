@@ -1,0 +1,17 @@
+[package]
+name = "kintsu-registry-core"
+edition = "2024"
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]
+kintsu-fs = { path = "../fs", features = ["api"] }
+kintsu-manifests = { path = "../manifests", features = ["api"] }
+kintsu-registry-db = { path = "../registry-db" }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+validator = { workspace = true, features = ["derive"] }
+

@@ -21,11 +21,12 @@ use super::progress::CompilationProgress;
 
 pub struct CompileCtx {
     pub root: Arc<SchemaCtx>,
+    pub root_fs: Arc<dyn FileSystem>,
 
     type_registry: TypeRegistry,
 
     pub(super) state: Arc<RwLock<SharedCompilationState>>,
-    pub(super) resolver: Arc<PackageResolver>,
+    pub(super) resolver: Arc<dyn PackageResolver>,
     pub(super) cache: SchemaCache,
 
     pub(super) root_path: PathBuf,
@@ -81,7 +82,7 @@ impl CompileCtx {
             let root_version = Version::parse(&self.root.package.package.version.to_string())?;
             LockfileManager::write_lockfile(
                 &self.state,
-                &self.resolver,
+                self.root_fs.clone(),
                 &self.root_path,
                 &self.root.package.package.name,
                 root_version,
@@ -123,6 +124,10 @@ impl CompileCtx {
 }
 
 impl CompileCtx {
+    fn default_resolver(fs: Arc<dyn FileSystem>) -> Arc<dyn PackageResolver> {
+        Arc::new(super::resolver::Resolver::new(fs))
+    }
+
     pub async fn from_entry_point(entry_path: impl AsRef<Path>) -> crate::Result<Self> {
         Self::from_entry_point_with_progress(entry_path, false).await
     }
@@ -138,11 +143,19 @@ impl CompileCtx {
         fs: Arc<dyn FileSystem>,
         entry_path: impl AsRef<Path>,
     ) -> crate::Result<Self> {
-        Self::with_fs_and_config(fs, entry_path, num_cpus::get(), false).await
+        Self::with_fs_and_config(
+            fs.clone(),
+            Self::default_resolver(fs.clone()),
+            entry_path,
+            num_cpus::get(),
+            false,
+        )
+        .await
     }
 
     pub async fn with_fs_and_config(
         fs: Arc<dyn FileSystem>,
+        resolver: Arc<dyn super::resolver::PackageResolver>,
         entry_path: impl AsRef<Path>,
         max_concurrent_tasks: usize,
         show_progress: bool,
@@ -153,7 +166,6 @@ impl CompileCtx {
         let pb = progress.add_spinner("Initializing");
         pb.set_message("root schema");
 
-        let resolver = Arc::new(PackageResolver::with_fs(fs.clone()));
         let entry_path_ref = entry_path.as_ref();
         let root_path = entry_path_ref.to_path_buf();
         let root =
@@ -179,6 +191,7 @@ impl CompileCtx {
             type_registry: registry.clone(),
             state: state.clone(),
             resolver: resolver.clone(),
+            root_fs: fs.clone(),
             cache: cache.clone(),
             root_path: root_path.clone(),
             progress: progress.clone(),
@@ -218,23 +231,24 @@ impl CompileCtx {
         let pb = progress.add_spinner("Initializing");
         pb.set_message("root schema");
 
-        let resolver = Arc::new(PackageResolver::new());
+        let fs = Arc::new(kintsu_fs::physical::Physical);
+        let resolver = Arc::new(super::resolver::Resolver::new(fs.clone()));
+
         let entry_path_ref = entry_path.as_ref();
         let root_path = entry_path_ref.to_path_buf();
-        let root = Arc::new(
-            SchemaCtx::from_path(resolver.fs.as_ref(), entry_path_ref, registry.clone()).await?,
-        );
+
+        let root =
+            Arc::new(SchemaCtx::from_path(fs.as_ref(), entry_path_ref, registry.clone()).await?);
 
         pb.finish_with_message(format!("completed {}", root.package.package.name));
 
         let cache = SchemaCache::new();
 
-        let existing_lockfile =
-            Lockfiles::new_for_opt(resolver.fs.as_ref(), &root_path)?.map(|lockfiles| {
-                match lockfiles {
-                    Lockfiles::V1(lockfile) => lockfile,
-                }
-            });
+        let existing_lockfile = Lockfiles::new_for_opt(fs.as_ref(), &root_path)?.map(|lockfiles| {
+            match lockfiles {
+                Lockfiles::V1(lockfile) => lockfile,
+            }
+        });
 
         let mut initial_state = SharedCompilationState::new();
         initial_state.lockfile = existing_lockfile;
@@ -243,6 +257,7 @@ impl CompileCtx {
 
         let ctx = Self {
             root,
+            root_fs: fs,
             type_registry: registry.clone(),
             state: state.clone(),
             resolver: resolver.clone(),

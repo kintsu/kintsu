@@ -156,6 +156,16 @@ impl TypeRegistry {
             })
     }
 
+    /// Direct lookup by NamedItemContext
+    pub fn get(
+        &self,
+        context: &NamedItemContext,
+    ) -> Option<FromNamedSource<Spanned<ResolvedType>>> {
+        self.with_lock(|inner| inner.get(context).cloned())
+            .ok()
+            .flatten()
+    }
+
     pub fn is_valid(
         &self,
         context: &super::paths::RefContext,
