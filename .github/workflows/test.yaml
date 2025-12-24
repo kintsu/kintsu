@@ -20,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest] #, windows-latest]
+        # note: i would love to test on macos-16-arm64, but github runners have qemu virtualization issues with m1
+        # so until these are fixed (which probably wont happen), we use macos-26 which uses arm64 hardware + intel variations
+        runner: [ubuntu-latest, macos-26, macos-15-intel] #, windows-latest]
     steps:
       - name: Free Disk Space
         if: runner.os == 'Linux'
