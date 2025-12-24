@@ -43,6 +43,7 @@ env.LOG_LEVEL = "error"
 
 [tools]
 bun = "latest"
+cargo-binstall = "latest"
 cargo-insta = "latest"
 node = "latest"
 prek = "latest"
