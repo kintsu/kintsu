@@ -8,6 +8,10 @@ gen-a = [
 ]
 config-sync = "sed 's/samples/..\\/samples/g' examples/gen-a/op-gen.toml > samples/config-a/op-gen.toml"
 clean-snap = "rm -rf ./**/snapshots/*.snap"
+clean-hoist = "rm -rf ./**/Cargo.toml.*.bak"
+
+deps = "python -m scripts.deps hoist && python -m scripts.deps sort"
+
 
 [tasks.compile-tape]
 run = ["vhs ../kintsu-docs/demos/compile.vhs.tape"]

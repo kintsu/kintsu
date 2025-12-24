@@ -14,12 +14,13 @@ kintsu-fs = { path = "../fs", features = ["api"] }
 kintsu-manifests = { path = "../manifests", features = ["api"] }
 kintsu-parser = { path = "../parser", features = ["api"] }
 kintsu-registry-auth = { path = "../registry-auth" }
-kintsu-registry-events = { path = "../registry-events" }
 kintsu-registry-core = { path = "../registry-core" }
 kintsu-registry-db = { path = "../registry-db" }
+kintsu-registry-events = { path = "../registry-events" }
 kintsu-registry-storage = { path = "../registry-storage" }
 actix-web = { workspace = true, features = ["secure-cookies"] }
 chrono = { workspace = true, features = ["serde"] }
+convert_case = { workspace = true }
 dotenvy = { workspace = true }
 octocrab = { workspace = true }
 reqwest = { workspace = true }
@@ -41,4 +42,3 @@ utoipa-actix-web = { workspace = true }
 utoipa-rapidoc = { features = ["actix-web"], workspace = true }
 utoipa-redoc = { features = ["actix-web"], workspace = true }
 validator = { workspace = true }
-convert_case = { workspace = true }

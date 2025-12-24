@@ -84,17 +84,17 @@ impl NewApiKey {
                 .await?;
 
             let event = principal.audit_event(
-                super::events::EventType::PermissionProtected {
-                    permission: Permission::CreatePersonalToken,
-                    resource: super::authorization::ResourceIdentifier::Token(
-                        super::authorization::TokenResource {
+                kintsu_registry_auth::AuditEventType::PermissionProtected {
+                    permission: Permission::CreatePersonalToken.into(),
+                    resource: kintsu_registry_auth::ResourceIdentifier::Token(
+                        kintsu_registry_auth::TokenResource {
                             id: 0,
-                            owner: OwnerId::User(requesting_user.id),
+                            owner: OwnerId::User(requesting_user.id).into(),
                         },
                     ),
                 },
                 &auth_result,
-            )?;
+            );
 
             kintsu_registry_events::emit_event(event)?;
 
@@ -107,14 +107,14 @@ impl NewApiKey {
                     .await?;
 
                 let event = principal.audit_event(
-                    super::events::EventType::PermissionProtected {
-                        permission: Permission::CreateOrgToken,
-                        resource: super::authorization::ResourceIdentifier::Organization(
-                            super::authorization::OrgResource { id: org_id },
+                    kintsu_registry_auth::AuditEventType::PermissionProtected {
+                        permission: Permission::CreateOrgToken.into(),
+                        resource: kintsu_registry_auth::ResourceIdentifier::Organization(
+                            kintsu_registry_auth::OrgResource { id: org_id },
                         ),
                     },
                     &auth_result,
-                )?;
+                );
                 kintsu_registry_events::emit_event(event)?;
 
                 auth_result.require()?;
@@ -251,17 +251,17 @@ impl ApiKey {
         };
 
         let event = principal.audit_event(
-            super::events::EventType::PermissionProtected {
-                permission,
-                resource: super::authorization::ResourceIdentifier::Token(
-                    super::authorization::TokenResource {
+            kintsu_registry_auth::AuditEventType::PermissionProtected {
+                permission: permission.into(),
+                resource: kintsu_registry_auth::ResourceIdentifier::Token(
+                    kintsu_registry_auth::TokenResource {
                         id: self.id,
-                        owner: owner_id,
+                        owner: owner_id.into(),
                     },
                 ),
             },
             &auth_result,
-        )?;
+        );
         kintsu_registry_events::emit_event(event)?;
 
         auth_result.require()?;

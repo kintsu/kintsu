@@ -49,13 +49,13 @@ pub async fn respond_to_invitation<C: sea_orm::ConnectionTrait>(
         .timestamp(chrono::Utc::now())
         .principal_type(principal.principal_type())
         .principal_id(principal.principal_id())
-        .event_type(serde_json::to_value(
-            &super::events::EventType::OrganizationInviteResponse {
+        .event_type(
+            kintsu_registry_auth::AuditEventType::OrganizationInviteResponse {
                 invitation_id,
                 org_id: invitation.org_id,
                 accepted,
             },
-        )?)
+        )
         .allowed(true)
         .reason("Session-only operation - latent user permission".to_string())
         .policy_checks(vec![])

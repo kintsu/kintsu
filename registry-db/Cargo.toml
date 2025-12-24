@@ -44,10 +44,10 @@ utoipa = { workspace = true, features = ["chrono"] }
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-chrono = { workspace = true }
 kintsu-registry-auth = { path = "../registry-auth" }
 kintsu-registry-events = { path = "../registry-events", features = ["test"] }
 kintsu-registry-storage = { path = "../registry-storage", features = ["test"] }
+chrono = { workspace = true }
 sea-orm = { workspace = true }
 testcontainers = { workspace = true }
 testcontainers-modules = { features = ["postgres"], workspace = true }

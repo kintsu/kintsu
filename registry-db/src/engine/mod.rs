@@ -32,7 +32,7 @@ pub enum Entity {
     Org(Org),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", content = "id", rename_all = "snake_case")]
 pub enum OwnerId {
     User(i64),

@@ -7,9 +7,9 @@ homepage.workspace = true
 authors.workspace = true
 
 [dependencies]
-actix = { version = "*" }
-thiserror = { workspace = true }
+actix = {  workspace = true}
+bon = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-chrono = { workspace = true, features = ["serde"] }
-bon = { workspace = true }
+thiserror = { workspace = true }

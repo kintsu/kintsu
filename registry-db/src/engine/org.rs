@@ -170,13 +170,11 @@ pub async fn import_organization<C: sea_orm::ConnectionTrait + TransactionTrait>
         .timestamp(chrono::Utc::now())
         .principal_type(principal.principal_type())
         .principal_id(principal.principal_id())
-        .event_type(serde_json::to_value(
-            &super::events::EventType::ImportOrganization {
-                org_id: org_result.id,
-                gh_org_id: gh_id,
-                gh_org_login: org_name,
-            },
-        )?)
+        .event_type(kintsu_registry_auth::AuditEventType::ImportOrganization {
+            org_id: org_result.id,
+            gh_org_id: gh_id,
+            gh_org_login: org_name,
+        })
         .allowed(true)
         .reason("Session-only operation".to_string())
         .policy_checks(vec![])
@@ -200,14 +198,15 @@ pub async fn grant_role<C: sea_orm::ConnectionTrait>(
         .await?;
 
     let event = principal.audit_event(
-        super::events::EventType::PermissionProtected {
-            permission: Permission::GrantOrgRole,
+        kintsu_registry_auth::AuditEventType::PermissionProtected {
+            permission: Permission::GrantOrgRole.into(),
             resource: super::authorization::ResourceIdentifier::Organization(
                 super::authorization::OrgResource { id: org_id },
-            ),
+            )
+            .into(),
         },
         &auth_result,
-    )?;
+    );
     kintsu_registry_events::emit_event(event)?;
 
     auth_result.require()?;
@@ -246,14 +245,15 @@ pub async fn revoke_role<C: sea_orm::ConnectionTrait>(
         .await?;
 
     let event = principal.audit_event(
-        super::events::EventType::PermissionProtected {
-            permission: Permission::RevokeOrgRole,
+        kintsu_registry_auth::AuditEventType::PermissionProtected {
+            permission: Permission::RevokeOrgRole.into(),
             resource: super::authorization::ResourceIdentifier::OrgRole(
                 super::authorization::OrgRoleResource { org_id, user_id },
-            ),
+            )
+            .into(),
         },
         &auth_result,
-    )?;
+    );
     kintsu_registry_events::emit_event(event)?;
 
     auth_result.require()?;

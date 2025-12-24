@@ -6,6 +6,22 @@ exclude: |
   )$
 
 repos:
+  - repo: local
+    hooks:
+      - id: deps-hoist
+        name: Deps Hoist
+        entry: python -m scripts.deps hoist
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: deps-sort
+        name: Deps Sort
+        entry: python -m scripts.deps sort
+        language: system
+        types: [python]
+        pass_filenames: false
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

@@ -1,5 +1,8 @@
 use divan::{Bencher, black_box};
-use kintsu_registry_auth::{AuditEvent, Policy, PolicyCheck, PrincipalType};
+use kintsu_registry_auth::{
+    AuditEvent, AuditEventType, AuditPermission, OrgResource, Policy, PolicyCheck, PrincipalType,
+    ResourceIdentifier,
+};
 use kintsu_registry_events::{
     EventReporter, EventSystem, MultiEventReporter, NoOpReporter, TracingEventReporter,
 };
@@ -11,7 +14,10 @@ fn create_test_event() -> AuditEvent {
         .timestamp(Default::default())
         .principal_type(PrincipalType::UserSession)
         .principal_id(12345)
-        .event_type(serde_json::json!({"action": "test"}))
+        .event_type(AuditEventType::PermissionProtected {
+            permission: AuditPermission::CreateOrgToken,
+            resource: ResourceIdentifier::Organization(OrgResource { id: 1 }),
+        })
         .allowed(true)
         .reason("test benchmark")
         .policy_checks(vec![PolicyCheck {

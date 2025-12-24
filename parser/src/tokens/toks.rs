@@ -25,7 +25,7 @@ macro_rules! tokens {
     (
         $(
             $(#[token($met:literal$(, $($ex:ident = $v:literal), + $(,)?)?)])*
-            $(#[regex($reg:literal $(,$e:expr)?)])*
+            $(#[regex($reg:literal $(, $($rarg:tt)+)?)])*
             $(#[regfmt($fmt:expr)])?
 
             $(#[derive($($d:path), + $(,)?)])?
@@ -40,7 +40,7 @@ macro_rules! tokens {
         pub enum Token {
             $(
                 $(#[token($met $(, $($ex = $v,)*)?)])*
-                $(#[regex($reg $(,$e)?)])*
+                $(#[regex($reg $(, $($rarg)+)?)])*
                 $tok $(($inner))?,
             )*
         }
@@ -242,7 +242,7 @@ declare_tokens! {
     #[regfmt("\\n")]
     Newline,
 
-    #[regex(r"[A-Za-z_][A-Za-z0-9_]*", |lex: &mut logos::Lexer<'_, Token>| -> String { lex.slice().to_string() })]
+    #[regex(r"[A-Za-z_][A-Za-z0-9_]*", |lex| lex.slice().to_string())]
     #[regfmt("identifier")]
     #[derive(PartialOrd, Ord, Hash, Eq)]
     Ident(String),
@@ -260,11 +260,11 @@ declare_tokens! {
     #[regfmt("string")]
     String(String),
 
-    #[regex(r"//[^\n]*", |lex: &mut logos::Lexer<'_, Token>| -> String { unescape_comment(&lex.slice()[2..]) })]
+    #[regex(r"//([^\n]*)", |lex| unescape_comment(&lex.slice()[2..]), allow_greedy = true)]
     #[regfmt("comment")]
     CommentSingleLine(String),
 
-    #[regex(r"/\*([^/*]*)\*/", |lex: &mut logos::Lexer<'_, Token>| -> String { unescape_comment(&lex.slice()[2..lex.slice().len()-2]) })]
+    #[regex(r"/\*([^/*]*)\*/", |lex| unescape_comment(&lex.slice()[2..lex.slice().len()-2]))]
     #[regfmt("comment")]
 
     CommentMultiLine(String),

@@ -28,17 +28,18 @@ pub async fn grant_role<C: sea_orm::ConnectionTrait>(
         .await?;
 
     let event = principal.audit_event(
-        super::events::EventType::PermissionProtected {
-            permission: Permission::GrantSchemaRole,
+        kintsu_registry_auth::AuditEventType::PermissionProtected {
+            permission: Permission::GrantSchemaRole.into(),
             resource: super::authorization::ResourceIdentifier::Package(
                 super::authorization::PackageResource {
                     name: package_name.to_string(),
                     id: Some(pkg.id),
                 },
-            ),
+            )
+            .into(),
         },
         &auth_result,
-    )?;
+    );
     kintsu_registry_events::emit_event(event)?;
 
     auth_result.require()?;
@@ -91,17 +92,18 @@ pub async fn revoke_role<C: sea_orm::ConnectionTrait>(
         .await?;
 
     let event = principal.audit_event(
-        super::events::EventType::PermissionProtected {
-            permission: Permission::RevokeSchemaRole,
+        kintsu_registry_auth::AuditEventType::PermissionProtected {
+            permission: Permission::RevokeSchemaRole.into(),
             resource: super::authorization::ResourceIdentifier::SchemaRole(
                 super::authorization::SchemaRoleResource {
                     package_id: pkg.id,
                     role_id,
                 },
-            ),
+            )
+            .into(),
         },
         &auth_result,
-    )?;
+    );
     kintsu_registry_events::emit_event(event)?;
 
     auth_result.require()?;

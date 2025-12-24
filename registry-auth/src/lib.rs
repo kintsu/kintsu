@@ -8,6 +8,88 @@ pub enum PrincipalType {
     OrgApiKey,
 }
 
+/// Permission types for audit logging (mirrors registry-db Permission without sea-orm deps)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuditPermission {
+    PublishPackage,
+    YankPackage,
+    GrantSchemaRole,
+    RevokeSchemaRole,
+    GrantOrgRole,
+    RevokeOrgRole,
+    CreateOrgToken,
+    RevokeOrgToken,
+    ListOrgToken,
+    CreatePersonalToken,
+    RevokePersonalToken,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PackageResource {
+    pub name: String,
+    pub id: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OrgResource {
+    pub id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", content = "id", rename_all = "snake_case")]
+pub enum OwnerId {
+    User(i64),
+    Org(i64),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TokenResource {
+    pub id: i64,
+    pub owner: OwnerId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SchemaRoleResource {
+    pub package_id: i64,
+    pub role_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OrgRoleResource {
+    pub org_id: i64,
+    pub user_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "resource_type", rename_all = "snake_case")]
+pub enum ResourceIdentifier {
+    Package(PackageResource),
+    Organization(OrgResource),
+    Token(TokenResource),
+    SchemaRole(SchemaRoleResource),
+    OrgRole(OrgRoleResource),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum AuditEventType {
+    PermissionProtected {
+        permission: AuditPermission,
+        resource: ResourceIdentifier,
+    },
+    ImportOrganization {
+        org_id: i64,
+        gh_org_id: i32,
+        gh_org_login: String,
+    },
+    OrganizationInviteResponse {
+        invitation_id: i64,
+        org_id: i64,
+        accepted: bool,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Policy {
@@ -126,7 +208,7 @@ pub struct AuditEvent {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub principal_type: PrincipalType,
     pub principal_id: i64,
-    pub event_type: serde_json::Value,
+    pub event_type: AuditEventType,
     pub allowed: bool,
     #[builder(into)]
     pub reason: String,

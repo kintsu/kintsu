@@ -80,17 +80,18 @@ impl StagePublishPackage {
             .await?;
 
         let event = principal.audit_event(
-            super::events::EventType::PermissionProtected {
-                permission: Permission::PublishPackage,
+            kintsu_registry_auth::AuditEventType::PermissionProtected {
+                permission: Permission::PublishPackage.into(),
                 resource: super::authorization::ResourceIdentifier::Package(
                     super::authorization::PackageResource {
                         name: package_name.clone(),
                         id: package_id,
                     },
-                ),
+                )
+                .into(),
             },
             &auth_result,
-        )?;
+        );
         kintsu_registry_events::emit_event(event)?;
 
         auth_result.require()?;
@@ -375,17 +376,18 @@ impl Package {
             .await?;
 
         let event = principal.audit_event(
-            super::events::EventType::PermissionProtected {
-                permission: Permission::YankPackage,
+            kintsu_registry_auth::AuditEventType::PermissionProtected {
+                permission: Permission::YankPackage.into(),
                 resource: super::authorization::ResourceIdentifier::Package(
                     super::authorization::PackageResource {
                         name: package_name.to_string(),
                         id: Some(pkg.id),
                     },
-                ),
+                )
+                .into(),
             },
             &auth_result,
-        )?;
+        );
         kintsu_registry_events::emit_event(event)?;
 
         auth_result.require()?;

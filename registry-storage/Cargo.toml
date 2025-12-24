@@ -20,8 +20,7 @@ secrecy = { workspace = true, features = ["serde"] }
 serde = { features = ["derive"], workspace = true }
 serde_json = { workspace = true }
 sha256 = { workspace = true }
+testcontainers = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 tracing = { workspace = true }
-
-testcontainers = { workspace = true, optional = true }

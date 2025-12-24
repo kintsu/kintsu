@@ -65,17 +65,17 @@ impl PrincipalIdentity {
 
     pub fn audit_event(
         &self,
-        event_type: impl serde::Serialize,
+        event_type: kintsu_registry_auth::AuditEventType,
         result: &kintsu_registry_auth::AuthorizationResult,
-    ) -> Result<kintsu_registry_auth::AuditEvent> {
-        Ok(kintsu_registry_auth::AuditEvent::builder()
+    ) -> kintsu_registry_auth::AuditEvent {
+        kintsu_registry_auth::AuditEvent::builder()
             .timestamp(chrono::Utc::now())
             .principal_type(self.principal_type())
             .principal_id(self.principal_id())
-            .event_type(serde_json::to_value(event_type)?)
+            .event_type(event_type)
             .allowed(result.allowed)
             .reason(result.reason.clone())
             .policy_checks(result.checks.clone())
-            .build())
+            .build()
     }
 }

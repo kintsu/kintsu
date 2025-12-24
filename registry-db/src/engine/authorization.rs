@@ -4,43 +4,11 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter, QueryTrait,
 };
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PackageResource {
-    pub name: String,
-    pub id: Option<i64>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct OrgResource {
-    pub id: i64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TokenResource {
-    pub id: i64,
-    pub owner: OwnerId,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SchemaRoleResource {
-    pub package_id: i64,
-    pub role_id: i64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct OrgRoleResource {
-    pub org_id: i64,
-    pub user_id: i64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum ResourceIdentifier {
-    Package(PackageResource),
-    Organization(OrgResource),
-    Token(TokenResource),
-    SchemaRole(SchemaRoleResource),
-    OrgRole(OrgRoleResource),
-}
+// Re-export local wrapper types from events module for use throughout engine
+pub use super::events::{
+    OrgResource, OrgRoleResource, PackageResource, ResourceIdentifier, SchemaRoleResource,
+    TokenResource,
+};
 
 pub trait Authorize {
     async fn authorize<C: ConnectionTrait>(

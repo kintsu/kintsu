@@ -153,6 +153,6 @@ impl Scope {
 
 impl Into<String> for &Scope {
     fn into(self) -> String {
-        self.0.to_string()
+        ToString::to_string(&self.0)
     }
 }
