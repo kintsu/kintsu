@@ -34,8 +34,7 @@ jobs:
       - uses: jdx/mise-action@v3
 
       - name: Set up Docker
-        if: |
-          ${{ matrix.runner != 'macos-26' }}
+        if: matrix.runner != 'macos-26'
         uses: docker/setup-docker-action@v4
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1

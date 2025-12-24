@@ -31,7 +31,8 @@ pub struct CreateTokenRequest {
     /// Permissions granted to this token
     #[serde(default)]
     pub permissions: Vec<Permission>,
-    /// Token expiration in days (default: 90)
+    #[validate(range(min = 1, max = 365))]
+    /// Token expiration in days (default: 90, max: 365)
     pub expires_in_days: Option<i64>,
 }
 
@@ -118,12 +119,31 @@ pub struct PublishPackageResponse {
 }
 
 #[derive(serde::Deserialize, Validate, ToSchema)]
+#[validate(schema(function = "validate_grant_schema_role"))]
 pub struct GrantSchemaRoleRequest {
     #[validate(length(min = 1))]
     pub package_name: String,
     pub role: SchemaRoleType,
     pub user_id: Option<i64>,
     pub org_id: Option<i64>,
+}
+
+fn validate_grant_schema_role(
+    req: &GrantSchemaRoleRequest
+) -> Result<(), validator::ValidationError> {
+    match (&req.user_id, &req.org_id) {
+        (Some(_), Some(_)) => {
+            let mut err = validator::ValidationError::new("exclusive_target");
+            err.message = Some("Cannot specify both user_id and org_id".into());
+            Err(err)
+        },
+        (None, None) => {
+            let mut err = validator::ValidationError::new("missing_target");
+            err.message = Some("Must specify either user_id or org_id".into());
+            Err(err)
+        },
+        _ => Ok(()),
+    }
 }
 
 #[derive(serde::Deserialize, Validate, ToSchema)]

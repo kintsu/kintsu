@@ -18,10 +18,10 @@ fn default_api_url() -> url::Url {
 pub struct GhClientConfig {
     /// env: GH_CLIENT_ID
     #[serde(alias = "ID")]
-    pub(crate) id: String,
+    pub id: String,
     /// env: GH_CLIENT_SECRET
     #[serde(alias = "SECRET")]
-    pub(crate) secret: secrecy::SecretString,
+    pub secret: secrecy::SecretString,
 }
 
 #[derive(validator::Validate, serde::Deserialize, Debug)]

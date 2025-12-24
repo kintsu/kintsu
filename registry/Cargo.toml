@@ -18,13 +18,15 @@ kintsu-registry-core = { path = "../registry-core" }
 kintsu-registry-db = { path = "../registry-db" }
 kintsu-registry-events = { path = "../registry-events" }
 kintsu-registry-storage = { path = "../registry-storage" }
-actix-web = { workspace = true, features = ["secure-cookies"] }
+actix-web = { workspace = true, features = ["secure-cookies", "rustls-0_23"] }
 chrono = { workspace = true, features = ["serde"] }
 convert_case = { workspace = true }
 dotenvy = { workspace = true }
 octocrab = { workspace = true }
 reqwest = { workspace = true }
 rustls = { features = ["ring"], workspace = true }
+rustls-native-certs = {workspace = true}
+rustls-pemfile = {workspace = true}
 sea-orm = { workspace = true, features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",
@@ -42,3 +44,8 @@ utoipa-actix-web = { workspace = true }
 utoipa-rapidoc = { features = ["actix-web"], workspace = true }
 utoipa-redoc = { features = ["actix-web"], workspace = true }
 validator = { workspace = true }
+
+[dev-dependencies]
+kintsu-registry-db = { path = "../registry-db", features = ["test"] }
+kintsu-registry-storage = { path = "../registry-storage", features = ["test"] }
+actix-http = { workspace = true }

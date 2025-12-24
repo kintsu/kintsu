@@ -1,6 +1,5 @@
 pub mod api_key;
 pub mod authorization;
-pub mod downloads;
 pub mod events;
 pub mod favourites;
 pub mod fluent;

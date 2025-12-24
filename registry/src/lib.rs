@@ -5,7 +5,7 @@ use std::collections::HashMap;
 pub(crate) mod apikey;
 pub mod app;
 pub mod config;
-mod oauth;
+pub mod oauth;
 pub mod principal;
 pub(crate) mod resolver;
 pub mod routes;
@@ -79,6 +79,12 @@ pub enum Error {
     #[error("{0}")]
     CompileError(#[from] kintsu_parser::Error),
 
+    #[error("TLS configuration error: {0}")]
+    TlsConfig(String),
+
+    #[error("TLS error: {0}")]
+    Tls(#[from] rustls::Error),
+
     #[error("multiple errors occurred: {0:?}")]
     Multiple(Vec<Error>),
 }
@@ -97,6 +103,31 @@ impl Error {
     fn to_error_response(&self) -> ErrorResponse {
         tracing::error!("Handling error: {:?}", self);
         match self {
+            Error::Multiple(errs) => {
+                // For multiple errors (usually from Principal extraction), prioritize
+                // auth-related errors over session errors
+                for err in errs {
+                    match err {
+                        Error::Database(kintsu_registry_db::Error::InvalidToken) => {
+                            return ErrorResponse::from_public_error(
+                                PublicErrorType::InvalidToken,
+                                Some("The provided token is invalid".to_string()),
+                            );
+                        },
+                        Error::Database(kintsu_registry_db::Error::TokenExpired) => {
+                            return ErrorResponse::from_public_error(
+                                PublicErrorType::TokenExpired,
+                                Some("The provided token has expired".to_string()),
+                            );
+                        },
+                        _ => {},
+                    }
+                }
+                // Fall back to first error's response
+                errs.first()
+                    .map(|e| e.to_error_response())
+                    .unwrap_or_else(ErrorResponse::internal)
+            },
             Error::ValidationErrors(err) => {
                 let mut validation = HashMap::new();
 
@@ -173,6 +204,9 @@ impl Error {
             Error::Database(kintsu_registry_db::Error::Validation(error)) => {
                 ErrorResponse::from_public_error(PublicErrorType::Validation, Some(error.clone()))
             },
+            Error::Database(kintsu_registry_db::Error::NotFound(error)) => {
+                ErrorResponse::from_public_error(PublicErrorType::NotFound, Some(error.clone()))
+            },
             Error::Database(kintsu_registry_db::Error::AuthorizationDenied(auth_err))
             | Error::AuthorizationError(auth_err) => {
                 ErrorResponse::from_public_error(
@@ -230,13 +264,23 @@ impl ResponseError for Error {
             | Error::PackagingError(_)
             | Error::PackagingErrors(_)
             | Error::ManifestError(_)
-            | Error::CookieParseError(_) | Error::CompileError(_) => actix_web::http::StatusCode::BAD_REQUEST,
+            | Error::CookieParseError(_)
+            | Error::CompileError(_)
+            | Error::Database(kintsu_registry_db::Error::Validation(..)) => {
+                actix_web::http::StatusCode::BAD_REQUEST
+            },
             Error::TokenExchangeError { .. }
             | Error::Database(kintsu_registry_db::Error::Unauthorized(..))
+            | Error::Database(kintsu_registry_db::Error::InvalidToken)
+            | Error::Database(kintsu_registry_db::Error::TokenExpired)
             | Error::SessionError { .. }
             | Error::AuthorizationRequired => actix_web::http::StatusCode::UNAUTHORIZED,
-            Error::Database(kintsu_registry_db::Error::AuthorizationDenied(..)) | Error::AuthorizationError(AuthorizationError::Denied{..}) => {
+            Error::Database(kintsu_registry_db::Error::AuthorizationDenied(..))
+            | Error::AuthorizationError(AuthorizationError::Denied { .. }) => {
                 actix_web::http::StatusCode::FORBIDDEN
+            },
+            Error::Database(kintsu_registry_db::Error::NotFound(..)) => {
+                actix_web::http::StatusCode::NOT_FOUND
             },
             Error::Database(kintsu_registry_db::Error::Conflict(..))
             | Error::Database(kintsu_registry_db::Error::PackageVersionExists { .. }) => {
@@ -246,9 +290,14 @@ impl ResponseError for Error {
             | Error::RequestError(_)
             | Error::Database(_)
             | Error::IoError(_)
-            // this is actually unreachable but jic
-            | Error::DatabaseConnect(_) | Error::StorageError(_)
-            | Error::MissingData { .. } | Error::AuthorizationError(AuthorizationError::NotApplicable {..}) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            | Error::TlsConfig(_)
+            | Error::Tls(_)
+            | Error::DatabaseConnect(_)
+            | Error::StorageError(_)
+            | Error::MissingData { .. }
+            | Error::AuthorizationError(AuthorizationError::NotApplicable { .. }) => {
+                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+            },
         }
     }
 

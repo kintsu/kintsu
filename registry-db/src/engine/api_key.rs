@@ -119,7 +119,7 @@ impl NewApiKey {
 
                 auth_result.require()?;
             } else {
-                return Err(Error::Validation("Organization not found".into()));
+                return Err(Error::NotFound("Organization not found".into()));
             }
         } else {
             return Err(Error::Validation(

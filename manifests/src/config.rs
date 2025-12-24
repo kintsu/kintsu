@@ -63,7 +63,7 @@ where
             .add_source({
                 let env = config::Environment::default()
                     .separator("_")
-                    .convert_case(config::Case::ScreamingSnake);
+                    .convert_case(config::Case::Snake);
 
                 if Self::ENV != "" {
                     env.prefix(Self::ENV)

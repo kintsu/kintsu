@@ -1,7 +1,23 @@
+insecure = true
+
 [session]
 domain = "localhost"
 key = "super_secret_key1234567890abcdef"
 
+# TLS configuration for Cloudflare origin server setup
+# Option A: Use file paths
+# [tls]
+# cert_file = "/path/to/origin-cert.pem"
+# key_file = "/path/to/origin-key.pem"
+# client_ca_file = "/path/to/cloudflare-origin-pull-ca.pem"
+# require_client_cert = true
+
+# Option B: Use inline/env values (set via KS_TLS_CERTIFICATE, KS_TLS_KEY, etc)
+# [tls]
+# certificate = "-----BEGIN CERTIFICATE-----\n..."
+# key = "-----BEGIN PRIVATE KEY-----\n..."
+# client_ca = "-----BEGIN CERTIFICATE-----\n..."
+# require_client_cert = true
 
 [s3]
 endpoint = "http://localhost:9000"

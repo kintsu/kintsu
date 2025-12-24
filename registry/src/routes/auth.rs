@@ -98,24 +98,25 @@ pub async fn logout(session: crate::session::SessionData) -> impl Responder {
         (status = 400, description = "Invalid request", body = crate::ErrorResponse),
         (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
     ),
-    security(("session" = []))
+    security(("api_key" = []), ("session" = []))
 )]
 #[post("/auth/token")]
 pub async fn create_auth_token(
     conn: DbConn,
     principal: Principal,
-    session: SessionData,
     req: web::Json<kintsu_registry_core::models::CreateTokenRequest>,
 ) -> crate::Result<impl Responder> {
     use chrono::Duration;
 
     req.validate()?;
 
+    let user = principal
+        .user()
+        .ok_or_else(|| crate::Error::AuthorizationRequired)?;
+
     let expires = chrono::Utc::now() + Duration::days(req.expires_in_days.unwrap_or(90));
 
-    let one_time = session
-        .user
-        .user
+    let one_time = user
         .request_personal_token(
             conn.as_ref(),
             principal.as_ref(),

@@ -5,6 +5,8 @@ pub mod entities;
 pub(crate) mod tokens;
 
 #[cfg(feature = "test")]
+pub mod fixtures;
+#[cfg(feature = "test")]
 pub mod tst;
 
 pub use tokens::MAX_TOKEN_HEADER_LENGTH;

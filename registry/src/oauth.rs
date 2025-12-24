@@ -2,7 +2,7 @@ use crate::oauth::config::scopes;
 
 mod config;
 
-pub use config::GhOauthConfig;
+pub use config::{GhClientConfig, GhOauthConfig};
 use octocrab::models::Author;
 use reqwest::Method;
 use secrecy::{ExposeSecret, SecretString};

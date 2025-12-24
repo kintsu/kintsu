@@ -19,6 +19,7 @@ timings.json
 *.profdata
 *.profdata.*
 
+registry-test-plan/
 
 *.rlib
 *.dylib

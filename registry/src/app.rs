@@ -22,7 +22,7 @@ use crate::routes::*;
     ),
     modifiers(&SecurityAddon, &SharedErrorsAddon),
 )]
-struct ApiDoc;
+pub struct ApiDoc;
 
 struct SecurityAddon;
 
@@ -53,6 +53,73 @@ impl Modify for SharedErrorsAddon {
     }
 }
 
+#[macro_export]
+macro_rules! bind_app {
+    (
+        $session_config: ident,
+        $db: ident,
+        $s3: ident,
+        $client: ident,
+        $cookie_key: ident,
+    ) => {
+        move || {
+            App::new()
+                .into_utoipa_app()
+                .openapi(ApiDoc::openapi())
+                .app_data($session_config.clone())
+                .app_data($db.clone())
+                .app_data($client.clone())
+                .app_data($cookie_key.clone())
+                .app_data($s3.clone())
+                // Auth routes
+                .service(auth::callback)
+                .service(auth::whoami)
+                .service(auth::logout)
+                .service(auth::create_auth_token)
+                .service(auth::revoke_auth_token)
+                .service(auth::get_user_tokens)
+                .service(auth::redirect_to_login)
+                // Org routes
+                .service(org::get_org_by_id)
+                .service(org::check_org_exists)
+                .service(org::get_my_orgs)
+                .service(org::create_org_token)
+                .service(org::get_org_tokens)
+                .service(org::discover_orgs)
+                .service(org::import_org)
+                .service(org::grant_org_role)
+                .service(org::revoke_org_role)
+                // Favourites routes
+                .service(favourites::list_favourites)
+                .service(favourites::create_favourite)
+                .service(favourites::delete_favourite)
+                .service(favourites::org_favourite_count)
+                .service(favourites::package_favourite_count)
+                // Package routes
+                .service(packages::publish_package)
+                .service(packages::get_package_version)
+                .service(packages::get_package_dependencies)
+                .service(packages::package_declarations)
+                .service(packages::get_dependent_packages)
+                .service(packages::download_package_version)
+                .service(packages::get_package_total_downloads)
+                .service(packages::get_package_download_history)
+                .service(packages::list_packages)
+                .service(packages::search_packages)
+                .service(packages::list_package_versions)
+                .service(packages::get_package_publishers)
+                .service(packages::grant_package_role)
+                .service(packages::revoke_package_role)
+                // Docs
+                .openapi_service(|api| Redoc::with_url("/redoc", api))
+                .openapi_service(|api| {
+                    RapiDoc::with_openapi("/api-docs/openapi.json", api).path("/rapidoc")
+                })
+                .into_app()
+        }
+    };
+}
+
 pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
     let db = web::Data::new(config.database.connect().await?);
     let client = web::Data::new(AuthClient::new(config.gh)?);
@@ -78,70 +145,66 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
         }
     );
 
-    let server = HttpServer::new(move || {
-        // let reporter =
-        App::new()
-            .into_utoipa_app()
-            .openapi(ApiDoc::openapi())
-            .app_data(session_config.clone())
-            .app_data(db.clone())
-            .app_data(client.clone())
-            .app_data(cookie_key.clone())
-            .app_data(s3.clone())
-            // Auth routes
-            .service(auth::callback)
-            .service(auth::whoami)
-            .service(auth::logout)
-            .service(auth::create_auth_token)
-            .service(auth::revoke_auth_token)
-            .service(auth::get_user_tokens)
-            .service(auth::redirect_to_login)
-            // Org routes
-            .service(org::get_org_by_id)
-            .service(org::check_org_exists)
-            .service(org::get_my_orgs)
-            .service(org::create_org_token)
-            .service(org::get_org_tokens)
-            .service(org::discover_orgs)
-            .service(org::import_org)
-            .service(org::grant_org_role)
-            .service(org::revoke_org_role)
-            // Favourites routes
-            .service(favourites::list_favourites)
-            .service(favourites::create_favourite)
-            .service(favourites::delete_favourite)
-            .service(favourites::org_favourite_count)
-            .service(favourites::package_favourite_count)
-            // Package routes
-            .service(packages::publish_package)
-            .service(packages::get_package_version)
-            .service(packages::get_package_dependencies)
-            .service(packages::package_declarations)
-            .service(packages::get_dependent_packages)
-            .service(packages::download_package_version)
-            .service(packages::get_package_total_downloads)
-            .service(packages::get_package_download_history)
-            .service(packages::list_packages)
-            .service(packages::search_packages)
-            .service(packages::list_package_versions)
-            .service(packages::get_package_publishers)
-            .service(packages::grant_package_role)
-            .service(packages::revoke_package_role)
-            // Docs
-            .openapi_service(|api| Redoc::with_url("/redoc", api))
-            .openapi_service(|api| {
-                RapiDoc::with_openapi("/api-docs/openapi.json", api).path("/rapidoc")
-            })
-            .into_app()
-    })
-    .bind(addr)?
-    .run();
+    let server = HttpServer::new(bind_app!(session_config, db, s3, client, cookie_key,));
 
-    let (server_exit, flusher_exit) = tokio::join!(server, async move {});
+    let server_fut = {
+        if config.insecure {
+            server.bind(&addr)?.run()
+        } else {
+            let tls_config = build_tls_config(&config.tls)?;
+            server
+                .bind_rustls_0_23(&addr, tls_config)?
+                .run()
+        }
+    };
+
+    let (server_exit,) = tokio::join!(server_fut);
 
     kintsu_registry_events::shutdown()
         .await
         .unwrap();
 
     Ok(server_exit?)
+}
+
+fn build_tls_config(tls: &crate::config::TlsConfig) -> crate::Result<rustls::ServerConfig> {
+    use std::sync::Arc;
+
+    if !tls.is_configured() {
+        return Err(crate::Error::TlsConfig(
+            "TLS enabled but no certificate/key configured. \
+             Set tls.cert_file + tls.key_file or tls.certificate + tls.key"
+                .into(),
+        ));
+    }
+
+    let cert_chain = tls.load_cert_chain()?;
+    let private_key = tls.load_private_key()?;
+
+    let config = if tls.require_client_cert {
+        let client_ca_roots = tls.load_client_ca_roots()?;
+        let client_cert_verifier =
+            rustls::server::WebPkiClientVerifier::builder(Arc::new(client_ca_roots))
+                .build()
+                .map_err(|e| {
+                    crate::Error::TlsConfig(format!("failed to build client verifier: {}", e))
+                })?;
+
+        tracing::info!("mTLS enabled - requiring client certificates");
+
+        rustls::ServerConfig::builder()
+            .with_client_cert_verifier(client_cert_verifier)
+            .with_single_cert(cert_chain, private_key)?
+    } else {
+        tracing::warn!(
+            "client certificate verification disabled - \
+             consider enabling tls.require_client_cert for origin server security"
+        );
+
+        rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(cert_chain, private_key)?
+    };
+
+    Ok(config)
 }

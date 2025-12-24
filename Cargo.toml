@@ -12,6 +12,7 @@ authors = ["Joshua Auchincloss <joshua.auchincloss@proton.me>"]
 
 [workspace.dependencies]
 actix = "*"
+actix-http = "3"
 actix-web = "4"
 async-channel = "2.3"
 aws-config = "1"
@@ -57,6 +58,8 @@ rayon = "1"
 regex = "1"
 reqwest = "0.12"
 rustls = "0.23"
+rustls-native-certs = "0.8"
+rustls-pemfile = "2"
 sea-orm = "2.0.0-rc.18"
 secrecy = "0.10"
 semver = "1"
