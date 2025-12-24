@@ -3776,6 +3776,7 @@ dependencies = [
  "codspeed-divan-compat",
  "futures",
  "kintsu-registry-auth",
+ "serde-jsonlines",
  "serde_json",
  "thiserror 2.0.17",
  "tokio",

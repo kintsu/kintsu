@@ -3,10 +3,9 @@ use actix::{
     Supervised, fut::wrap_future,
 };
 use kintsu_registry_auth::AuditEvent;
+use serde_jsonlines::WriteExt;
 use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, RwLock},
+    future::Future, io::Write, pin::Pin, sync::{Arc, RwLock}
 };
 use tokio::time::Duration;
 
@@ -309,7 +308,9 @@ impl EventReporter for LogEventReporter {
         event: AuditEvent,
     ) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            println!("{}", serde_json::to_string(&event).unwrap());
+            println!("{}", serde_json::to_string(&event).map_err(|e| {
+                Error::InternalError { message: e.to_string() }
+            })?);
             Ok(())
         })
     }
@@ -319,9 +320,11 @@ impl EventReporter for LogEventReporter {
         events: Vec<AuditEvent>,
     ) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            for event in events {
-                println!("{}", serde_json::to_string(&event).unwrap());
-            }
+            std::io::stdout()
+                .write_json_lines(&events)
+                .map_err(|e| Error::InternalError {
+                    message: e.to_string(),
+                })?;
             Ok(())
         })
     }

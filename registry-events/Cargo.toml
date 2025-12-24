@@ -27,6 +27,7 @@ tokio = { workspace = true, features = [
     "rt-multi-thread",
 ] }
 tracing = { workspace = true }
+serde-jsonlines = "0.7.0"
 
 [dev-dependencies]
 divan = { workspace = true }
