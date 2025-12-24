@@ -5,7 +5,10 @@ use actix::{
 use kintsu_registry_auth::AuditEvent;
 use serde_jsonlines::WriteExt;
 use std::{
-    future::Future, io::Write, pin::Pin, sync::{Arc, RwLock}
+    future::Future,
+    io::Write,
+    pin::Pin,
+    sync::{Arc, RwLock},
 };
 use tokio::time::Duration;
 
@@ -28,15 +31,15 @@ static EVENT_SYSTEM: RwLock<Option<EventSystem>> = RwLock::new(None);
 
 /// Trait for event reporters that can emit events individually or in batches
 pub trait EventReporter: Send + Sync {
-    fn emit(
-        &self,
-        event: AuditEvent,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    fn emit<'e>(
+        &'e self,
+        event: &'e AuditEvent,
+    ) -> BoxFuture<'e, Result<(), Error>>;
 
-    fn emit_batch(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit_batch<'e>(
+        &'e self,
+        events: &'e Vec<AuditEvent>,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         Box::pin(async move {
             for event in events {
                 self.emit(event).await?;
@@ -229,7 +232,7 @@ impl Handler<ProcessBatch> for EventExecutor {
         // Create async future that processes all reporters
         let fut = async move {
             for reporter in reporters.iter() {
-                match reporter.emit_batch(events.clone()).await {
+                match reporter.emit_batch(&events).await {
                     Ok(_) => {},
                     Err(err) => {
                         tracing::error!("Event reporter batch emit error: {err:#?}");
@@ -305,25 +308,33 @@ pub struct LogEventReporter;
 impl EventReporter for LogEventReporter {
     fn emit(
         &self,
-        event: AuditEvent,
+        event: &AuditEvent,
     ) -> BoxFuture<'_, Result<(), Error>> {
+        let as_json = serde_json::to_string(event);
         Box::pin(async move {
-            println!("{}", serde_json::to_string(&event).map_err(|e| {
-                Error::InternalError { message: e.to_string() }
-            })?);
+            println!(
+                "{}",
+                as_json.map_err(|e| {
+                    Error::InternalError {
+                        message: e.to_string(),
+                    }
+                })?
+            );
             Ok(())
         })
     }
 
-    fn emit_batch(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit_batch<'e>(
+        &'e self,
+        events: &'e Vec<AuditEvent>,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         Box::pin(async move {
             std::io::stdout()
-                .write_json_lines(&events)
-                .map_err(|e| Error::InternalError {
-                    message: e.to_string(),
+                .write_json_lines(events)
+                .map_err(|e| {
+                    Error::InternalError {
+                        message: e.to_string(),
+                    }
                 })?;
             Ok(())
         })
@@ -346,23 +357,23 @@ impl TracingEventReporter {
 }
 
 impl EventReporter for TracingEventReporter {
-    fn emit(
-        &self,
-        event: AuditEvent,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit<'e>(
+        &'e self,
+        event: &'e AuditEvent,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         Box::pin(async move {
-            Self::one(&event);
+            Self::one(event);
             Ok(())
         })
     }
 
-    fn emit_batch(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit_batch<'e>(
+        &'e self,
+        events: &'e Vec<AuditEvent>,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         Box::pin(async move {
             for event in events {
-                Self::one(&event);
+                Self::one(event);
             }
             Ok(())
         })
@@ -372,10 +383,10 @@ impl EventReporter for TracingEventReporter {
 pub struct NoOpReporter;
 
 impl EventReporter for NoOpReporter {
-    fn emit(
-        &self,
-        _: AuditEvent,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit<'e>(
+        &'e self,
+        _: &'e AuditEvent,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -391,27 +402,27 @@ impl MultiEventReporter {
 }
 
 impl EventReporter for MultiEventReporter {
-    fn emit(
-        &self,
-        event: AuditEvent,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit<'e>(
+        &'e self,
+        event: &'e AuditEvent,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         let reporters = self.reporters.clone();
         Box::pin(async move {
             for reporter in reporters.iter() {
-                reporter.emit(event.clone()).await?;
+                reporter.emit(event).await?;
             }
             Ok(())
         })
     }
 
-    fn emit_batch(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> BoxFuture<'_, Result<(), Error>> {
+    fn emit_batch<'e>(
+        &'e self,
+        events: &'e Vec<AuditEvent>,
+    ) -> BoxFuture<'e, Result<(), Error>> {
         let reporters = self.reporters.clone();
         Box::pin(async move {
             for reporter in reporters.iter() {
-                reporter.emit_batch(events.clone()).await?;
+                reporter.emit_batch(events).await?;
             }
             Ok(())
         })

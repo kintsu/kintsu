@@ -250,7 +250,7 @@ create table org_invitation (
  - org
  - schema_admin
  - downloads
- 
+
  - org invitations (future)
  */
 create

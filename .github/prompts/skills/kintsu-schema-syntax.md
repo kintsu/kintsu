@@ -140,7 +140,7 @@ struct MyStruct {
 ```kintsu
 // Single-line comment
 
-/* 
+/*
    Multi-line
    comment
 */

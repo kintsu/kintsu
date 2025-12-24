@@ -3,6 +3,7 @@
 pub mod context;
 
 pub mod checks;
+pub mod convert;
 pub mod namespace;
 pub mod ty;
 pub(crate) mod utils;
@@ -11,6 +12,20 @@ use std::marker::PhantomData;
 pub mod protocol;
 pub use paste::paste;
 pub use ty::*;
+
+pub mod declare {
+    //! Re-exports of parser declaration types for unified type system.
+    //!
+    //! These types represent the canonical declaration format used for code generation
+    //! and schema serialization.
+    pub use kintsu_parser::declare::{
+        Builtin, DeclArg, DeclComment, DeclEnum, DeclEnumDef, DeclEnumValueType, DeclError,
+        DeclField, DeclIntVariant, DeclNamedItemContext, DeclNamespace, DeclOneOf,
+        DeclOneOfVariant, DeclOperation, DeclRefContext, DeclStringVariant, DeclStruct, DeclType,
+        DeclTypeAlias, DeclarationBundle, DeclarationVersion, Meta as DeclMeta, TypeDefinition,
+        TypeRegistryDeclaration,
+    };
+}
 
 #[cfg(feature = "generate")]
 pub mod generate;
@@ -22,8 +37,28 @@ macro_rules! ty {
     };
 }
 
+/// Trait for types that have a legacy `Definitions` descriptor.
+///
+/// This trait is used by derive macros to provide type metadata.
+/// For new code, consider using `DeclDefined` which returns the
+/// unified `TypeDefinition` type.
 pub trait Defined: Sized + Send + Sync {
     fn definition() -> &'static Definitions;
+}
+
+/// Trait for types that provide a `TypeDefinition` descriptor.
+///
+/// This is the new, unified way to get type metadata using parser types.
+/// Types can implement both `Defined` and `DeclDefined` for compatibility.
+pub trait DeclDefined: Sized + Send + Sync {
+    fn type_definition() -> declare::TypeDefinition;
+}
+
+/// Blanket implementation: any type with `Defined` can provide `TypeDefinition`.
+impl<T: Defined> DeclDefined for T {
+    fn type_definition() -> declare::TypeDefinition {
+        T::definition().into()
+    }
 }
 
 // pub trait Error: Defined {}

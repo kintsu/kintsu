@@ -7,7 +7,7 @@ gen-a = [
     "cargo +nightly fmt",
 ]
 config-sync = "sed 's/samples/..\\/samples/g' examples/gen-a/op-gen.toml > samples/config-a/op-gen.toml"
-clean-snap = "rm -rf ./**/tests/snapshots/*.snap"
+clean-snap = "rm -rf ./**/snapshots/*.snap"
 
 [tasks.compile-tape]
 run = ["vhs ../kintsu-docs/demos/compile.vhs.tape"]

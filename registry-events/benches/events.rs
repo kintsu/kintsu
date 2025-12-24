@@ -40,7 +40,7 @@ fn noop_single_emit(bencher: Bencher) {
     bencher.bench(|| {
         black_box(futures::executor::block_on(async {
             reporter
-                .emit(black_box(event.clone()))
+                .emit(black_box(&event))
                 .await
                 .unwrap()
         }));
@@ -61,7 +61,7 @@ fn noop_batch_emit(
     bencher.bench(|| {
         black_box(futures::executor::block_on(async {
             reporter
-                .emit_batch(black_box(events.clone()))
+                .emit_batch(black_box(&events))
                 .await
                 .unwrap()
         }));
@@ -76,7 +76,7 @@ fn tracing_single_emit(bencher: Bencher) {
     bencher.bench(|| {
         black_box(futures::executor::block_on(async {
             reporter
-                .emit(black_box(event.clone()))
+                .emit(black_box(&event))
                 .await
                 .unwrap()
         }));
@@ -97,7 +97,7 @@ fn tracing_batch_emit(
     bencher.bench(|| {
         black_box(futures::executor::block_on(async {
             reporter
-                .emit_batch(black_box(events.clone()))
+                .emit_batch(black_box(&events))
                 .await
                 .unwrap()
         }));
@@ -113,10 +113,7 @@ fn multi_reporter_noop(bencher: Bencher) {
 
     bencher.bench(|| {
         black_box(futures::executor::block_on(async {
-            multi
-                .emit(black_box(event.clone()))
-                .await
-                .unwrap()
+            multi.emit(black_box(&event)).await.unwrap()
         }));
     });
 }

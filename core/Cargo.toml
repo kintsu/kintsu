@@ -46,4 +46,3 @@ validator = { workspace = true, features = ["derive"] }
 kintsu-testing = { path = "../testing" }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-

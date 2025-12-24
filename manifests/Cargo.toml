@@ -30,4 +30,3 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 test-case = { workspace = true }
-

@@ -1,6 +1,10 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
-use crate::{Definitions, Ident, namespace::Namespace};
+use crate::{
+    Definitions, Ident,
+    declare::{DeclNamespace, DeclarationBundle, TypeRegistryDeclaration},
+    namespace::Namespace,
+};
 
 #[derive(Default)]
 pub struct Context {
@@ -79,5 +83,65 @@ impl Context {
             self.with_definition(def)?;
         }
         Ok(())
+    }
+
+    /// Convert this context to a DeclarationBundle using the new parser types.
+    pub fn to_declaration_bundle(
+        &self,
+        package: impl Into<String>,
+    ) -> DeclarationBundle {
+        let package = package.into();
+        let mut namespaces = BTreeMap::new();
+
+        for (ident, ns) in &self.namespaces {
+            let decl_ns: DeclNamespace = ns.into();
+            namespaces.insert(ident.to_string(), decl_ns);
+        }
+
+        DeclarationBundle {
+            root: TypeRegistryDeclaration {
+                package,
+                namespaces,
+                external_refs: Default::default(),
+            },
+            dependencies: Default::default(),
+        }
+    }
+}
+
+/// A context that works directly with parser declaration types.
+pub struct DeclContext {
+    pub bundle: DeclarationBundle,
+}
+
+impl DeclContext {
+    pub fn new(package: impl Into<String>) -> Self {
+        Self {
+            bundle: DeclarationBundle {
+                root: TypeRegistryDeclaration::new(package.into()),
+                dependencies: Default::default(),
+            },
+        }
+    }
+
+    pub fn from_bundle(bundle: DeclarationBundle) -> Self {
+        Self { bundle }
+    }
+
+    pub fn from_legacy_context(
+        ctx: &Context,
+        package: impl Into<String>,
+    ) -> Self {
+        Self {
+            bundle: ctx.to_declaration_bundle(package),
+        }
+    }
+
+    pub fn root(&self) -> &TypeRegistryDeclaration {
+        &self.bundle.root
+    }
+
+    pub fn root_mut(&mut self) -> &mut TypeRegistryDeclaration {
+        &mut self.bundle.root
     }
 }

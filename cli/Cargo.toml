@@ -32,4 +32,3 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 kintsu-testing = { path = "../testing" }
-

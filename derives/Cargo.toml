@@ -30,4 +30,3 @@ toml = {workspace = true}
 [dev-dependencies]
 kintsu-testing = { path = "../testing" }
 test-case = {workspace = true}
-

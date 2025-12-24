@@ -1,9 +1,12 @@
 pub mod context;
+pub mod decl_ext;
+pub mod decl_gen;
 pub mod files;
 pub mod matcher;
 pub mod python;
 pub mod remote;
 pub mod rust;
+pub mod rust_decl;
 
 use std::{
     collections::BTreeMap,

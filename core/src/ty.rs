@@ -43,6 +43,10 @@ impl Version {
     pub const fn new(version: usize) -> Self {
         Self(version)
     }
+
+    pub const fn get(&self) -> usize {
+        self.0
+    }
 }
 
 impl Default for Version {
