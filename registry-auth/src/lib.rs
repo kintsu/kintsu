@@ -150,6 +150,7 @@ impl AuthorizationResult {
             permission, resource
         );
 
+        #[cfg(not(debug_assertions))]
         Self {
             allowed: false,
             reason: format!(

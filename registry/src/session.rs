@@ -79,6 +79,18 @@ impl SessionData {
 
         Ok(session)
     }
+
+    /// Creates a removal cookie that will clear the session when set
+    pub fn removal_cookie(domain: String) -> Cookie<'static> {
+        let mut cookie = Cookie::new(COOKIE_NAME, "");
+        cookie.set_path("/");
+        cookie.set_secure(true);
+        cookie.set_http_only(false);
+        cookie.set_same_site(SameSite::Strict);
+        cookie.set_max_age(actix_web::cookie::time::Duration::ZERO);
+        cookie.set_domain(domain);
+        cookie
+    }
 }
 
 impl FromRequest for SessionData {

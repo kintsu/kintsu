@@ -117,7 +117,9 @@ impl ExchangeResponse {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct ValidExchangeResponse {
+    #[allow(unused)]
     token_type: String,
+    #[allow(unused)]
     #[serde(deserialize_with = "de_str_split")]
     scope: Vec<String>,
     pub(crate) access_token: SecretString,
