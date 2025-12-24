@@ -18,6 +18,11 @@ env:
   RUSTFLAGS: "-Awarnings"
   RUSTDOCFLAGS: "-Awarnings"
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
 jobs:
   benchmark:
     name: Benchmarks
