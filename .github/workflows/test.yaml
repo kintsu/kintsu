@@ -45,7 +45,7 @@ jobs:
 
       - name: Test Generation
         run: |
-          cargo run --bin kintsu-cli -- gen -d examples/gen-a
+          cargo run --bin kintsu -- gen -d examples/gen-a
 
       - name: Cargo Test
         id: cargo_test
