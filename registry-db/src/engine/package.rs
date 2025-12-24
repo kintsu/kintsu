@@ -284,7 +284,7 @@ impl Package {
             .one(db)
             .await?;
 
-        Ok(count.flatten().unwrap_or(0) as i64)
+        Ok(count.flatten().unwrap_or(0))
     }
 
     pub async fn package_download_history<C: sea_orm::ConnectionTrait>(
