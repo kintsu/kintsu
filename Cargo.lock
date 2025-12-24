@@ -1694,15 +1694,6 @@ dependencies = [
 
 [[package]]
 name = "convert_case"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
-name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
@@ -3581,7 +3572,7 @@ dependencies = [
  "cfg-if 1.0.4",
  "chrono",
  "config",
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "dyn-inventory",
  "glob",
  "inventory",
@@ -3614,7 +3605,7 @@ dependencies = [
 name = "kintsu-derives"
 version = "0.1.0"
 dependencies = [
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "darling 0.21.3",
  "glob",
  "kintsu-core",
@@ -3681,7 +3672,7 @@ name = "kintsu-manifests"
 version = "0.1.0"
 dependencies = [
  "config",
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "glob",
  "kintsu-fs",
  "prettyprint",
@@ -3704,7 +3695,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "console 0.16.2",
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "crossbeam",
  "dyn-inventory",
  "futures-util",
@@ -3744,7 +3735,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "chrono",
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "dotenvy",
  "kintsu-fs",
  "kintsu-manifests",
