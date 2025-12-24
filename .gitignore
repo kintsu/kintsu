@@ -7,6 +7,19 @@
 !.github/prompts/skills
 test-suite/*.json
 
+.github/workflows/docker-release-registry.yaml
+
+timings.json
+
+/lcov-viewer
+/coverage
+
+*.profraw
+*.profraw.*
+*.profdata
+*.profdata.*
+
+
 *.rlib
 *.dylib
 /python-sdk

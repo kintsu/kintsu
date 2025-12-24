@@ -4,8 +4,6 @@ use validator::Validate;
 
 use crate::config::NewForNamed;
 
-const LOCKFILE_NAME: &str = "schema.lock";
-
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 #[serde(tag = "version", rename_all = "snake_case")]
 pub enum Lockfiles {
@@ -27,7 +25,7 @@ impl Lockfiles {
         fs: &dyn kintsu_fs::FileSystem,
         project_root: PathBuf,
     ) -> bool {
-        fs.exists_sync(&project_root.join(LOCKFILE_NAME))
+        fs.exists_sync(&project_root.join(Lockfiles::NAME))
     }
 }
 
@@ -40,7 +38,7 @@ pub struct Lockfile {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct LockedPackage {
     pub name: String,
-    pub version: super::version::Version,
+    pub version: super::version::VersionSerde,
     pub checksum: String,
     pub source: LockedSource,
     #[serde(default)]
@@ -49,7 +47,7 @@ pub struct LockedPackage {
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct LockedDependencyRef {
-    pub version: super::version::Version,
+    pub version: super::version::VersionSerde,
     #[serde(default)]
     pub provides: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -91,7 +89,7 @@ impl Lockfile {
     pub fn get_package(
         &self,
         name: &str,
-        version: &super::version::Version,
+        version: &super::version::VersionSerde,
     ) -> Option<&LockedPackage> {
         let key = format!("{}@{}", name, version);
         self.packages.get(&key)
@@ -101,7 +99,7 @@ impl Lockfile {
 impl LockedPackage {
     pub fn new(
         name: String,
-        version: super::version::Version,
+        version: super::version::VersionSerde,
         checksum: String,
         source: LockedSource,
     ) -> Self {
@@ -124,7 +122,7 @@ impl LockedPackage {
 }
 
 impl LockedDependencyRef {
-    pub fn new(version: super::version::Version) -> Self {
+    pub fn new(version: super::version::VersionSerde) -> Self {
         Self {
             version,
             provides: Vec::new(),

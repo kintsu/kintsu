@@ -3,9 +3,10 @@ use testcontainers::ContainerAsync;
 use testcontainers_modules::{postgres, testcontainers::runners::AsyncRunner};
 
 pub struct TestDbCtx {
-    db_url: String,
     #[allow(unused)] // kept alive
     container: ContainerAsync<postgres::Postgres>,
+
+    pub db_url: String,
     pub conn: sea_orm::DatabaseConnection,
 }
 

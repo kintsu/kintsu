@@ -83,15 +83,18 @@ version = "1.0.0"
 [dependencies]
 dep = { path = "../dep" }
 "#,
-            "pkg/schema.lock" => r#"# This lockfile has an INCORRECT checksum
-[[package]]
-name = "dep"
-version = "1.0.0"
-source = { path = "../dep" }
-checksum = "deadbeefdeadbeefdeadbeefdeadbeef"
+            "pkg/schema.lock.toml" => r#"# This lockfile has an INCORRECT checksum
+version = "v1"
 
-[provides]
-dep = ["dep"]
+[root]
+name = "dep"
+version = "0.1.0"
+source = { path = "../dep", type = "path" }
+checksum = "abcfoobarwrongchecksum"
+
+
+[packages]
+
 "#,
             "pkg/schema/lib.ks" => "namespace pkg;\nnamespace main { use dep;  type PkgData = dep::data::Data; };",
         }

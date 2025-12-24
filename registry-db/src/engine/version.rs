@@ -4,6 +4,7 @@ use crate::{
     entities::{org::Entity as OrgEntity, *},
 };
 use chrono::Utc;
+use kintsu_manifests::version::{VersionExt, VersionSerde, parse_version};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, Order, QueryFilter, QueryOrder,
     QuerySelect, Set,
@@ -47,8 +48,8 @@ impl QualifiedPackageVersion {
 }
 
 pub struct LatestVersions {
-    pub latest_version: kintsu_manifests::version::Version,
-    pub latest_stable: Option<kintsu_manifests::version::Version>,
+    pub latest_version: VersionSerde,
+    pub latest_stable: Option<VersionSerde>,
 }
 
 impl Version {
@@ -194,8 +195,9 @@ impl Version {
         let latest_version_str = latest_version_str
             .ok_or_else(|| Error::NotFound("No versions found for package".into()))?;
 
-        let latest_version = kintsu_manifests::version::Version::parse(&latest_version_str)
-            .expect("version already validated on insert");
+        let latest_version = VersionSerde(
+            parse_version(&latest_version_str).expect("version already validated on insert"),
+        );
 
         // If latest is stable, we're done
         if latest_version.is_stable() {
@@ -216,7 +218,7 @@ impl Version {
 
         let mut latest_stable = all_versions
             .into_iter()
-            .map(|v_str| kintsu_manifests::version::Version::parse(&v_str).expect("validated"))
+            .map(|v_str| VersionSerde(parse_version(&v_str).expect("validated")))
             .collect::<Vec<_>>();
 
         latest_stable.sort_by(|a, b| b.cmp(a)); // Descending order
@@ -248,12 +250,12 @@ impl Version {
                 .latest_stable
                 .unwrap_or(latest_version.latest_version)
         } else {
-            kintsu_manifests::version::Version::parse(version_str).map_err(|version_err| {
+            VersionSerde(parse_version(version_str).map_err(|version_err| {
                 Error::Validation(format!(
                     "Version '{}' is not a valid version: {}",
                     version_str, version_err
                 ))
-            })?
+            })?)
         };
 
         Ok(QualifiedPackageVersion::from(

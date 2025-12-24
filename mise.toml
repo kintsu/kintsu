@@ -7,10 +7,33 @@ gen-a = [
     "cargo +nightly fmt",
 ]
 config-sync = "sed 's/samples/..\\/samples/g' examples/gen-a/op-gen.toml > samples/config-a/op-gen.toml"
-clean-snap = "rm -rf ./**/snapshots/*.snap"
-clean-hoist = "rm -rf ./**/Cargo.toml.*.bak"
 
-deps = "python -m scripts.deps hoist && python -m scripts.deps sort"
+test = "cargo insta test --features generate,chrono,time,emit,test --workspace"
+
+[tasks.deps]
+run = [{ task = "clean-hoist" }, "python -m scripts.deps hoist", "python -m scripts.deps sort"]
+
+[tasks.clean-hoist]
+run = [
+    "rm -rf ./**/Cargo.toml.*.bak",
+    "rm -rf ./Cargo.toml.*.bak",
+]
+
+[tasks.clean-snap]
+run = [
+    "rm -rf ./**/snapshots/*.snap",
+]
+
+
+[tasks.coverage]
+run = [
+    "mkdir ./coverage || true",
+    "cargo +nightly llvm-cov nextest --features generate,chrono,time,emit,test --codecov --output-path ./coverage/lcov.info --ignore-filename-regex '/.cargo/registry/|/tests/'",
+    "bunx @lcov-viewer/cli lcov ./coverage/lcov.info"
+]
+
+env.RUSTFLAGS = "-Awarnings -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=unwind -Zpanic_abort_tests"
+env.RUSTDOCFLAGS = "-Awarnings -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=unwind -Zpanic_abort_tests"
 
 
 [tasks.compile-tape]
@@ -19,5 +42,7 @@ env.LOG_LEVEL = "error"
 
 
 [tools]
+bun = "latest"
+cargo-insta = "latest"
 node = "latest"
 prek = "latest"

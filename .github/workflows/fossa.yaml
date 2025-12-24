@@ -10,7 +10,7 @@ on:
       - v*
 
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sundays at midnight
+    - cron: '0 0 * * 0' # Weekly on Sundays at midnight
 
 jobs:
   fossa-scan:

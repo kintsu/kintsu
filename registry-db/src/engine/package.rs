@@ -11,6 +11,7 @@ use chrono::{NaiveDate, Utc};
 use kintsu_manifests::{
     InvalidManifest,
     package::{Dependency, PathOrText},
+    version::VersionSerde,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, FromQueryResult, JoinType, NotSet, PaginatorTrait,
@@ -27,7 +28,7 @@ pub struct DownloadHistory {
 
 pub struct StagePublishPackage {
     pub package_name: String,
-    pub version: kintsu_manifests::version::Version,
+    pub version: VersionSerde,
     pub homepage: Option<String>,
     pub description: Option<String>,
     pub license: String,

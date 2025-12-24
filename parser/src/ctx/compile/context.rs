@@ -4,7 +4,7 @@ use std::{
 };
 
 use kintsu_fs::FileSystem;
-use kintsu_manifests::{config::NewForNamed, lock::Lockfiles, version::Version};
+use kintsu_manifests::{config::NewForNamed, lock::Lockfiles, version::parse_version};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -79,7 +79,7 @@ impl CompileCtx {
 
     pub async fn finalize(&self) -> crate::Result<()> {
         if self.should_write_lockfile().await {
-            let root_version = Version::parse(&self.root.package.package.version.to_string())?;
+            let root_version = parse_version(&self.root.package.package.version.to_string())?;
             LockfileManager::write_lockfile(
                 &self.state,
                 self.root_fs.clone(),
@@ -90,7 +90,9 @@ impl CompileCtx {
             .await?;
             tracing::debug!(
                 "Lockfile written to {}",
-                self.root_path.join("schema.lock").display()
+                self.root_path
+                    .join(Lockfiles::NAME)
+                    .display()
             );
         } else {
             tracing::debug!("Lockfile unchanged, skipping write");

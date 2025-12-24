@@ -4,7 +4,7 @@ use kintsu_fs::{FileSystem, physical::Physical};
 use kintsu_manifests::{
     config::NewForNamed,
     package::{PackageManifest, PathDependency},
-    version::Version,
+    version::parse_version,
 };
 
 use super::*;
@@ -34,7 +34,7 @@ impl PathPackageResolver {
         let dep_manifest = PackageManifest::new(self.fs.as_ref(), &resolved_path)
             .map_err(crate::Error::ManifestError)?;
 
-        let version = Version::parse(&dep_manifest.package.version.to_string())?;
+        let version = parse_version(&dep_manifest.package.version.to_string())?;
 
         Ok(ResolvedDependency {
             fs: self.fs.clone(),

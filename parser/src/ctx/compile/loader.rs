@@ -8,7 +8,7 @@ use kintsu_fs::FileSystem;
 use kintsu_manifests::{
     lock::LockedSource,
     package::{Dependency, PackageManifest},
-    version::Version,
+    version::{Version, VersionExt, VersionSerde},
 };
 use tokio::sync::RwLock;
 
@@ -303,7 +303,7 @@ impl DependencyLoader {
         let mut candidate_version = resolved.version.clone();
 
         if let Some(existing_version) = state_read.loaded_versions.get(dep_name) {
-            if !existing_version.is_compatible(candidate_version.clone()) {
+            if !existing_version.is_compatible(&candidate_version) {
                 return Err(crate::Error::VersionIncompatibility {
                     package: dep_name.to_string(),
                     required: candidate_version.to_string(),
@@ -320,10 +320,10 @@ impl DependencyLoader {
             for locked_pkg in lockfile.packages.values() {
                 if locked_pkg.name == pkg_name_kebab {
                     let locked_version = &locked_pkg.version;
-                    if locked_version.is_compatible(candidate_version.clone())
-                        && locked_version > &candidate_version
+                    if locked_version.is_compatible(&candidate_version)
+                        && locked_version.0 > candidate_version
                     {
-                        candidate_version = locked_version.clone();
+                        candidate_version = locked_version.0.clone();
                     }
                 }
             }
@@ -338,34 +338,33 @@ impl DependencyLoader {
         use_version: &Version,
         checksum: &str,
     ) {
-        let should_invalidate = {
+        let invalidation_reason = {
             let state_read = state.read().await;
             if let Some(lockfile) = &state_read.lockfile {
                 let pkg_name_kebab = normalize_import_to_package_name(dep_name);
                 let key = format!("{}@{}", pkg_name_kebab, use_version);
                 if let Some(locked_pkg) = lockfile.packages.get(&key) {
                     if locked_pkg.checksum != checksum {
-                        Some((locked_pkg.checksum.clone(), checksum.to_string()))
+                        Some(format!(
+                            "checksum mismatch for package {}: expected '{}', got '{}'",
+                            dep_name, locked_pkg.checksum, checksum
+                        ))
                     } else {
                         None
                     }
                 } else {
-                    None
+                    // Package is not in lockfile - this is a new dependency
+                    Some(format!("new dependency '{}' not in lockfile", dep_name))
                 }
             } else {
                 None
             }
         };
 
-        if let Some((expected, got)) = should_invalidate {
+        if let Some(reason) = invalidation_reason {
             let mut state_write = state.write().await;
             state_write.lockfile_invalidated = true;
-            tracing::warn!(
-                "checksum mismatch for package {}: expected '{}', got '{}'. lockfile will be regenerated.",
-                dep_name,
-                expected,
-                got
-            );
+            tracing::warn!("{}. lockfile will be regenerated.", reason);
         }
     }
 
@@ -392,10 +391,7 @@ impl DependencyLoader {
         registry: TypeRegistry,
     ) -> crate::Result<Arc<SchemaCtx>> {
         if let Some(cached) = cache.get(cache_key).await {
-            if !cached
-                .version
-                .is_compatible(use_version.clone())
-            {
+            if !cached.version.is_compatible(use_version) {
                 Self::load_schema_fresh(resolved, registry).await
             } else {
                 Ok(cached.schema)

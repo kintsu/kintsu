@@ -1,4 +1,5 @@
 use kintsu_fs::{FileSystem, memory::MemoryFileSystem};
+use kintsu_manifests::{config::NewForNamed, lock::Lockfiles};
 pub use kintsu_parser::ctx::CompileCtx;
 use std::{
     path::{Path, PathBuf},
@@ -249,7 +250,7 @@ impl TestHarness {
     }
 
     pub fn lockfile_path(&self) -> PathBuf {
-        let p = PathBuf::from(format!("{}/{}", self.root, "schema.lock.toml"));
+        let p = PathBuf::from(format!("{}/{}", self.root, Lockfiles::NAME));
         tracing::info!("Expect lockfile path: {}", p.display());
         p
     }

@@ -48,7 +48,7 @@ pub async fn get_package_version(
 )]
 #[get("/package/{name}/{version}/dependents")]
 pub async fn get_dependent_packages(
-    path: web::Path<(String, kintsu_manifests::version::Version)>,
+    path: web::Path<(String, kintsu_manifests::version::VersionSerde)>,
     conn: DbConn,
 ) -> crate::Result<impl Responder> {
     let (name, version) = path.into_inner();
@@ -77,7 +77,7 @@ pub async fn get_dependent_packages(
 )]
 #[get("/package/{name}/{version}/dependencies")]
 pub async fn get_package_dependencies(
-    path: web::Path<(String, kintsu_manifests::version::Version)>,
+    path: web::Path<(String, kintsu_manifests::version::VersionSerde)>,
     conn: DbConn,
 ) -> crate::Result<impl Responder> {
     let (name, version) = path.into_inner();
@@ -521,7 +521,9 @@ pub async fn publish_package(
                 (
                     (
                         source.package_name,
-                        kintsu_manifests::version::Version::parse(&source.version).unwrap(),
+                        kintsu_manifests::version::VersionSerde(
+                            kintsu_manifests::version::parse_version(&source.version).unwrap(),
+                        ),
                     ),
                     source.fs,
                 )

@@ -14,7 +14,7 @@ use crate::{
 };
 use kintsu_manifests::{
     package::{FileConfig, PackageManifest, PackageMeta},
-    version::Version,
+    version::{VersionSerde, parse_version},
 };
 pub use kintsu_testing::logging;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
@@ -134,7 +134,7 @@ pub async fn resolver_with_checked(
         package: PackageManifest {
             package: PackageMeta {
                 name: "test_package".to_string(),
-                version: Version::parse("0.1.0").unwrap(),
+                version: VersionSerde(parse_version("0.1.0").unwrap()),
                 description: None,
                 authors: vec![],
                 homepage: None,
@@ -214,7 +214,7 @@ pub async fn register_namespace_types(ns: NamespaceCtx) -> crate::Result<Arc<Mut
         package: PackageManifest {
             package: PackageMeta {
                 name: "test_package".to_string(),
-                version: Version::parse("0.1.0").unwrap(),
+                version: VersionSerde(parse_version("0.1.0").unwrap()),
                 description: None,
                 authors: vec![],
                 homepage: None,

@@ -10,7 +10,8 @@ concurrency:
 
 env:
   NEXTEST_PROFILE: ci
-  RUSTFLAGS: "-A warnings"
+  RUSTFLAGS: "-Awarnings"
+  RUSTDOCFLAGS: "-Awarnings"
 
 jobs:
   test:
@@ -23,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: jdx/mise-action@v3
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: cargo
@@ -32,9 +35,6 @@ jobs:
           shared-key: test-${{ matrix.runner }}
           cache-all-crates: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.16.4
 
       - name: Install cargo deps
         run: |
@@ -46,12 +46,13 @@ jobs:
 
       - name: Test Generation
         run: |
-          cargo run --bin kintsu -- gen -d examples/gen-a
+          mise config-sync
+          mise gen-a
 
       - name: Cargo Test
         id: cargo_test
         run: |
-          cargo insta test --features generate,chrono,time,emit
+          mise test
 
       - name: Upload snapshots of failed tests
         if: ${{ failure() && steps.cargo_test.outcome == 'failure' }}
@@ -59,3 +60,41 @@ jobs:
         with:
           name: failed-snapshots
           path: "**/snapshots/*.snap.new"
+
+  coverage:
+    name: Coverage
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: jdx/mise-action@v3
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: cargo,llvm-tools-preview
+          toolchain: nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage-${{ matrix.runner }}
+          cache-all-crates: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install cargo deps
+        run: |
+          cargo binstall -y --force cargo-tarpaulin
+
+      - name: Run coverage
+        run: mise run coverage
+
+      - name: Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_ORG_TOKEN }}
+        with:
+          verbose: true
+          fail_ci_if_error: true

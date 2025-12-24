@@ -111,7 +111,7 @@ pub struct PackageMeta {
 
     /// The version of the package
     #[cfg_attr(feature = "api", schema(value_type = String, format = "version"))]
-    pub version: super::version::Version,
+    pub version: super::version::VersionSerde,
 
     /// The authors of the package
     #[serde(default)]
@@ -182,10 +182,11 @@ impl PackageManifest {
 
     fn validate_remote(
         errors: &mut ValidationErrors,
-        package_version: &crate::version::Version,
+        package_version: &crate::version::VersionSerde,
         name: &str,
         remote: &mut RemoteDependency,
     ) {
+        use crate::version::VersionExt;
         if package_version.is_stable() && !remote.version.is_stable() {
             Self::with_dependency_error(
                 errors,
@@ -289,8 +290,13 @@ pub struct RemoteDependency {
     #[validate(regex(path = *REGISTRY_RE, message = "registry must be a valid URL"))]
     pub name: Option<String>,
 
+    /// Version requirement for the dependency. Supports semver ranges like:
+    /// - `1.0.0` (exact version, treated as ^1.0.0)
+    /// - `^1.0.0` (caret requirement)
+    /// - `~1.0.0` (tilde requirement)
+    /// - `>= 1.0.0, < 2.0.0` (range requirement)
     #[cfg_attr(feature = "api", schema(value_type = String, format = "version"))]
-    pub version: crate::version::Version,
+    pub version: crate::version::VersionReqSerde,
 
     pub registry: Option<String>,
 }
@@ -319,7 +325,7 @@ pub enum Dependency {
 }
 
 impl Dependency {
-    pub fn version(&self) -> Option<&crate::version::Version> {
+    pub fn version(&self) -> Option<&crate::version::VersionReqSerde> {
         match self {
             Dependency::Git(_) => None,
             Dependency::Path(_) => None,
@@ -344,11 +350,11 @@ impl validator::Validate for Dependency {
 mod test {
     use validator::Validate;
 
-    use crate::version::Version;
+    use crate::version::{VersionSerde, parse_version};
 
     #[test_case::test_case("abc-types", "0.1.0", "https://github.com/abc/foo.git"; "valid name with dash")]
     #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git"; "simple name")]
-    #[test_case::test_case("abc", "0.1.0.rc0", "https://github.com/abc/foo.git"; "version with rc")]
+    #[test_case::test_case("abc", "0.1.0-rc.0", "https://github.com/abc/foo.git"; "version with rc")]
     fn test_pkg_validate_ok(
         name: &str,
         version: &str,
@@ -357,7 +363,7 @@ mod test {
         let p = super::PackageMeta {
             name: name.into(),
             description: None,
-            version: Version::parse(version).unwrap(),
+            version: VersionSerde(parse_version(version).unwrap()),
             authors: vec![],
             homepage: Some(homepage.into()),
             keywords: vec![],
@@ -375,7 +381,6 @@ mod test {
         "name: Validation error: length"; "name too long")]
     #[test_case::test_case("abc_types!", "0.1.0", "https://github.com/abc/foo.git", vec![], "name: package name must be provided without spaces or special characters"; "invalid character in name")]
     #[test_case::test_case("abc_types", "0.1.0", "not-a-url", vec![], "homepage: Validation error: url [{\"value\": String(\"not-a-url\")}]"; "invalid homepage url")]
-    #[test_case::test_case("abc", "0.1", "https://github.com/abc/foo.git", vec![], "version: patch version"; "version without patch")]
     #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec![" foo".into()], "keywords: keywords must be provided"; "keyword prefixed with space")]
     #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["foo bar".into()], "keywords: keywords must be provided"; "keyword with space inside")]
     #[test_case::test_case("abc", "0.1.0", "https://github.com/abc/foo.git", vec!["".into()], "keywords: keywords must be provided"; "empty keyword")]
@@ -390,7 +395,7 @@ mod test {
         let p = super::PackageMeta {
             name: name.into(),
             description: None,
-            version: Version::parse(version).unwrap(),
+            version: VersionSerde(parse_version(version).unwrap()),
             authors: vec![],
             homepage: Some(homepage.into()),
             keywords,

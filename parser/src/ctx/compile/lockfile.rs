@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use kintsu_manifests::{
     config::NewForNamed,
     lock::{LockedDependencyRef, LockedPackage, LockedSource, Lockfile, Lockfiles},
-    version::Version,
+    version::{Version, VersionExt, VersionSerde},
 };
 use tokio::sync::RwLock;
 
@@ -34,9 +34,7 @@ impl LockfileManager {
 
             let (highest_name, highest_version) = &versions[0];
             for (other_name, other_version) in versions.iter().skip(1) {
-                if other_version.is_compatible(highest_version.clone())
-                    && other_name != highest_name
-                {
+                if other_version.is_compatible(highest_version) && other_name != highest_name {
                     to_remove.push(other_name.clone());
                 }
             }
@@ -73,7 +71,7 @@ impl LockfileManager {
                     dependencies.insert(
                         dep_name.clone(),
                         LockedDependencyRef {
-                            version: dep_meta.version.clone(),
+                            version: VersionSerde(dep_meta.version.clone()),
                             provides,
                             chain: vec![pkg_name.clone(), dep_name.clone()],
                         },
@@ -88,7 +86,7 @@ impl LockfileManager {
                 key,
                 LockedPackage {
                     name: pkg_name_kebab,
-                    version: metadata.version.clone(),
+                    version: VersionSerde(metadata.version.clone()),
                     checksum: metadata.checksum.clone(),
                     source: metadata.source.clone(),
                     dependencies,
@@ -113,7 +111,7 @@ impl LockfileManager {
             root_dependencies.insert(
                 pkg_name.clone(),
                 LockedDependencyRef {
-                    version: metadata.version.clone(),
+                    version: VersionSerde(metadata.version.clone()),
                     provides,
                     chain: vec![root_pkg_name.clone(), pkg_name.clone()],
                 },
@@ -122,7 +120,7 @@ impl LockfileManager {
 
         let root = LockedPackage {
             name: root_pkg_name,
-            version: root_version,
+            version: VersionSerde(root_version),
             checksum: root_checksum,
             source: LockedSource::Path {
                 path: PathBuf::from("."),

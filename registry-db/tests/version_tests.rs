@@ -177,7 +177,7 @@ async fn latest_stable_and_prerelease() {
         .expect("Failed to create package");
 
     // Create versions - last one is prerelease
-    for ver in ["0.9.0", "1.0.0", "1.1.0", "2.0.0beta0"] {
+    for ver in ["0.9.0", "1.0.0", "1.1.0", "2.0.0-beta.0"] {
         fixtures::version(pkg.id)
             .version(ver)
             .publisher_user(user.id)
@@ -190,8 +190,8 @@ async fn latest_stable_and_prerelease() {
         .await
         .expect("Failed to get latest");
 
-    // Latest by ID is 2.0.0beta0
-    assert_eq!(latest.latest_version.to_string(), "2.0.0beta0");
+    // Latest by ID is 2.0.0-beta.0
+    assert_eq!(latest.latest_version.to_string(), "2.0.0-beta.0");
     // Latest stable should be 1.1.0
     assert_eq!(
         latest.latest_stable.map(|v| v.to_string()),
@@ -215,7 +215,7 @@ async fn latest_no_stable() {
         .expect("Failed to create package");
 
     // Only prereleases
-    for ver in ["1.0.0alpha0", "1.0.0beta0"] {
+    for ver in ["1.0.0-alpha.0", "1.0.0-beta.0"] {
         fixtures::version(pkg.id)
             .version(ver)
             .publisher_user(user.id)
@@ -228,7 +228,7 @@ async fn latest_no_stable() {
         .await
         .expect("Failed to get latest");
 
-    assert_eq!(latest.latest_version.to_string(), "1.0.0beta0");
+    assert_eq!(latest.latest_version.to_string(), "1.0.0-beta.0");
     assert!(latest.latest_stable.is_none());
 }
 
@@ -293,7 +293,7 @@ async fn get_version_latest() {
         .await
         .expect("Failed to create package");
 
-    for ver in ["1.0.0", "1.1.0", "2.0.0beta0"] {
+    for ver in ["1.0.0", "1.1.0", "2.0.0-beta.0"] {
         fixtures::version(pkg.id)
             .version(ver)
             .publisher_user(user.id)
@@ -325,7 +325,7 @@ async fn get_version_latest_only_prerelease() {
         .await
         .expect("Failed to create package");
 
-    for ver in ["0.1.0alpha0", "0.1.0beta0"] {
+    for ver in ["0.1.0-alpha.0", "0.1.0-beta.0"] {
         fixtures::version(pkg.id)
             .version(ver)
             .publisher_user(user.id)
@@ -339,7 +339,7 @@ async fn get_version_latest_only_prerelease() {
         .expect("Failed to get latest");
 
     // Should return latest prerelease when no stable exists
-    assert_eq!(qpv.version.qualified_version.to_string(), "0.1.0beta0");
+    assert_eq!(qpv.version.qualified_version.to_string(), "0.1.0-beta.0");
 }
 
 #[tokio::test]

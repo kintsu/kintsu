@@ -184,7 +184,7 @@ dep = { path = "../dep" }
         .expect("Lockfile should exist");
 
     // Add the lockfile to the same filesystem and compile again
-    harness.add_text_file("pkg/schema.lock", &lockfile_content);
+    harness.add_text_file("pkg/schema.lock.toml", &lockfile_content);
     harness.clear_operations();
 
     let _ = harness.compile_pass().await;

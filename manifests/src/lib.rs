@@ -51,7 +51,8 @@ pub enum InvalidManifest {
     #[error("Package manifest specifies an unresolved dependency: {name}@{}", version.clone().map(|v| format!("{}", v)).unwrap_or("unknown".into()))]
     UnresolvedDependency {
         name: String,
-        version: Option<version::Version>,
+        #[serde(skip)]
+        version: Option<version::VersionReqSerde>,
     },
     #[error("Package manifest contains unresolved dependencies. See sources for details.")]
     UnresolvedDependencies { sources: Vec<InvalidManifest> },
@@ -85,7 +86,7 @@ pub fn init(
         package: package::PackageMeta {
             name,
             description: None,
-            version: version::Version::parse("0.1.0")?,
+            version: version::VersionSerde(version::parse_version("0.1.0")?),
             authors: vec![],
             keywords: vec![],
             homepage: None,

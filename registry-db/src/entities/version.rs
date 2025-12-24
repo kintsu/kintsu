@@ -18,8 +18,8 @@ pub struct Model {
     #[sea_orm(unique_key = "package_version_idx")]
     pub package: i64,
     #[sea_orm(unique_key = "package_version_idx")]
-    #[schema(value_type = String, example = "0.2.0rc1")]
-    pub qualified_version: kintsu_manifests::version::Version,
+    #[schema(value_type = String, example = "0.2.0-rc.1")]
+    pub qualified_version: kintsu_manifests::version::VersionSerde,
     pub source_checksum: String,
     pub declarations_checksum: String,
     pub description: Option<String>,

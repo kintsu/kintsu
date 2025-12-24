@@ -751,7 +751,7 @@ impl SchemaCompiler {
 
     fn build_cache_key_for_schema(schema: &SchemaCtx) -> crate::Result<CacheKey> {
         let package_name = normalize_import_to_package_name(&schema.package.package.name);
-        let version = schema.package.package.version.clone();
+        let version = schema.package.package.version.0.clone();
         Ok(CacheKey::new(package_name, version, None))
     }
 

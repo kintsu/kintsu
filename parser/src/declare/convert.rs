@@ -253,6 +253,25 @@ impl CompileCtx {
                 }))
             },
             Definition::TypeAlias(typedef) => {
+                // Check if the type alias targets an anonymous oneof
+                // If so, convert it to a TypeDefinition::OneOf instead
+                if let AstType::OneOf { ty } = &typedef.def.value.ty.value {
+                    let variants =
+                        Self::convert_anonymous_oneof_variants(&ty.value, ns_ctx, external_refs)?;
+
+                    let mut type_comments = DeclComment::new();
+                    for comment_stream in typedef.comments() {
+                        type_comments.merge(extract_comments(comment_stream));
+                    }
+
+                    return Ok(TypeDefinition::OneOf(DeclOneOf {
+                        name: item_name,
+                        variants,
+                        meta,
+                        comments: type_comments,
+                    }));
+                }
+
                 let target =
                     Self::convert_ast_type(&typedef.def.value.ty.value, ns_ctx, external_refs)?;
 
@@ -627,5 +646,89 @@ impl CompileCtx {
         }
 
         Ok(decl_variants)
+    }
+
+    /// Convert an anonymous oneof (e.g., `oneof i32 | str`) to DeclOneOfVariant list.
+    /// Each variant gets an auto-generated name based on the type.
+    fn convert_anonymous_oneof_variants(
+        oneof: &crate::ast::one_of::AnonymousOneOf,
+        ns_ctx: &NamespaceCtx,
+        external_refs: &mut BTreeSet<DeclNamedItemContext>,
+    ) -> crate::Result<Vec<DeclOneOfVariant>> {
+        let mut decl_variants = Vec::new();
+
+        for (idx, variant) in oneof
+            .variants
+            .value
+            .values
+            .iter()
+            .enumerate()
+        {
+            let variant_ty = Self::convert_ast_type(&variant.value.value, ns_ctx, external_refs)?;
+
+            // Generate variant name based on the type
+            let name = Self::generate_variant_name_from_type(&variant.value.value, idx);
+
+            decl_variants.push(DeclOneOfVariant {
+                name,
+                ty: variant_ty,
+                comments: DeclComment::new(),
+            });
+        }
+
+        Ok(decl_variants)
+    }
+
+    /// Generate a variant name from a type for anonymous oneofs.
+    /// Uses the type name with proper capitalization, or falls back to positional naming.
+    fn generate_variant_name_from_type(
+        ty: &AstType,
+        idx: usize,
+    ) -> String {
+        match ty {
+            AstType::Builtin { ty } => {
+                use crate::ast::ty::Builtin;
+                // Use the builtin type name as variant name
+                match &ty.value {
+                    Builtin::I8(_) => "I8".to_string(),
+                    Builtin::I16(_) => "I16".to_string(),
+                    Builtin::I32(_) => "I32".to_string(),
+                    Builtin::I64(_) => "I64".to_string(),
+                    Builtin::U8(_) => "U8".to_string(),
+                    Builtin::U16(_) => "U16".to_string(),
+                    Builtin::U32(_) => "U32".to_string(),
+                    Builtin::U64(_) => "U64".to_string(),
+                    Builtin::Usize(_) => "Usize".to_string(),
+                    Builtin::F16(_) => "F16".to_string(),
+                    Builtin::F32(_) => "F32".to_string(),
+                    Builtin::F64(_) => "F64".to_string(),
+                    Builtin::Bool(_) => "Bool".to_string(),
+                    Builtin::Str(_) => "Str".to_string(),
+                    Builtin::DateTime(_) => "DateTime".to_string(),
+                    Builtin::Complex(_) => "Complex".to_string(),
+                    Builtin::Binary(_) => "Binary".to_string(),
+                    Builtin::Base64(_) => "Base64".to_string(),
+                    Builtin::Never(_) => "Never".to_string(),
+                }
+            },
+            AstType::Ident { to } => {
+                // Use the identifier name as the variant name
+                // For paths like foo::Bar, use the last segment
+                match to {
+                    crate::ast::ty::PathOrIdent::Ident(ident) => ident.borrow_string().clone(),
+                    crate::ast::ty::PathOrIdent::Path(path) => {
+                        let path_inner = path.value.borrow_path_inner();
+                        path_inner
+                            .segments()
+                            .last()
+                            .cloned()
+                            .unwrap_or_else(|| format!("Variant{}", idx))
+                    },
+                }
+            },
+            AstType::Array { .. } => format!("Array{}", idx),
+            AstType::Paren { ty, .. } => Self::generate_variant_name_from_type(&ty.value, idx),
+            _ => format!("Variant{}", idx),
+        }
     }
 }

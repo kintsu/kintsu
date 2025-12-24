@@ -4,6 +4,7 @@
 //! Each fixture generates unique defaults using atomic counters.
 
 use chrono::{DateTime, Duration, Utc};
+use kintsu_manifests::version::{VersionSerde, parse_version};
 use kintsu_registry_db::{
     Result,
     engine::{NewApiKey, OneTimeApiKey, PrincipalIdentity},
@@ -357,7 +358,9 @@ impl VersionFixture {
         let active_model = VersionActiveModel {
             id: NotSet,
             package: Set(self.package_id),
-            qualified_version: Set(ManifestVersion::parse(&self.qualified_version).unwrap()),
+            qualified_version: Set(VersionSerde(
+                parse_version(&self.qualified_version).unwrap(),
+            )),
             source_checksum: Set(self.source_checksum),
             declarations_checksum: Set(self.declarations_checksum),
             description: Set(self.description),

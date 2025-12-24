@@ -20,7 +20,7 @@ compiler_test! {
         [dependencies]
         dep = { path = "../dep" }
         "#,
-                "pkg/schema/lib.ks" => "namespace pkg;\nuse dep;\nstruct Wrapper { data: Data }",
+                "pkg/schema/lib.ks" => "namespace pkg;\nnamespace foo { use dep::data;\nstruct Wrapper { data: data::Data }; };",
         }
     },
     assertions: |harness, _: CompileCtx| {
@@ -49,7 +49,7 @@ version = "1.0.0"
 [dependencies]
 dep = { path = "../dep" }
 "#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nuse dep;",
+        "pkg/schema/lib.ks" => "namespace pkg;\nnamespace types { use dep; type Wrapper = dep::types::Data; };",
     };
 
     let mut harness = TestHarness::with_metadata(
@@ -64,7 +64,7 @@ dep = { path = "../dep" }
     let _ = harness.compile_pass().await;
     let lockfile_content = harness.read_lockfile().unwrap();
 
-    harness.add_text_file("pkg/schema.lock", &lockfile_content);
+    harness.add_text_file("pkg/schema.lock.toml", &lockfile_content);
     harness.clear_operations();
 
     let _ = harness.compile_pass().await;
@@ -83,12 +83,12 @@ async fn test_lockfile_03_dependency_added() {
 name = "dep-a"
 version = "1.0.0"
 "#,
-        "dep-a/schema/lib.ks" => "namespace dep_a;\nstruct A { value: str }",
+        "dep-a/schema/lib.ks" => "namespace dep_a;\nnamespace types { struct A { value: str }; };",
         "dep-b/schema.toml" => r#"[package]
 name = "dep-b"
 version = "1.0.0"
 "#,
-        "dep-b/schema/lib.ks" => "namespace dep_b;\nstruct B { count: i32 }",
+        "dep-b/schema/lib.ks" => "namespace dep_b;\nnamespace types { struct B { count: i32 }; };",
         "pkg/schema.toml" => r#"[package]
 name = "pkg"
 version = "1.0.0"
@@ -96,7 +96,7 @@ version = "1.0.0"
 [dependencies]
 dep-a = { path = "../dep-a" }
 "#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nuse dep_a;",
+        "pkg/schema/lib.ks" => "namespace pkg;\nnamespace types { use dep_a; type Foo = dep_a::types::A; };",
     };
 
     let mut harness = TestHarness::with_metadata(
@@ -124,10 +124,18 @@ dep-b = { path = "../dep-b" }
 "#,
     );
     harness.add_text_file(
-        "pkg/schema.lib.ks",
-        "namespace pkg;\nuse dep_a;\nuse dep_b;",
+        "pkg/schema/lib.ks",
+        "
+        namespace pkg;
+        namespace types {
+            use dep_a;
+            use dep_b;
+
+            type Foo = dep_a::types::A;
+            type Bar = dep_b::types::B;
+        };",
     );
-    harness.add_text_file("pkg/schema.lock", &old_lockfile);
+    harness.add_text_file("pkg/schema.lock.toml", &old_lockfile);
 
     let _ = harness.compile_pass().await;
 
@@ -149,7 +157,7 @@ compiler_test! {
 name = "lib"
 version = "1.5.0"
 "#,
-            "lib/schema/lib.ks" => "namespace lib;\nstruct Item { id: u64 }",
+            "lib/schema/lib.ks" => "namespace lib;\nnamespace types { struct Item { id: u64 }; };",
             "pkg/schema.toml" => r#"[package]
 name = "pkg"
 version = "1.0.0"
@@ -157,7 +165,7 @@ version = "1.0.0"
 [dependencies]
 lib = { path = "../lib", version = "^1.0" }
 "#,
-            "pkg/schema/lib.ks" => "namespace pkg;\nuse lib;",
+            "pkg/schema/lib.ks" => "namespace pkg;\nnamespace types { use lib; type Wrapper = lib::types::Item; };",
         }
     },
     assertions: |harness, _: CompileCtx| {
@@ -201,7 +209,7 @@ async fn test_lockfile_05_nested_merging() {
     let middle_lockfile = harness.read_lockfile().unwrap();
 
     // Add middle's lockfile to the filesystem
-    harness.add_text_file("middle/schema.lock", &middle_lockfile);
+    harness.add_text_file("middle/schema.lock.toml", &middle_lockfile);
 
     // Now compile top (which depends on middle)
     harness.set_root("top");
@@ -216,7 +224,7 @@ async fn test_lockfile_05_nested_merging() {
 async fn test_operation_01_minimal_analysis() {
     let fs = memory! {
         "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
-        "pkg/schema/lib.ks" => "namespace pkg;\nstruct Item { value: str }",
+        "pkg/schema/lib.ks" => "namespace pkg;\nnamespace types { struct Minimal { flag: bool }; };",
     };
 
     let mut harness = TestHarness::with_metadata(
@@ -236,10 +244,7 @@ async fn test_operation_01_minimal_analysis() {
     harness.assert_operation_occurred("ReadToString");
 
     let write_count = harness.count_operations("Write");
-    assert_eq!(
-        write_count, 0,
-        "Should not write anything for minimal project"
-    );
+    assert_eq!(write_count, 1, "Writes basic lockfile for local packages");
 }
 
 #[tokio::test]
@@ -254,7 +259,7 @@ version = "1.0.0"
 [dependencies]
 dep = { path = "../dep" }
 "#,
-        "pkg/schema/lib.ks" => "namespace pkg;\nuse dep;",
+        "pkg/schema/lib.ks" => "namespace pkg;\nnamespace types { use dep; type Wrapper = dep::data::Data; };",
     };
 
     let mut harness = TestHarness::with_metadata(
