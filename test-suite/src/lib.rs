@@ -250,7 +250,7 @@ impl TestHarness {
     }
 
     pub fn lockfile_path(&self) -> PathBuf {
-        let p = PathBuf::from(format!("{}/{}", self.root, Lockfiles::NwutAME));
+        let p = PathBuf::from(format!("{}/{}", self.root, Lockfiles::NAME));
         tracing::info!("Expect lockfile path: {}", p.display());
         p
     }
