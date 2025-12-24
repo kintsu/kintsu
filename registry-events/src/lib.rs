@@ -6,7 +6,6 @@ use kintsu_registry_auth::AuditEvent;
 use serde_jsonlines::WriteExt;
 use std::{
     future::Future,
-    io::Write,
     pin::Pin,
     sync::{Arc, RwLock},
 };

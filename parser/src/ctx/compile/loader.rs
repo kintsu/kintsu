@@ -8,7 +8,7 @@ use kintsu_fs::FileSystem;
 use kintsu_manifests::{
     lock::LockedSource,
     package::{Dependency, PackageManifest},
-    version::{Version, VersionExt, VersionSerde},
+    version::{Version, VersionExt},
 };
 use tokio::sync::RwLock;
 

@@ -1,10 +1,7 @@
 use std::path::Path;
 
 use convert_case::{Case, Casing};
-use kintsu_manifests::{
-    package::Dependency,
-    version::{Version, VersionSerde},
-};
+use kintsu_manifests::{package::Dependency, version::VersionSerde};
 use kintsu_parser::ctx::compile::resolver::{
     DependencyMutability, GitResolver, PackageResolver, PathResolver, RemoteResolver,
     ResolvedDependency,

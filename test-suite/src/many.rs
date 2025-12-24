@@ -36,7 +36,7 @@ impl GraphGenerator {
 
     pub fn with_root(root_name: &str) -> Self {
         Self {
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             counter: 0,
             root_package: root_name.to_string(),
         }

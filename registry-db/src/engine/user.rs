@@ -1,8 +1,8 @@
 use crate::{Result, engine::OrgWithAdmin, entities::*};
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, NotSet, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set, sea_query::OnConflict,
+    ColumnTrait, EntityTrait, NotSet, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    sea_query::OnConflict,
 };
 
 pub struct NewUser {

@@ -6,8 +6,7 @@ use crate::{
 use chrono::Utc;
 use kintsu_manifests::version::{VersionExt, VersionSerde, parse_version};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, Order, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ColumnTrait, EntityTrait, ExprTrait, Order, QueryFilter, QueryOrder, QuerySelect, Set,
     prelude::Expr,
     sea_query::{OnConflict, SimpleExpr},
 };

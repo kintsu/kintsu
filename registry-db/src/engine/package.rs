@@ -1,7 +1,7 @@
 use crate::{
     Error, PackageStorage, Result,
     engine::{
-        Entity, OrderDirection, OwnerId, PackageOrdering, PackageOrderingField, Page, Paginated,
+        Entity, OrderDirection, PackageOrdering, PackageOrderingField, Page, Paginated,
         version::QualifiedPackageVersion,
     },
     entities::*,

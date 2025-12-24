@@ -1,4 +1,4 @@
-use crate::{Result, engine::OwnerId, entities::*};
+use crate::{engine::OwnerId, entities::*};
 
 #[derive(Debug, Clone)]
 pub enum PrincipalIdentity {
