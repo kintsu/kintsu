@@ -15,7 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUSTFLAGS: "-A warnings"
+  RUSTFLAGS: "-Awarnings"
+  RUSTDOCFLAGS: "-Awarnings"
 
 jobs:
   benchmark:
