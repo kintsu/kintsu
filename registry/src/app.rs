@@ -4,7 +4,6 @@ use actix_web::{
     web::{self},
 };
 use secrecy::ExposeSecret;
-use std::sync::Arc;
 use utoipa::{
     Modify, OpenApi, PartialSchema,
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},

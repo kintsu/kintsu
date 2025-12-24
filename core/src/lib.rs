@@ -1,4 +1,4 @@
-#![allow(clippy::iter_kv_map)]
+#![allow(clippy::iter_kv_map, clippy::result_large_err)]
 
 pub mod context;
 

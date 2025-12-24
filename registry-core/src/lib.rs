@@ -39,9 +39,9 @@ pub enum PublicErrorType {
     PackagingError(PackagingError),
 }
 
-impl Into<&'static str> for &PublicErrorType {
-    fn into(self) -> &'static str {
-        match self {
+impl From<&PublicErrorType> for &'static str {
+    fn from(val: &PublicErrorType) -> Self {
+        match val {
             PublicErrorType::InternalServerError => "internal-server-error",
             PublicErrorType::CodeExchangeError => "code-exchange-error",
             PublicErrorType::SessionError => "session-error",

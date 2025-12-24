@@ -1,4 +1,0 @@
-[project]
-name = "kintsu-dev-scripts"
-version = "0.1.0"
-dependencies = ["tomlkit>=0.13.3", "typer>=0.20.0"]

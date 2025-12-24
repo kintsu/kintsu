@@ -6,7 +6,6 @@ use kintsu_registry_auth::AuditEvent;
 use serde_jsonlines::WriteExt;
 use std::{
     future::Future,
-    io::Write,
     pin::Pin,
     sync::{Arc, RwLock},
 };
@@ -186,7 +185,7 @@ impl EventExecutor {
         Self {
             reporters: reporters
                 .into_iter()
-                .map(|r| Arc::from(r))
+                .map(Arc::from)
                 .collect(),
         }
     }

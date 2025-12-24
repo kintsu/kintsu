@@ -8,10 +8,7 @@ mod common;
 use chrono::{Duration, Utc};
 use common::fixtures;
 use kintsu_registry_db::{
-    engine::{
-        Entity as EngineEntity, OwnerId, PrincipalIdentity,
-        api_key::{AuthCheck, NewApiKey},
-    },
+    engine::{Entity as EngineEntity, OwnerId, PrincipalIdentity, api_key::NewApiKey},
     entities::*,
     tst::TestDbCtx,
 };

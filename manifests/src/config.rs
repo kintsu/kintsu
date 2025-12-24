@@ -65,7 +65,7 @@ where
                     .separator("_")
                     .convert_case(config::Case::Snake);
 
-                if Self::ENV != "" {
+                if !Self::ENV.is_empty() {
                     env.prefix(Self::ENV)
                 } else {
                     env

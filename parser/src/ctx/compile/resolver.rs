@@ -7,7 +7,6 @@ use std::{
 
 use kintsu_fs::FileSystem;
 use kintsu_manifests::{
-    config::NewForNamed,
     package::{Dependency, GitDependency, PathDependency, RemoteDependency},
     version::Version,
 };
@@ -132,8 +131,8 @@ impl PathResolver for Resolver {
 impl GitResolver for Resolver {
     fn resolve_git(
         &self,
-        dep_name: &str,
-        git: &GitDependency,
+        _dep_name: &str,
+        _git: &GitDependency,
     ) -> crate::Result<ResolvedDependency> {
         todo!()
     }
@@ -142,8 +141,8 @@ impl GitResolver for Resolver {
 impl RemoteResolver for Resolver {
     fn resolve_remote(
         &self,
-        dep_name: &str,
-        remote: &RemoteDependency,
+        _dep_name: &str,
+        _remote: &RemoteDependency,
     ) -> crate::Result<ResolvedDependency> {
         todo!()
     }

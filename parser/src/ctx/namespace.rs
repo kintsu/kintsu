@@ -560,6 +560,7 @@ impl NamespaceCtx {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn insert_typed_child<F>(
         ctx: &RefContext,
         children: &mut BTreeMap<NamedItemContext, FromNamedSource<NamespaceChild>>,

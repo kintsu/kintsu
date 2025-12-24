@@ -26,6 +26,7 @@ pub struct CompileCtx {
     type_registry: TypeRegistry,
 
     pub(super) state: Arc<RwLock<SharedCompilationState>>,
+    #[allow(dead_code)]
     pub(super) resolver: Arc<dyn PackageResolver>,
     pub(super) cache: SchemaCache,
 

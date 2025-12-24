@@ -6,8 +6,7 @@ use crate::{
 use chrono::Utc;
 use kintsu_manifests::version::{VersionExt, VersionSerde, parse_version};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, Order, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ColumnTrait, EntityTrait, ExprTrait, Order, QueryFilter, QueryOrder, QuerySelect, Set,
     prelude::Expr,
     sea_query::{OnConflict, SimpleExpr},
 };
@@ -40,10 +39,7 @@ impl QualifiedPackageVersion {
     >(
         tuple: I
     ) -> Vec<Self> {
-        tuple
-            .into_iter()
-            .map(|t| Self::from(t))
-            .collect()
+        tuple.into_iter().map(Self::from).collect()
     }
 }
 

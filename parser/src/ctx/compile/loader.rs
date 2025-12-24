@@ -8,7 +8,7 @@ use kintsu_fs::FileSystem;
 use kintsu_manifests::{
     lock::LockedSource,
     package::{Dependency, PackageManifest},
-    version::{Version, VersionExt, VersionSerde},
+    version::{Version, VersionExt},
 };
 use tokio::sync::RwLock;
 
@@ -56,6 +56,7 @@ pub(super) struct DependencyResult {
 pub struct DependencyLoader;
 
 impl DependencyLoader {
+    #[allow(clippy::too_many_arguments)]
     pub async fn load_dependencies_parallel(
         root: &SchemaCtx,
         state: Arc<RwLock<SharedCompilationState>>,

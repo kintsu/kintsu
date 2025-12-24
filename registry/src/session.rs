@@ -47,7 +47,7 @@ impl SessionData {
     ) -> crate::Result<()> {
         self.dirty = false;
 
-        let mut user = jar.private_mut(&key);
+        let mut user = jar.private_mut(key);
 
         let mut cookie = Cookie::new(COOKIE_NAME, serde_json::to_string(self)?);
 
@@ -71,13 +71,25 @@ impl SessionData {
         jar.add_original(cookie.clone());
 
         let cookie = jar
-            .private(&key)
+            .private(key)
             .get(COOKIE_NAME)
             .ok_or_else(|| crate::Error::session("missing session cookie"))?;
 
         let session: SessionData = serde_json::from_str(cookie.value())?;
 
         Ok(session)
+    }
+
+    /// Creates a removal cookie that will clear the session when set
+    pub fn removal_cookie(domain: String) -> Cookie<'static> {
+        let mut cookie = Cookie::new(COOKIE_NAME, "");
+        cookie.set_path("/");
+        cookie.set_secure(true);
+        cookie.set_http_only(false);
+        cookie.set_same_site(SameSite::Strict);
+        cookie.set_max_age(actix_web::cookie::time::Duration::ZERO);
+        cookie.set_domain(domain);
+        cookie
     }
 }
 

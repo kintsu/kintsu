@@ -32,10 +32,10 @@ impl DeclNamespace {
         root_package: &str,
         refs: &mut std::collections::HashSet<DeclNamedItemContext>,
     ) {
-        if let Some(error) = &self.error {
-            if error.is_external(root_package) {
-                refs.insert(error.clone());
-            }
+        if let Some(error) = &self.error
+            && error.is_external(root_package)
+        {
+            refs.insert(error.clone());
         }
 
         for type_def in &self.types {

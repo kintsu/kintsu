@@ -82,12 +82,25 @@ pub async fn whoami(session: crate::session::SessionData) -> impl Responder {
 #[utoipa::path(
     tag = AUTH,
     responses(
-        (status = 200, description = "Logout user"),
-    )
+        (status = 307, description = "Redirect to home page after logout"),
+    ),
+    security(("session" = []))
 )]
 #[get("/auth/logout")]
-pub async fn logout(session: crate::session::SessionData) -> impl Responder {
-    "200".to_string()
+pub async fn logout(
+    req: actix_web::HttpRequest,
+    session_config: web::Data<SessionConfig>,
+) -> impl Responder {
+    let cookie = crate::session::SessionData::removal_cookie(session_config.domain.clone());
+
+    let mut resp = Redirect::to("/").respond_to(&req);
+
+    resp.headers_mut().append(
+        actix_web::http::header::SET_COOKIE,
+        cookie.encoded().to_string().parse().unwrap(),
+    );
+
+    resp
 }
 
 #[utoipa::path(

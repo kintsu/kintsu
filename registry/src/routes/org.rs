@@ -1,10 +1,7 @@
 use crate::{DbConn, principal::Principal, session::SessionData};
 use actix_web::{Responder, delete, get, post, web};
-use kintsu_registry_core::models::{FavouritesCount, GrantOrgRoleRequest, RevokeOrgRoleRequest};
-use kintsu_registry_db::{
-    engine::fluent::AuthCheck,
-    entities::{Org, Permission},
-};
+use kintsu_registry_core::models::{GrantOrgRoleRequest, RevokeOrgRoleRequest};
+use kintsu_registry_db::{engine::fluent::AuthCheck, entities::Org};
 use validator::Validate;
 
 const ORGS: &str = "orgs";

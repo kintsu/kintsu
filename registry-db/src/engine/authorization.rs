@@ -10,6 +10,7 @@ pub use super::events::{
     TokenResource,
 };
 
+#[allow(async_fn_in_trait)]
 pub trait Authorize {
     async fn authorize<C: ConnectionTrait>(
         &self,
@@ -298,7 +299,7 @@ impl OrgResource {
 impl Authorize for TokenResource {
     async fn authorize<C: ConnectionTrait>(
         &self,
-        db: &C,
+        _db: &C,
         principal: &super::principal::PrincipalIdentity,
         permission: Permission,
     ) -> Result<AuthorizationResult> {

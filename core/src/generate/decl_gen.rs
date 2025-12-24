@@ -75,10 +75,10 @@ impl<'ns, T, Config: ConfigExt, L: LanguageTrait> DeclNsContext<'ns, T, Config, 
         let mut new_f = Box::new(super::files::FileOrMem::new(name.clone(), self.opts.mem)?)
             as Box<dyn WithFlush>;
 
-        if self.opts.mem {
-            if let Some(mem_flush) = self.mem_flush.clone() {
-                new_f.with_flush(mem_flush);
-            }
+        if self.opts.mem
+            && let Some(mem_flush) = self.mem_flush.clone()
+        {
+            new_f.with_flush(mem_flush);
         }
 
         (self.on_create)(self, name, &mut new_f)?;

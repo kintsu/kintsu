@@ -36,7 +36,7 @@ impl GraphGenerator {
 
     pub fn with_root(root_name: &str) -> Self {
         Self {
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             counter: 0,
             root_package: root_name.to_string(),
         }
@@ -201,10 +201,10 @@ impl GraphGenerator {
         }
 
         // add edges (only forward to maintain DAG property)
-        for i in 0..nodes {
-            for j in 0..i {
+        for (i, spec) in specs.iter_mut().enumerate().take(nodes) {
+            for dep in names.iter().take(i) {
                 if self.rng.random_bool(edge_probability) {
-                    specs[i].dependencies.push(names[j].clone());
+                    spec.dependencies.push(dep.clone());
                 }
             }
         }
@@ -625,7 +625,7 @@ pub fn populate_root_only(
     fs: &mut MemoryFileSystem,
     root: &PackageSpec,
 ) {
-    populate_fs(fs, &[root.clone()]);
+    populate_fs(fs, std::slice::from_ref(root));
 }
 
 #[cfg(test)]

@@ -1,9 +1,10 @@
+#![allow(unused_assignments)]
+
 use crate::defs::Spanned;
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use std::path::Path;
 use thiserror::Error;
 
-#[allow(unused_assignments)]
 #[derive(Debug, Error, Diagnostic)]
 #[error("{message}")]
 pub struct SpanDiagnostic {
@@ -14,8 +15,9 @@ pub struct SpanDiagnostic {
     span: Option<SourceSpan>,
 
     message: String,
-    #[allow(dead_code)]
+
     label: String,
+
     #[diagnostic(help)]
     help: Option<String>,
 

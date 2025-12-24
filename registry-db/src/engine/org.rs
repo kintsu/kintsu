@@ -91,9 +91,9 @@ impl Org {
 
     pub async fn invite_to_org(
         &self,
-        invite: &OrgInvite,
+        _invite: &OrgInvite,
     ) -> Result<OrgInvite> {
-        let invite = ();
+        let _invite = ();
 
         todo!()
     }

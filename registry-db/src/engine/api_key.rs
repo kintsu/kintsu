@@ -307,8 +307,8 @@ impl ApiKey {
         &self,
         package_name: &str,
         permission: &Permission,
-    ) -> AuthCheck {
-        AuthCheck {
+    ) -> ApiKeyAuthCheck {
+        ApiKeyAuthCheck {
             scope_matches: self.check_scope_match(package_name),
             has_permission: self.permissions.contains(permission),
         }
@@ -347,12 +347,12 @@ impl ApiKey {
     }
 }
 
-pub struct AuthCheck {
+pub struct ApiKeyAuthCheck {
     pub scope_matches: bool,
     pub has_permission: bool,
 }
 
-impl AuthCheck {
+impl ApiKeyAuthCheck {
     pub fn ok(&self) -> bool {
         self.scope_matches && self.has_permission
     }

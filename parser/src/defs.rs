@@ -67,7 +67,6 @@ pub struct Spanned<T> {
     pub value: T,
 }
 
-#[allow(clippy::non_canonical_partial_eq_impl)]
 impl<T: PartialEq<T>> PartialEq<Self> for Spanned<T> {
     fn eq(
         &self,

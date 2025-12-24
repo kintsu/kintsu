@@ -267,7 +267,7 @@ pub trait PackageStorage<D: Send + Sync + serde::Serialize + serde::de::Deserial
             )
             .collect::<Vec<_>>();
 
-        Box::pin(async move { Ok(futures_util::future::try_join_all(futures).await?) })
+        Box::pin(async move { futures_util::future::try_join_all(futures).await })
     }
 
     fn get_declarations<'d>(
@@ -390,6 +390,6 @@ pub trait PackageStorage<D: Send + Sync + serde::Serialize + serde::de::Deserial
             )
             .collect::<Vec<_>>();
 
-        Box::pin(async move { Ok(futures_util::future::try_join_all(futures).await?) })
+        Box::pin(async move { futures_util::future::try_join_all(futures).await })
     }
 }

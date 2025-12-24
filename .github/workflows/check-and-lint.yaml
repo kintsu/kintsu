@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - uses: jdx/mise-action@v3
+
+      - name: Install Dependencies
+        run: uv pip install --system -r ./scripts/requirements.txt
+
       - uses: j178/prek-action@v1
 
   check:

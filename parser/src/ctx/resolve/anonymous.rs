@@ -189,6 +189,7 @@ fn from_array(
     }
 }
 
+#[allow(clippy::only_used_in_recursion)]
 fn from_union(
     union: &Union,
     source: &PathBuf,
