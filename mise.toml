@@ -9,6 +9,7 @@ gen-a = [
 config-sync = "sed 's/samples/..\\/samples/g' examples/gen-a/op-gen.toml > samples/config-a/op-gen.toml"
 
 test = "cargo insta test --features generate,chrono,time,emit,test --workspace"
+view-cov = "bunx @lcov-viewer/cli lcov ./coverage/lcov.info"
 
 [tasks.deps]
 run = [{ task = "clean-hoist" }, "python -m scripts.deps hoist", "python -m scripts.deps sort"]
@@ -29,7 +30,6 @@ run = [
 run = [
     "mkdir ./coverage || true",
     "cargo +nightly llvm-cov nextest --features generate,chrono,time,emit,test --codecov --output-path ./coverage/lcov.info --ignore-filename-regex '/.cargo/registry/|/tests/'",
-    "bunx @lcov-viewer/cli lcov ./coverage/lcov.info"
 ]
 
 env.RUSTFLAGS = "-Awarnings -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=unwind -Zpanic_abort_tests"
