@@ -10,7 +10,7 @@ concurrency:
 
 env:
   NEXTEST_PROFILE: ci
-  RUST_FLAGS: "-Awarnings"
+  RUSTFLAGS: "-A warnings"
 
 jobs:
   test:
