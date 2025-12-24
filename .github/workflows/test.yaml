@@ -40,6 +40,7 @@ jobs:
         with:
           shared-key: test-${{ matrix.runner }}
           cache-all-crates: true
+          cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo deps
@@ -93,6 +94,7 @@ jobs:
         with:
           shared-key: coverage-${{ matrix.runner }}
           cache-all-crates: true
+          cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo deps

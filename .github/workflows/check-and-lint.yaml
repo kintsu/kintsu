@@ -28,6 +28,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: check
+          cache-all-crates: true
+          cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cargo Check
@@ -68,6 +70,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: clippy
+          cache-all-crates: true
+          cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cargo Clippy
