@@ -34,6 +34,8 @@ jobs:
       - uses: jdx/mise-action@v3
 
       - name: Set up Docker
+        if: |
+          ${{ matrix.runner != 'macos-26' }}
         uses: docker/setup-docker-action@v4
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -82,7 +84,6 @@ jobs:
         runner: [ubuntu-latest]
     steps:
       - name: Free Disk Space
-        if: runner.os == 'Linux'
         run: |
           curl https://raw.githubusercontent.com/apache/flink/refs/heads/master/tools/azure-pipelines/free_disk_space.sh | bash
 
