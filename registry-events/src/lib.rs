@@ -4,7 +4,6 @@ use actix::{
 };
 use kintsu_registry_auth::AuditEvent;
 use std::{
-    cell::RefCell,
     future::Future,
     pin::Pin,
     sync::{Arc, RwLock},
@@ -428,7 +427,7 @@ pub async fn init(reporters: Vec<Box<dyn EventReporter>>) {
 
 pub async fn start<F: FnOnce() -> Fut, Fut: Future<Output = R>, R>(
     reporters: Vec<Box<dyn EventReporter>>,
-    mut handle: F,
+    handle: F,
 ) -> Fut::Output {
     init(reporters).await;
 

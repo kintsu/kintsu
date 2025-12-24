@@ -1,8 +1,7 @@
 use divan::{Bencher, black_box};
 use kintsu_registry_auth::{AuditEvent, Policy, PolicyCheck, PrincipalType};
 use kintsu_registry_events::{
-    EventReporter, EventSystem, LogEventReporter, MultiEventReporter, NoOpReporter,
-    TracingEventReporter,
+    EventReporter, EventSystem, MultiEventReporter, NoOpReporter, TracingEventReporter,
 };
 use std::sync::Arc;
 
@@ -38,23 +37,19 @@ fn noop_single_emit(bencher: Bencher) {
     let reporter = NoOpReporter;
     let event = create_test_event();
 
-    bencher.bench_local(|| {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                black_box(
-                    reporter
-                        .emit(black_box(event.clone()))
-                        .await
-                        .unwrap(),
-                );
-            });
+    bencher.bench(|| {
+        black_box(futures::executor::block_on(async {
+            reporter
+                .emit(black_box(event.clone()))
+                .await
+                .unwrap()
+        }));
     });
 }
 
 #[divan::bench(
     name = "noop reporter - batch emit",
-    args = [10, 50, 100, 500],
+    args = [10, 100, 1000, 10_000, 100_000],
 )]
 fn noop_batch_emit(
     bencher: Bencher,
@@ -63,17 +58,13 @@ fn noop_batch_emit(
     let reporter = NoOpReporter;
     let events = create_event_batch(batch_size);
 
-    bencher.bench_local(|| {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                black_box(
-                    reporter
-                        .emit_batch(black_box(events.clone()))
-                        .await
-                        .unwrap(),
-                );
-            });
+    bencher.bench(|| {
+        black_box(futures::executor::block_on(async {
+            reporter
+                .emit_batch(black_box(events.clone()))
+                .await
+                .unwrap()
+        }));
     });
 }
 
@@ -82,23 +73,19 @@ fn tracing_single_emit(bencher: Bencher) {
     let reporter = TracingEventReporter;
     let event = create_test_event();
 
-    bencher.bench_local(|| {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                black_box(
-                    reporter
-                        .emit(black_box(event.clone()))
-                        .await
-                        .unwrap(),
-                );
-            });
+    bencher.bench(|| {
+        black_box(futures::executor::block_on(async {
+            reporter
+                .emit(black_box(event.clone()))
+                .await
+                .unwrap()
+        }));
     });
 }
 
 #[divan::bench(
     name = "tracing reporter - batch emit",
-    args = [10, 50, 100],
+    args = [10, 100, 1000, 10_000, 100_000],
 )]
 fn tracing_batch_emit(
     bencher: Bencher,
@@ -107,17 +94,13 @@ fn tracing_batch_emit(
     let reporter = TracingEventReporter;
     let events = create_event_batch(batch_size);
 
-    bencher.bench_local(|| {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                black_box(
-                    reporter
-                        .emit_batch(black_box(events.clone()))
-                        .await
-                        .unwrap(),
-                );
-            });
+    bencher.bench(|| {
+        black_box(futures::executor::block_on(async {
+            reporter
+                .emit_batch(black_box(events.clone()))
+                .await
+                .unwrap()
+        }));
     });
 }
 
@@ -128,82 +111,85 @@ fn multi_reporter_noop(bencher: Bencher) {
     let multi = MultiEventReporter::new(reporters);
     let event = create_test_event();
 
-    bencher.bench_local(|| {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async {
-                black_box(
-                    multi
-                        .emit(black_box(event.clone()))
-                        .await
-                        .unwrap(),
-                );
-            });
+    bencher.bench(|| {
+        black_box(futures::executor::block_on(async {
+            multi
+                .emit(black_box(event.clone()))
+                .await
+                .unwrap()
+        }));
     });
 }
 
 #[divan::bench(
     name = "event system throughput - single events",
-    args = [10, 100, 1000],
+    args = [10, 100, 1000, 10_000, 100_000],
 )]
 fn event_system_single_throughput(
     bencher: Bencher,
     event_count: usize,
 ) {
+    // Create a tokio runtime that persists across iterations
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
     bencher
         .with_inputs(|| {
-            // Setup: create system with noop reporter
-            let system = EventSystem::new(vec![Box::new(NoOpReporter)]);
+            // Setup: create system with noop reporter within tokio + actix context
+            let _guard = rt.enter();
+            let system = actix::System::new()
+                .block_on(async { EventSystem::new(vec![Box::new(NoOpReporter)]) });
             let events: Vec<_> = (0..event_count)
                 .map(|_| create_test_event())
                 .collect();
             (system, events)
         })
-        .bench_local_values(|(system, events)| {
-            // Only bench the emission time
+        .bench_values(|(system, events)| {
+            // Benchmark the emission and flush time
+            let _guard = rt.enter();
             for event in events {
                 system.emit(black_box(event));
             }
 
-            // Cleanup
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(async {
-                    system.flush().await.ok();
-                    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                });
+            // Cleanup - flush and wait
+            rt.block_on(async {
+                system.flush().await.ok();
+            });
         });
 }
 
 #[divan::bench(
     name = "event system batching efficiency",
-    args = [50, 100, 200],
+    args = [10, 100, 1000, 10_000, 100_000],
 )]
 fn event_system_batch_efficiency(
     bencher: Bencher,
     batch_size: usize,
 ) {
+    // Create a tokio runtime that persists across iterations
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
     bencher
         .with_inputs(|| {
-            // Setup: create system with specified batch size
-            let system = EventSystem::with_batch_size(vec![Box::new(NoOpReporter)], batch_size);
+            // Setup: create system with specified batch size within tokio + actix context
+            let _guard = rt.enter();
+            let system = actix::System::new().block_on(async {
+                EventSystem::with_batch_size(vec![Box::new(NoOpReporter)], batch_size)
+            });
             let events: Vec<_> = (0..batch_size * 2)
                 .map(|_| create_test_event())
                 .collect();
             (system, events)
         })
-        .bench_local_values(|(system, events)| {
-            // Bench emission and flushing
+        .bench_values(|(system, events)| {
+            // Benchmark emission and flushing
+            let _guard = rt.enter();
             for event in events {
                 system.emit(black_box(event));
             }
 
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(async {
-                    system.flush().await.ok();
-                    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                });
+            rt.block_on(async {
+                system.flush().await.ok();
+            });
         });
 }
 
