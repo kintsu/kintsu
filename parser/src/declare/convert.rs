@@ -465,19 +465,19 @@ impl CompileCtx {
                 for import in &ns_ctx.imports {
                     match &import.value {
                         crate::ctx::RefOrItemContext::Ref(ref_ctx) => {
-                            if let Some(last_segment) = ref_ctx.namespace.last() {
-                                if last_segment == ident_str {
-                                    let mut namespace = ref_ctx.namespace.clone();
-                                    let name = namespace.pop().unwrap();
+                            if let Some(last_segment) = ref_ctx.namespace.last()
+                                && last_segment == ident_str
+                            {
+                                let mut namespace = ref_ctx.namespace.clone();
+                                let name = namespace.pop().unwrap();
 
-                                    return Ok(DeclNamedItemContext {
-                                        context: DeclRefContext {
-                                            package: ref_ctx.package.clone(),
-                                            namespace,
-                                        },
-                                        name,
-                                    });
-                                }
+                                return Ok(DeclNamedItemContext {
+                                    context: DeclRefContext {
+                                        package: ref_ctx.package.clone(),
+                                        namespace,
+                                    },
+                                    name,
+                                });
                             }
                         },
                         crate::ctx::RefOrItemContext::Item(item_ctx) => {

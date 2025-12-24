@@ -47,7 +47,7 @@ impl SessionData {
     ) -> crate::Result<()> {
         self.dirty = false;
 
-        let mut user = jar.private_mut(&key);
+        let mut user = jar.private_mut(key);
 
         let mut cookie = Cookie::new(COOKIE_NAME, serde_json::to_string(self)?);
 
@@ -71,7 +71,7 @@ impl SessionData {
         jar.add_original(cookie.clone());
 
         let cookie = jar
-            .private(&key)
+            .private(key)
             .get(COOKIE_NAME)
             .ok_or_else(|| crate::Error::session("missing session cookie"))?;
 

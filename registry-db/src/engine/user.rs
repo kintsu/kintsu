@@ -131,6 +131,7 @@ impl User {
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn request_org_token(
         &self,
         db: &sea_orm::DatabaseConnection,

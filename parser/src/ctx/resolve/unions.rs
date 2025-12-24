@@ -391,6 +391,7 @@ fn validate_union_operand<'a>(
     })
 }
 
+#[allow(clippy::only_used_in_recursion)]
 fn validate_resolved_type<'a>(
     resolved_type: &'a Type,
     type_name: &'a str,

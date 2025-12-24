@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use actix_web::{ResponseError, web};
 use kintsu_registry_auth::AuthorizationError;
 use std::collections::HashMap;

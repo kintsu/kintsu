@@ -277,6 +277,7 @@ impl TypeResolver {
         Ok(())
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn resolve_type_deep<'a>(
         &'a self,
         typ: &'a Type,

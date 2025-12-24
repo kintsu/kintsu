@@ -69,7 +69,7 @@ impl AuthClient {
 
         let body = resp.bytes().await?;
 
-        Ok(serde_json::from_slice::<ExchangeResponse>(&body)?.into_result()?)
+        serde_json::from_slice::<ExchangeResponse>(&body)?.into_result()
     }
 
     pub async fn saturate_user_data(

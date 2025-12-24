@@ -82,9 +82,9 @@ impl Permission {
     }
 }
 
-impl Into<&'static str> for &Permission {
-    fn into(self) -> &'static str {
-        match self {
+impl From<&Permission> for &'static str {
+    fn from(val: &Permission) -> Self {
+        match val {
             Permission::PublishPackage => "publish-package",
             Permission::YankPackage => "yank-package",
             Permission::GrantSchemaRole => "grant-schema-role",
@@ -151,8 +151,8 @@ impl Scope {
     }
 }
 
-impl Into<String> for &Scope {
-    fn into(self) -> String {
-        ToString::to_string(&self.0)
+impl From<&Scope> for String {
+    fn from(val: &Scope) -> Self {
+        ToString::to_string(&val.0)
     }
 }

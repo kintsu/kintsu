@@ -168,21 +168,19 @@ impl AuthorizationResult {
     pub fn into_result(self) -> Result<(), AuthorizationError> {
         if self.allowed {
             Ok(())
+        } else if self
+            .checks
+            .iter()
+            .any(|c| c.policy == Policy::NotApplicable)
+        {
+            Err(AuthorizationError::NotApplicable {
+                reason: self.reason,
+            })
         } else {
-            if self
-                .checks
-                .iter()
-                .any(|c| c.policy == Policy::NotApplicable)
-            {
-                Err(AuthorizationError::NotApplicable {
-                    reason: self.reason,
-                })
-            } else {
-                Err(AuthorizationError::Denied {
-                    reason: self.reason,
-                    checks: self.checks,
-                })
-            }
+            Err(AuthorizationError::Denied {
+                reason: self.reason,
+                checks: self.checks,
+            })
         }
     }
 

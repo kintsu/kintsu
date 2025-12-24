@@ -400,7 +400,7 @@ impl SchemaCompiler {
         let ns_resolved = ns.lock().await;
         for (item_ctx, child) in &ns_resolved.children {
             if let super::super::common::NamespaceChild::Struct(struct_def) = &child.value
-                && ns_resolved.children.get(item_ctx).is_none()
+                && !ns_resolved.children.contains_key(item_ctx)
             {
                 tracing::trace!(
                     struct_name = %struct_def.def.value.name.borrow_string(),

@@ -628,8 +628,7 @@ impl Package {
         Ok(
             TransitiveDependency::find_by_statement(sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
-                format!(
-                    "
+                "
                 SELECT
                     p.name as package_name,
                     v.qualified_version,
@@ -639,7 +638,7 @@ impl Package {
                     get_dependency_tree($1::bigint []) dt
                 inner join package p on dt.package_id = p.id
                 inner join version v on dt.version_id = v.id"
-                ),
+                    .to_string(),
                 vec![version_ids.into()],
             ))
             .all(db)

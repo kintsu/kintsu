@@ -12,7 +12,7 @@ pub struct TestDbCtx {
 
 impl TestDbCtx {
     pub async fn new() -> Self {
-        const UP: &[&'static str] = &[include_str!("../migrations/0001_registry/up.sql")];
+        const UP: &[&str] = &[include_str!("../migrations/0001_registry/up.sql")];
 
         let container = postgres::Postgres::default()
             .pull_image()
@@ -35,7 +35,7 @@ impl TestDbCtx {
             .unwrap();
 
         for up in UP {
-            conn.execute_unprepared(*up).await.unwrap();
+            conn.execute_unprepared(up).await.unwrap();
         }
 
         Self {

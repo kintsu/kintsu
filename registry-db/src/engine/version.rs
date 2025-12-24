@@ -39,10 +39,7 @@ impl QualifiedPackageVersion {
     >(
         tuple: I
     ) -> Vec<Self> {
-        tuple
-            .into_iter()
-            .map(|t| Self::from(t))
-            .collect()
+        tuple.into_iter().map(Self::from).collect()
     }
 }
 

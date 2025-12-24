@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use secrecy::ExposeSecret;
 
 use kintsu_registry_core::ErrorResponse;
@@ -148,7 +150,7 @@ impl RegistryClient {
         let package_data = kintsu_fs::memory::MemoryFileSystem::extract_from(
             &package_data,
             &root_path,
-            &vec!["/**/*.ks", "/schema.toml", "/**/*.md", "/**/*.txt"],
+            &["/**/*.ks", "/schema.toml", "/**/*.md", "/**/*.txt"],
             &Vec::<String>::new(),
         )
         .await?;

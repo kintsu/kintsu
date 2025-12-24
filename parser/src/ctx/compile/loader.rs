@@ -56,6 +56,7 @@ pub(super) struct DependencyResult {
 pub struct DependencyLoader;
 
 impl DependencyLoader {
+    #[allow(clippy::too_many_arguments)]
     pub async fn load_dependencies_parallel(
         root: &SchemaCtx,
         state: Arc<RwLock<SharedCompilationState>>,

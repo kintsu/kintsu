@@ -185,7 +185,7 @@ impl EventExecutor {
         Self {
             reporters: reporters
                 .into_iter()
-                .map(|r| Arc::from(r))
+                .map(Arc::from)
                 .collect(),
         }
     }

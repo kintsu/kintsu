@@ -1,4 +1,7 @@
-#![allow(clippy::declare_interior_mutable_const)]
+#![allow(
+    clippy::declare_interior_mutable_const,
+    clippy::borrow_interior_mutable_const
+)]
 
 use crate::config::NewForNamed;
 use regex::Regex;
@@ -52,7 +55,6 @@ impl PathOrText {
     }
 }
 
-#[allow(clippy::borrow_interior_mutable_const)]
 fn validate_name(name: &str) -> Result<(), ValidationError> {
     const ERR_SPEC: &str = "package name must be provided without spaces or special characters";
     if let Some(capt) = PACKAGE_RE.find(name) {
