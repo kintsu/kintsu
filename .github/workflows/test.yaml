@@ -87,6 +87,7 @@ jobs:
       - name: Install cargo deps
         run: |
           cargo binstall -y --force cargo-llvm-cov
+          cargo binstall -y --force cargo-nextest
 
       - name: Run coverage
         run: mise run coverage
