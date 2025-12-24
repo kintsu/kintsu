@@ -1,6 +1,10 @@
-use crate::{DbConn, session::SessionData};
-use actix_web::{Responder, get, post, web};
-use kintsu_registry_db::entities::Org;
+use crate::{DbConn, principal::Principal, session::SessionData};
+use actix_web::{Responder, delete, get, post, web};
+use kintsu_registry_core::models::{FavouritesCount, GrantOrgRoleRequest, RevokeOrgRoleRequest};
+use kintsu_registry_db::{
+    engine::fluent::AuthCheck,
+    entities::{Org, Permission},
+};
 use validator::Validate;
 
 const ORGS: &str = "orgs";
@@ -108,7 +112,7 @@ pub async fn get_my_orgs(
 #[post("/org/{id}/tokens")]
 pub async fn create_org_token(
     org_id: web::Path<i64>,
-    session: SessionData,
+    principal: Principal,
     conn: DbConn,
     req: web::Json<kintsu_registry_core::models::CreateTokenRequest>,
 ) -> crate::Result<impl Responder> {
@@ -116,17 +120,20 @@ pub async fn create_org_token(
 
     req.validate()?;
 
+    let user = principal
+        .user()
+        .ok_or_else(|| crate::Error::AuthorizationRequired)?;
+
     let expires = chrono::Utc::now() + Duration::days(req.expires_in_days.unwrap_or(90));
 
-    // User::request_org_token validates admin status via NewApiKey::qualify
-    let one_time = session
-        .user
-        .user
+    let req = req.into_inner();
+    let one_time = user
         .request_org_token(
             conn.as_ref(),
-            req.description.clone(),
-            req.scopes.clone(),
-            req.permissions.clone(),
+            principal.as_ref(),
+            req.description,
+            req.scopes,
+            req.permissions,
             expires,
             *org_id,
         )
@@ -152,22 +159,16 @@ pub async fn create_org_token(
 #[get("/org/{id}/tokens")]
 pub async fn get_org_tokens(
     org_id: web::Path<i64>,
-    session: SessionData,
+    principal: Principal,
     conn: DbConn,
 ) -> crate::Result<impl Responder> {
-    // Verify user is org admin
-    let org = kintsu_registry_db::entities::Org::by_id(conn.as_ref(), *org_id)
-        .await?
-        .ok_or_else(|| {
-            crate::Error::Database(kintsu_registry_db::Error::NotFound(
-                "Organization not found".into(),
-            ))
-        })?;
-
-    org.must_be_admin(conn.as_ref(), session.user.user.id)
+    let auth_result = AuthCheck::new(conn.as_ref(), principal.as_ref())
+        .org(*org_id)
+        .can_list_tokens()
         .await?;
 
-    // Get org tokens
+    auth_result.require()?;
+
     let tokens = kintsu_registry_db::entities::Org::tokens(conn.as_ref(), *org_id).await?;
 
     Ok(web::Json(tokens))
@@ -256,24 +257,28 @@ pub async fn discover_orgs(
 #[post("/orgs/import")]
 pub async fn import_org(
     session: SessionData,
+    principal: crate::principal::Principal,
     conn: DbConn,
     req: web::Json<kintsu_registry_core::models::ImportOrgRequest>,
 ) -> crate::Result<impl Responder> {
     use secrecy::SecretString;
 
-    // Validate request
     req.validate()?;
 
-    // Build Octocrab client with user's token
+    if !principal.is_session() {
+        return Err(crate::Error::Database(
+            kintsu_registry_db::Error::Validation(
+                "Organization import requires user session (not API key)".into(),
+            ),
+        ));
+    }
+
     let github = octocrab::Octocrab::builder()
         .personal_token(SecretString::new(session.token.clone().into()))
         .build()?;
 
-    // Fetch organization details from GitHub
     let gh_org = github.orgs(&req.org_name).get().await?;
 
-    // Verify user has admin role in this organization
-    // octocrab doesn't have a direct method, so we check if user can access org members (admin-only)
     let is_admin = github
         .orgs(&req.org_name)
         .list_members()
@@ -290,15 +295,81 @@ pub async fn import_org(
         ));
     }
 
-    // Import organization to database
     let org = kintsu_registry_db::engine::org::import_organization(
         conn.as_ref(),
+        principal.as_ref(),
         gh_org.id.0 as i32,
         gh_org.login,
         gh_org.avatar_url.to_string(),
-        session.user.user.id,
     )
     .await?;
 
     Ok(web::Json(org))
+}
+
+#[utoipa::path(
+    tag = ORGS,
+    request_body = GrantOrgRoleRequest,
+    responses(
+        (status = 200, description = "Org role granted successfully", body = kintsu_registry_db::entities::OrgRole),
+        (status = 400, description = "Invalid request", body = crate::ErrorResponse),
+        (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
+        (status = 403, description = "Forbidden - insufficient permissions", body = crate::ErrorResponse),
+        (status = 404, description = "Organization not found", body = crate::ErrorResponse),
+    ),
+    security(("api_key" = []), ("session" = []))
+)]
+#[post("/roles/org")]
+pub async fn grant_org_role(
+    principal: Principal,
+    conn: DbConn,
+    req: web::Json<GrantOrgRoleRequest>,
+) -> crate::Result<impl Responder> {
+    req.validate()?;
+
+    let req = req.into_inner();
+
+    let role = kintsu_registry_db::engine::org::grant_role(
+        conn.as_ref(),
+        principal.as_ref(),
+        req.org_id,
+        req.user_id,
+        req.role,
+    )
+    .await?;
+
+    Ok(web::Json(role))
+}
+
+#[utoipa::path(
+    tag = ORGS,
+    request_body = RevokeOrgRoleRequest,
+    responses(
+        (status = 204, description = "Org role revoked successfully"),
+        (status = 400, description = "Invalid request", body = crate::ErrorResponse),
+        (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
+        (status = 403, description = "Forbidden - insufficient permissions", body = crate::ErrorResponse),
+        (status = 404, description = "Role not found", body = crate::ErrorResponse),
+    ),
+    security(("api_key" = []), ("session" = []))
+)]
+#[delete("/roles/org")]
+pub async fn revoke_org_role(
+    principal: Principal,
+    conn: DbConn,
+    req: web::Json<RevokeOrgRoleRequest>,
+) -> crate::Result<impl Responder> {
+    req.validate()?;
+
+    let req = req.into_inner();
+
+    kintsu_registry_db::engine::org::revoke_role(
+        conn.as_ref(),
+        principal.as_ref(),
+        req.org_id,
+        req.user_id,
+    )
+    .await?;
+
+    Ok(actix_web::HttpResponse::NoContent().finish())
 }

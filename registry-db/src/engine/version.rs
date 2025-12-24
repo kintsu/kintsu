@@ -106,6 +106,7 @@ impl Version {
         version_id: i64,
     ) -> Result<()> {
         use crate::entities::downloads::{ActiveModel, Column, Entity as DownloadsEntity};
+        use sea_orm::sea_query::Alias;
 
         let today = Utc::now().date_naive();
 
@@ -115,11 +116,14 @@ impl Version {
             count: Set(1),
         };
 
+        // Use value() to set count = count + 1 via raw SQL expression
         DownloadsEntity::insert(active_model)
             .on_conflict(
                 OnConflict::columns([Column::Version, Column::Day])
-                    .update_column(Column::Count)
-                    .expr(Expr::col(Column::Count).add(1))
+                    .value(
+                        Column::Count,
+                        Expr::col((Alias::new("downloads"), Column::Count)).add(1),
+                    )
                     .to_owned(),
             )
             .exec(db)
@@ -135,8 +139,8 @@ impl Version {
         let results = QualifiedPackageVersion::from_iter_tuple(
             VersionEntity::find()
                 .filter(SimpleExpr::cust_with_values(
-                    "? = ANY(dependencies)",
-                    vec![self.id],
+                    "$1 = ANY(dependencies)",
+                    [sea_orm::Value::BigInt(Some(self.id))],
                 ))
                 .find_also_related(PackageEntity)
                 .order_by(crate::entities::package::Column::Name, Order::Asc)

@@ -32,6 +32,9 @@ pub enum Error {
     #[error("Validation error: {0}")]
     Validation(String),
 
+    #[error("Internal error: {0}")]
+    Internal(String),
+
     #[error("Resource conflict: {0}")]
     Conflict(String),
 
@@ -46,6 +49,15 @@ pub enum Error {
 
     #[error("Manifest error: {0}")]
     Manifest(#[from] kintsu_manifests::Error),
+
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+
+    #[error("Authorization denied: {0}")]
+    AuthorizationDenied(#[from] kintsu_registry_auth::AuthorizationError),
+
+    #[error("Event error: {0}")]
+    EventError(#[from] kintsu_registry_events::Error),
 }
 
 impl<E> From<sea_orm::TransactionError<E>> for Error

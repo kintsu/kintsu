@@ -1,0 +1,32 @@
+[package]
+name = "kintsu-registry-events"
+edition.workspace = true
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+test = []  # Enables test mode with no-op event emission
+
+[[bench]]
+name = "events"
+harness = false
+
+[dependencies]
+actix = { version = "*" }
+kintsu-registry-auth = { path = "../registry-auth" }
+
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "rt",
+    "time",
+    "macros",
+    "rt-multi-thread",
+] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+divan = { workspace = true }

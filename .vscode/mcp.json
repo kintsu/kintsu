@@ -1,0 +1,22 @@
+{
+	"servers": {
+		"factsets": {
+			"command": "bunx",
+			"args": [
+				"factsets@0.2.0",
+				"mcp-server",
+				"--client",
+				"${input:client_type}"
+			],
+			"env": {},
+			"type": "stdio"
+		}
+	},
+	"inputs": [
+		{
+			"id": "client_type",
+			"type": "promptString",
+			"description": "Client type for skills directory (leave blank for default)"
+		}
+	]
+}

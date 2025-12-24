@@ -56,10 +56,30 @@ pub enum Permission {
     PublishPackage,
     #[sea_orm(string_value = "yank-package")]
     YankPackage,
-    #[sea_orm(string_value = "grant-organization-role")]
-    GrantOrganizationRole,
     #[sea_orm(string_value = "grant-schema-role")]
     GrantSchemaRole,
+    #[sea_orm(string_value = "revoke-schema-role")]
+    RevokeSchemaRole,
+    #[sea_orm(string_value = "grant-org-role")]
+    GrantOrgRole,
+    #[sea_orm(string_value = "revoke-org-role")]
+    RevokeOrgRole,
+    #[sea_orm(string_value = "create-org-token")]
+    CreateOrgToken,
+    #[sea_orm(string_value = "revoke-org-token")]
+    RevokeOrgToken,
+    #[sea_orm(string_value = "list-org-token")]
+    ListOrgToken,
+    #[sea_orm(string_value = "create-personal-token")]
+    CreatePersonalToken,
+    #[sea_orm(string_value = "revoke-personal-token")]
+    RevokePersonalToken,
+}
+
+impl Permission {
+    pub fn is_api_key_only(&self) -> bool {
+        matches!(self, Self::PublishPackage | Self::YankPackage)
+    }
 }
 
 impl Into<&'static str> for &Permission {
@@ -67,8 +87,15 @@ impl Into<&'static str> for &Permission {
         match self {
             Permission::PublishPackage => "publish-package",
             Permission::YankPackage => "yank-package",
-            Permission::GrantOrganizationRole => "grant-organization-role",
             Permission::GrantSchemaRole => "grant-schema-role",
+            Permission::RevokeSchemaRole => "revoke-schema-role",
+            Permission::GrantOrgRole => "grant-org-role",
+            Permission::RevokeOrgRole => "revoke-org-role",
+            Permission::CreateOrgToken => "create-org-token",
+            Permission::RevokeOrgToken => "revoke-org-token",
+            Permission::ListOrgToken => "list-org-token",
+            Permission::CreatePersonalToken => "create-personal-token",
+            Permission::RevokePersonalToken => "revoke-personal-token",
         }
     }
 }
@@ -91,6 +118,11 @@ impl std::fmt::Display for Permission {
 pub struct Scope(String);
 
 impl Scope {
+    /// Create a new Scope from a string pattern
+    pub fn new(pattern: impl Into<String>) -> Self {
+        Self(pattern.into())
+    }
+
     pub fn pattern(&self) -> &str {
         &self.0
     }

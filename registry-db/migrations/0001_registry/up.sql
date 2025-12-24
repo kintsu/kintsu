@@ -75,11 +75,11 @@ create table schema_role (
     check (
         (
             user_id is null
-            and org_id <> null
+            and org_id is not null
         )
         or (
             org_id is null
-            and user_id <> null
+            and user_id is not null
         )
     )
 );
@@ -88,11 +88,11 @@ comment on table schema_role is 'A schema_role represents a role for a specific 
 
 create unique index schema_user_roles_idx on schema_role(package, user_id)
 where
-    user_id <> null;
+    user_id is not null;
 
 create unique index schema_org_roles_idx on schema_role(package, org_id)
 where
-    org_id <> null;
+    org_id is not null;
 
 /*
  -------------------
@@ -100,8 +100,15 @@ where
 create type permission as enum (
     'publish-package',
     'yank-package',
-    'grant-organization-role',
-    'grant-schema-role'
+    'grant-schema-role',
+    'revoke-schema-role',
+    'grant-org-role',
+    'revoke-org-role',
+    'create-org-token',
+    'revoke-org-token',
+    'list-org-token',
+    'create-personal-token',
+    'revoke-personal-token'
 );
 
 create table api_key (
@@ -118,11 +125,11 @@ create table api_key (
     check (
         (
             user_id is null
-            and org_id <> null
+            and org_id is not null
         )
         or (
             org_id is null
-            and user_id <> null
+            and user_id is not null
         )
     )
 );
@@ -163,11 +170,11 @@ create table version (
     check (
         (
             publishing_user_id is null
-            and publishing_org_id <> null
+            and publishing_org_id is not null
         )
         or (
             publishing_org_id is null
-            and publishing_user_id <> null
+            and publishing_user_id is not null
         )
     )
 );
@@ -194,29 +201,30 @@ comment on table downloads is 'A downloads record represents the number of times
  -------------------
  */
 create table user_favourite (
-    id bigint primary key,
+    id bigserial primary key not null,
     user_id bigint not null references users(id),
     package_id bigint references package(id),
     org_id bigint references org(id),
+    created_at timestamptz not null default now(),
     check (
         (
             package_id is null
-            and org_id <> null
+            and org_id is not null
         )
         or (
             org_id is null
-            and package_id <> null
+            and package_id is not null
         )
     )
 );
 
 create unique index user_package_favourite_idx on user_favourite(user_id, package_id)
 where
-    package_id <> null;
+    package_id is not null;
 
 create unique index user_org_favourite_idx on user_favourite(user_id, org_id)
 where
-    org_id <> null;
+    org_id is not null;
 
 comment on table user_favourite is 'A user_favourite represents a package that a user has marked as a favorite.';
 
@@ -242,7 +250,7 @@ create table org_invitation (
  - org
  - schema_admin
  - downloads
-
+ 
  - org invitations (future)
  */
 create

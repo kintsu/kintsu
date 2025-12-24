@@ -1,10 +1,12 @@
 use actix_web::{ResponseError, web};
+use kintsu_registry_auth::AuthorizationError;
 use std::collections::HashMap;
 
 pub(crate) mod apikey;
 pub mod app;
 pub mod config;
 mod oauth;
+pub mod principal;
 pub(crate) mod resolver;
 pub mod routes;
 pub(crate) mod session;
@@ -56,6 +58,9 @@ pub enum Error {
     #[error("authorization failure")]
     AuthorizationRequired,
 
+    #[error("authorization error: {0}")]
+    AuthorizationError(#[from] AuthorizationError),
+
     #[error("validation errors found")]
     ValidationErrors(#[from] validator::ValidationErrors),
 
@@ -73,6 +78,9 @@ pub enum Error {
 
     #[error("{0}")]
     CompileError(#[from] kintsu_parser::Error),
+
+    #[error("multiple errors occurred: {0:?}")]
+    Multiple(Vec<Error>),
 }
 
 impl Error {
@@ -165,6 +173,13 @@ impl Error {
             Error::Database(kintsu_registry_db::Error::Validation(error)) => {
                 ErrorResponse::from_public_error(PublicErrorType::Validation, Some(error.clone()))
             },
+            Error::Database(kintsu_registry_db::Error::AuthorizationDenied(auth_err))
+            | Error::AuthorizationError(auth_err) => {
+                ErrorResponse::from_public_error(
+                    PublicErrorType::Forbidden,
+                    Some(auth_err.to_string()),
+                )
+            },
             Error::PackagingError(err) => {
                 ErrorResponse::from_public_error(
                     PublicErrorType::PackagingError(err.clone()),
@@ -203,6 +218,13 @@ impl Error {
 impl ResponseError for Error {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {
+            Error::Multiple(errs) => {
+                // Return the highest status code among the errors
+                errs.iter()
+                    .map(|e| e.status_code())
+                    .max()
+                    .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+            },
             Error::Json(_)
             | Error::ValidationErrors(_)
             | Error::PackagingError(_)
@@ -213,6 +235,9 @@ impl ResponseError for Error {
             | Error::Database(kintsu_registry_db::Error::Unauthorized(..))
             | Error::SessionError { .. }
             | Error::AuthorizationRequired => actix_web::http::StatusCode::UNAUTHORIZED,
+            Error::Database(kintsu_registry_db::Error::AuthorizationDenied(..)) | Error::AuthorizationError(AuthorizationError::Denied{..}) => {
+                actix_web::http::StatusCode::FORBIDDEN
+            },
             Error::Database(kintsu_registry_db::Error::Conflict(..))
             | Error::Database(kintsu_registry_db::Error::PackageVersionExists { .. }) => {
                 actix_web::http::StatusCode::CONFLICT
@@ -223,7 +248,7 @@ impl ResponseError for Error {
             | Error::IoError(_)
             // this is actually unreachable but jic
             | Error::DatabaseConnect(_) | Error::StorageError(_)
-            | Error::MissingData { .. } => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            | Error::MissingData { .. } | Error::AuthorizationError(AuthorizationError::NotApplicable {..}) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

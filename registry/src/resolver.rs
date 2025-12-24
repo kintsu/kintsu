@@ -1,11 +1,11 @@
 use std::path::Path;
 
+use convert_case::{Case, Casing};
 use kintsu_manifests::{package::Dependency, version::Version};
 use kintsu_parser::ctx::compile::resolver::{
     DependencyMutability, GitResolver, PackageResolver, PathResolver, RemoteResolver,
     ResolvedDependency,
 };
-
 pub struct InternalPackageResolver {
     pre_computed: std::collections::HashMap<(String, Version), kintsu_fs::memory::MemoryFileSystem>,
 }
@@ -58,6 +58,8 @@ impl PackageResolver for InternalPackageResolver {
         dep_name: &str,
         dependency: &Dependency,
     ) -> kintsu_parser::Result<ResolvedDependency> {
+        let dep_name = dep_name.to_case(Case::Kebab);
+
         let version = dependency
             .version()
             .ok_or_else(|| {

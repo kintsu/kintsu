@@ -13,14 +13,18 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "user_favourite")]
 #[schema(as = UserFavourite)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
+    #[sea_orm(primary_key)]
     pub id: i64,
-    #[sea_orm(unique_key = "user_org_favourite_idx")]
+    #[sea_orm(
+        unique_key = "user_package_favourite_idx",
+        unique_key = "user_org_favourite_idx"
+    )]
     pub user_id: i64,
     #[sea_orm(unique_key = "user_package_favourite_idx")]
     pub package_id: Option<i64>,
     #[sea_orm(unique_key = "user_org_favourite_idx")]
     pub org_id: Option<i64>,
+    pub created_at: crate::DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

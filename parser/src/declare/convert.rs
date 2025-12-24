@@ -10,9 +10,10 @@ use super::{
     fields::{DeclArg, DeclField},
     meta::Meta,
     namespace::DeclNamespace,
-    root::TypeRegistryDeclaration,
+    root::{DeclarationBundle, TypeRegistryDeclaration},
     types::{Builtin, DeclType},
 };
+use convert_case::{Case, Casing};
 use futures_util::future::{BoxFuture, FutureExt};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -46,28 +47,60 @@ fn extract_comments(comment_stream: &CommentStream) -> DeclComment {
 }
 
 impl CompileCtx {
-    pub async fn emit_declarations(&self) -> crate::Result<DeclarationVersion> {
-        let root_package = self.root.package.package.name.clone();
+    async fn convert_schema_to_declaration(
+        schema: &SchemaCtx,
+        registry: &crate::ctx::registry::TypeRegistry,
+    ) -> crate::Result<TypeRegistryDeclaration> {
+        let package_name = schema.package.package.name.clone();
         let mut external_refs = BTreeSet::new();
 
-        let mut namespaces = Vec::new();
-        for ns_arc in self.root.namespaces.values() {
+        let mut namespaces = BTreeMap::new();
+        for ns_arc in schema.namespaces.values() {
             let ns_ctx = ns_arc.lock().await;
-            let decl_ns = Self::convert_namespace(
-                &ns_ctx,
-                &self.type_registry(),
-                &root_package,
-                &mut external_refs,
-            )
-            .await?;
-            namespaces.push(decl_ns);
+            let decl_ns =
+                Self::convert_namespace(&ns_ctx, registry, &package_name, &mut external_refs)
+                    .await?;
+            let ns_name = decl_ns.name.clone();
+            namespaces.insert(ns_name, decl_ns);
         }
 
-        let mut declaration = TypeRegistryDeclaration::new(root_package);
+        let mut declaration = TypeRegistryDeclaration::new(package_name);
         declaration.namespaces = namespaces;
         declaration.extend_refs(external_refs);
 
-        Ok(DeclarationVersion::V1(declaration))
+        Ok(declaration)
+    }
+
+    pub async fn emit_declarations(&self) -> crate::Result<DeclarationVersion> {
+        let root_declaration =
+            Self::convert_schema_to_declaration(&self.root, &self.type_registry()).await?;
+
+        let root_pkg_name = &root_declaration.package;
+        let mut dependency_packages: BTreeSet<String> = BTreeSet::new();
+
+        let all_types = self.type_registry().all_types();
+        for (named_ctx, _source, _span) in all_types {
+            let pkg_name = &named_ctx.context.package;
+            if pkg_name != root_pkg_name {
+                dependency_packages.insert(pkg_name.clone());
+            }
+        }
+
+        let mut dependencies = BTreeMap::new();
+        for pkg_name in dependency_packages {
+            if let Some(dep_schema) = self.get_dependency(&pkg_name).await {
+                let dep_declaration =
+                    Self::convert_schema_to_declaration(&dep_schema, &self.type_registry()).await?;
+                dependencies.insert(pkg_name, dep_declaration);
+            }
+        }
+
+        let bundle = DeclarationBundle {
+            root: root_declaration,
+            dependencies,
+        };
+
+        Ok(DeclarationVersion::V1(bundle))
     }
 
     fn convert_namespace<'a>(
@@ -76,6 +109,8 @@ impl CompileCtx {
         root_package: &'a str,
         external_refs: &'a mut BTreeSet<DeclNamedItemContext>,
     ) -> BoxFuture<'a, crate::Result<DeclNamespace>> {
+        let root_package = root_package.to_case(Case::Snake);
+
         async move {
             let ns_name = ns_ctx
                 .namespace
@@ -109,7 +144,7 @@ impl CompileCtx {
                             Self::convert_namespace(
                                 nested_ns_ctx,
                                 registry,
-                                root_package,
+                                &root_package,
                                 external_refs,
                             )
                             .await?,
@@ -406,6 +441,34 @@ impl CompileCtx {
     ) -> crate::Result<DeclNamedItemContext> {
         match path_or_ident {
             PathOrIdent::Ident(ident) => {
+                let ident_str = ident.borrow_string();
+
+                for import in &ns_ctx.imports {
+                    match &import.value {
+                        crate::ctx::RefOrItemContext::Ref(ref_ctx) => {
+                            if let Some(last_segment) = ref_ctx.namespace.last() {
+                                if last_segment == ident_str {
+                                    let mut namespace = ref_ctx.namespace.clone();
+                                    let name = namespace.pop().unwrap();
+
+                                    return Ok(DeclNamedItemContext {
+                                        context: DeclRefContext {
+                                            package: ref_ctx.package.clone(),
+                                            namespace,
+                                        },
+                                        name,
+                                    });
+                                }
+                            }
+                        },
+                        crate::ctx::RefOrItemContext::Item(item_ctx) => {
+                            if item_ctx.name.borrow_string() == ident_str {
+                                return Ok(DeclNamedItemContext::from_named_item_context(item_ctx));
+                            }
+                        },
+                    }
+                }
+
                 let item_ctx = ns_ctx.ctx.item(ident.clone());
                 Ok(DeclNamedItemContext::from_named_item_context(&item_ctx))
             },
@@ -422,7 +485,6 @@ impl CompileCtx {
 
                 let package = parts[0].to_string();
                 let (namespace, name) = if parts.len() == 1 {
-                    // Just a name, use current context
                     (ns_ctx.ctx.namespace.clone(), parts[0].to_string())
                 } else {
                     // package::ns1::ns2::...::name

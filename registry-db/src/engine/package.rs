@@ -40,7 +40,7 @@ pub struct StagePublishPackage {
 impl StagePublishPackage {
     pub async fn process<C: sea_orm::ConnectionTrait + TransactionTrait>(
         db: &C,
-        api_key: ApiKey,
+        principal: &super::principal::PrincipalIdentity,
         storage: std::sync::Arc<PackageStorage>,
 
         fs: kintsu_fs::memory::MemoryFileSystem,
@@ -67,14 +67,39 @@ impl StagePublishPackage {
 
         let keywords = package.keywords.clone();
 
+        let pkg = PackageEntity::find()
+            .filter(PackageColumn::Name.eq(&package_name))
+            .one(db)
+            .await?;
+
+        let package_id = pkg.as_ref().map(|p| p.id);
+
+        let auth_result = super::fluent::AuthCheck::new(db, principal)
+            .package(&package_name, package_id)
+            .can_publish()
+            .await?;
+
+        let event = principal.audit_event(
+            super::events::EventType::PermissionProtected {
+                permission: Permission::PublishPackage,
+                resource: super::authorization::ResourceIdentifier::Package(
+                    super::authorization::PackageResource {
+                        name: package_name.clone(),
+                        id: package_id,
+                    },
+                ),
+            },
+            &auth_result,
+        )?;
+        kintsu_registry_events::emit_event(event)?;
+
+        auth_result.require()?;
+
+        let key_owner_id = principal.owner_id();
+
         Ok(db
             .transaction::<_, Version, Error>(move |db| {
                 Box::pin(async move {
-                    api_key.must_have_permission_for_package(
-                        &package_name,
-                        &Permission::PublishPackage,
-                    )?;
-
                     if Version::exists(db, &package_name, &version.to_string()).await? {
                         return Err(Error::PackageVersionExists {
                             package: package_name.to_string(),
@@ -82,16 +107,7 @@ impl StagePublishPackage {
                         });
                     }
 
-                    let key_owner_id = api_key.owner_id();
-
-                    let pkg = PackageEntity::find()
-                        .filter(PackageColumn::Name.eq(&package_name))
-                        .one(db)
-                        .await?;
-
                     let package_id = if let Some(pkg) = pkg {
-                        Package::must_be_owner(db, &api_key, pkg.id).await?;
-
                         pkg.id
                     } else {
                         let new_pkg_model = PackageActiveModel {
@@ -341,47 +357,38 @@ impl Package {
         Ok(admins)
     }
 
-    pub async fn must_be_owner<C: sea_orm::ConnectionTrait>(
-        db: &C,
-        api_key: &ApiKey,
-        package_id: i64,
-    ) -> Result<()> {
-        let key_owner_id = api_key.owner_id();
-
-        let mut query = SchemaRoleEntity::find()
-            .filter(SchemaRoleColumn::Package.eq(package_id))
-            .filter(SchemaRoleColumn::RevokedAt.is_null())
-            .filter(SchemaRoleColumn::Role.eq(SchemaRoleType::Admin));
-
-        query = match key_owner_id {
-            OwnerId::User(user_id) => query.filter(SchemaRoleColumn::UserId.eq(user_id)),
-            OwnerId::Org(org_id) => query.filter(SchemaRoleColumn::OrgId.eq(org_id)),
-        };
-
-        let is_admin = query.limit(1).count(db).await? > 0;
-
-        if !is_admin {
-            return Err(Error::Unauthorized("Not package owner".into()));
-        }
-
-        Ok(())
-    }
-
     pub async fn yank_version<C: sea_orm::ConnectionTrait>(
         db: &C,
-        api_key: &ApiKey,
+        principal: &super::principal::PrincipalIdentity,
         package_name: &str,
         version_str: &str,
     ) -> Result<()> {
-        api_key.must_have_permission_for_package(package_name, &Permission::PublishPackage)?;
-
         let pkg = PackageEntity::find()
             .filter(PackageColumn::Name.eq(package_name))
             .one(db)
             .await?
             .ok_or_else(|| Error::NotFound(format!("Package '{}' not found", package_name)))?;
 
-        Self::must_be_owner(db, api_key, pkg.id).await?;
+        let auth_result = super::fluent::AuthCheck::new(db, principal)
+            .package(package_name, Some(pkg.id))
+            .can_yank()
+            .await?;
+
+        let event = principal.audit_event(
+            super::events::EventType::PermissionProtected {
+                permission: Permission::YankPackage,
+                resource: super::authorization::ResourceIdentifier::Package(
+                    super::authorization::PackageResource {
+                        name: package_name.to_string(),
+                        id: Some(pkg.id),
+                    },
+                ),
+            },
+            &auth_result,
+        )?;
+        kintsu_registry_events::emit_event(event)?;
+
+        auth_result.require()?;
 
         let version = VersionEntity::find()
             .filter(VersionColumn::Package.eq(pkg.id))

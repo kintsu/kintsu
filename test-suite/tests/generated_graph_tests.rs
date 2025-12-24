@@ -23,7 +23,7 @@ async fn compile_linear_dependency_chain() {
     )
     .with_root(g.root_package());
 
-    let _ = harness.compile_pass().await;
+    let ctx = harness.compile_pass().await;
     harness.assert_lockfile_written();
 }
 
@@ -130,7 +130,7 @@ async fn compile_random_dag_dependencies() {
 #[tokio::test]
 async fn compile_linear_with_operations_and_errors() {
     let mut g = GraphGenerator::new();
-    let specs = g.generate(GraphPattern::Linear { depth: 4 });
+    let specs = g.generate(GraphPattern::Linear { depth: 10 });
     let specs = g.create_root_with_dependencies(vec![specs]);
 
     let mut fs = MemFs::new();
@@ -151,10 +151,19 @@ async fn compile_linear_with_operations_and_errors() {
     )
     .with_root(g.root_package());
 
-    let _ = harness.compile_pass().await;
+    let ctx = harness.compile_pass().await;
 
-    harness.fs.debug_print_files();
+    std::fs::write(
+        "linear.json",
+        serde_json::to_string_pretty(&ctx.type_registry().all_types()).unwrap(),
+    )
+    .unwrap();
 
+    std::fs::write(
+        "declarations.json",
+        serde_json::to_string_pretty(&ctx.emit_declarations().await.unwrap()).unwrap(),
+    )
+    .unwrap();
     harness.assert_lockfile_written();
 }
 

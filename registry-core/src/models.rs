@@ -1,5 +1,5 @@
 use kintsu_manifests::config::NewForNamed;
-use kintsu_registry_db::entities::{Permission, Scope};
+use kintsu_registry_db::entities::{OrgRoleType, Permission, SchemaRoleType, Scope};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -115,4 +115,57 @@ impl PublishPackageRequest {
 pub struct PublishPackageResponse {
     pub url: String,
     pub version: kintsu_registry_db::entities::Version,
+}
+
+#[derive(serde::Deserialize, Validate, ToSchema)]
+pub struct GrantSchemaRoleRequest {
+    #[validate(length(min = 1))]
+    pub package_name: String,
+    pub role: SchemaRoleType,
+    pub user_id: Option<i64>,
+    pub org_id: Option<i64>,
+}
+
+#[derive(serde::Deserialize, Validate, ToSchema)]
+pub struct RevokeSchemaRoleRequest {
+    pub role_id: i64,
+}
+
+#[derive(serde::Deserialize, Validate, ToSchema)]
+pub struct GrantOrgRoleRequest {
+    pub org_id: i64,
+    pub user_id: i64,
+    pub role: OrgRoleType,
+}
+
+#[derive(serde::Deserialize, Validate, ToSchema)]
+pub struct RevokeOrgRoleRequest {
+    pub org_id: i64,
+    pub user_id: i64,
+}
+
+/// Target for a user favourite (either package or org)
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "type", content = "id", rename_all = "snake_case")]
+pub enum FavouriteTargetRequest {
+    /// Favourite a package by ID
+    Package(i64),
+    /// Favourite an organization by ID
+    Org(i64),
+}
+
+/// Request body for creating a user favourite
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct CreateFavouriteRequest {
+    #[serde(flatten)]
+    /// The target to favourite (package or org)
+    pub target: FavouriteTargetRequest,
+}
+
+/// Request body for deleting a user favourite
+pub type DeleteFavouriteRequest = CreateFavouriteRequest;
+
+#[derive(Serialize, ToSchema)]
+pub struct FavouritesCount {
+    pub count: u64,
 }

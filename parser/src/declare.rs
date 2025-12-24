@@ -20,7 +20,7 @@ pub use enums::{DeclEnum, DeclEnumValueType, DeclIntVariant, DeclStringVariant};
 pub use fields::{DeclArg, DeclField};
 pub use meta::Meta;
 pub use namespace::DeclNamespace;
-pub use root::TypeRegistryDeclaration;
+pub use root::{DeclarationBundle, TypeRegistryDeclaration};
 pub use types::{Builtin, DeclType};
 
 #[cfg_attr(feature = "db", derive(sea_orm::prelude::FromJsonQueryResult))]
@@ -28,7 +28,7 @@ pub use types::{Builtin, DeclType};
 #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(tag = "version", content = "declarations", rename_all = "lowercase")]
 pub enum DeclarationVersion {
-    V1(TypeRegistryDeclaration),
+    V1(DeclarationBundle),
 }
 
 impl Eq for DeclarationVersion {}

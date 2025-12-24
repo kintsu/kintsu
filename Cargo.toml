@@ -17,6 +17,9 @@ members = [
     "test-macros",
     "test-suite",
     "testing",
+    "registry-events",
+    "registry-auth",
+    "parser-core",
 ]
 resolver = "3"
 

@@ -4,6 +4,12 @@ pub struct ApiKey {
     pub(crate) db: kintsu_registry_db::entities::ApiKey,
 }
 
+impl ApiKey {
+    pub fn into_inner(self) -> kintsu_registry_db::entities::ApiKey {
+        self.db
+    }
+}
+
 impl AsRef<kintsu_registry_db::entities::ApiKey> for ApiKey {
     fn as_ref(&self) -> &kintsu_registry_db::entities::ApiKey {
         &self.db

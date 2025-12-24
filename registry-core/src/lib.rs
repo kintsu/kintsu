@@ -22,6 +22,7 @@ pub enum PublicErrorType {
     SessionError,
     InvalidCookie,
     Unauthorized,
+    Forbidden,
 
     InvalidToken,
     TokenExpired,
@@ -45,6 +46,7 @@ impl Into<&'static str> for &PublicErrorType {
             PublicErrorType::SessionError => "session-error",
             PublicErrorType::InvalidCookie => "invalid-cookie",
             PublicErrorType::Unauthorized => "unauthorized",
+            PublicErrorType::Forbidden => "forbidden",
             PublicErrorType::InvalidToken => "invalid-token",
             PublicErrorType::TokenExpired => "token-expired",
             PublicErrorType::AuthorizationRequired => "authorization-required",

@@ -7,7 +7,9 @@ use crate::{
     tokens::{PathToken, ToTokens},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct RefContext {
     pub package: String,
     pub namespace: Vec<String>,
@@ -105,7 +107,9 @@ impl RefContext {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct NamedItemContext {
     pub context: RefContext,
     pub name: SpannedToken![ident],
@@ -147,7 +151,9 @@ impl ToTokens for NamedItemContext {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum RefOrItemContext {
     Ref(RefContext),
     Item(NamedItemContext),

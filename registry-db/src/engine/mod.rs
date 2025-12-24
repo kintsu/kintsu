@@ -1,16 +1,26 @@
 pub mod api_key;
+pub mod authorization;
 pub mod downloads;
+pub mod events;
+pub mod favourites;
+pub mod fluent;
 pub mod org;
-pub mod org_admin;
+pub mod org_invite;
 pub mod package;
+pub mod principal;
 pub mod schema_admin;
 pub mod schema_role;
 pub mod user;
 pub mod version;
 
 pub use api_key::*;
+pub use authorization::*;
+pub use events::*;
+pub use favourites::*;
+pub use fluent::*;
 pub use org::*;
 pub use package::*;
+pub use principal::*;
 use serde::Deserialize;
 
 use crate::entities::{Org, User};
@@ -22,7 +32,7 @@ pub enum Entity {
     Org(Org),
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "id", rename_all = "snake_case")]
 pub enum OwnerId {
     User(i64),
@@ -75,9 +85,9 @@ impl Entity {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema, validator::Validate)]
+#[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema, validator::Validate, Debug)]
 pub struct Page {
-    #[validate(range(min = 0))]
+    #[validate(range(min = 1))]
     pub number: i64,
     #[validate(range(min = 1, max = 100))]
     pub size: i64,

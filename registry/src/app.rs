@@ -4,6 +4,7 @@ use actix_web::{
     web::{self},
 };
 use secrecy::ExposeSecret;
+use std::sync::Arc;
 use utoipa::{
     Modify, OpenApi, PartialSchema,
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -77,7 +78,8 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
         }
     );
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
+        // let reporter =
         App::new()
             .into_utoipa_app()
             .openapi(ApiDoc::openapi())
@@ -102,6 +104,14 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             .service(org::get_org_tokens)
             .service(org::discover_orgs)
             .service(org::import_org)
+            .service(org::grant_org_role)
+            .service(org::revoke_org_role)
+            // Favourites routes
+            .service(favourites::list_favourites)
+            .service(favourites::create_favourite)
+            .service(favourites::delete_favourite)
+            .service(favourites::org_favourite_count)
+            .service(favourites::package_favourite_count)
             // Package routes
             .service(packages::publish_package)
             .service(packages::get_package_version)
@@ -115,6 +125,9 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             .service(packages::search_packages)
             .service(packages::list_package_versions)
             .service(packages::get_package_publishers)
+            .service(packages::grant_package_role)
+            .service(packages::revoke_package_role)
+            // Docs
             .openapi_service(|api| Redoc::with_url("/redoc", api))
             .openapi_service(|api| {
                 RapiDoc::with_openapi("/api-docs/openapi.json", api).path("/rapidoc")
@@ -122,8 +135,13 @@ pub async fn start_server(config: crate::config::Config) -> crate::Result<()> {
             .into_app()
     })
     .bind(addr)?
-    .run()
-    .await?;
+    .run();
 
-    Ok(())
+    let (server_exit, flusher_exit) = tokio::join!(server, async move {});
+
+    kintsu_registry_events::shutdown()
+        .await
+        .unwrap();
+
+    Ok(server_exit?)
 }

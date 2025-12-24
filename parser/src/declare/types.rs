@@ -6,7 +6,7 @@ use super::context::DeclNamedItemContext;
 
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 pub enum Builtin {
     I8,
     I16,

@@ -1,4 +1,6 @@
-use crate::{DbConn, config::SessionConfig, oauth::AuthClient, session::SessionData};
+use crate::{
+    DbConn, config::SessionConfig, oauth::AuthClient, principal::Principal, session::SessionData,
+};
 use actix_web::{
     Responder, cookie, delete, get, post,
     web::{self, Redirect},
@@ -101,6 +103,7 @@ pub async fn logout(session: crate::session::SessionData) -> impl Responder {
 #[post("/auth/token")]
 pub async fn create_auth_token(
     conn: DbConn,
+    principal: Principal,
     session: SessionData,
     req: web::Json<kintsu_registry_core::models::CreateTokenRequest>,
 ) -> crate::Result<impl Responder> {
@@ -115,6 +118,7 @@ pub async fn create_auth_token(
         .user
         .request_personal_token(
             conn.as_ref(),
+            principal.as_ref(),
             req.description.clone(),
             req.scopes.clone(),
             req.permissions.clone(),
@@ -166,14 +170,14 @@ pub async fn redirect_to_login(client: web::Data<AuthClient>) -> impl Responder 
 #[delete("/auth/tokens/{id}")]
 pub async fn revoke_auth_token(
     conn: DbConn,
-    session: SessionData,
+    principal: Principal,
     id: web::Path<i64>,
 ) -> crate::Result<impl Responder> {
     let api_key =
         kintsu_registry_db::entities::ApiKey::by_id(conn.as_ref(), id.into_inner()).await?;
 
     api_key
-        .revoke_token(conn.as_ref(), &session.user.user)
+        .revoke_token(conn.as_ref(), principal.as_ref())
         .await?;
 
     Ok(web::Json(()))

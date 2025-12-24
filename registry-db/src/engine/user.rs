@@ -120,19 +120,21 @@ impl User {
     pub async fn request_personal_token(
         &self,
         db: &sea_orm::DatabaseConnection,
+        principal: &super::principal::PrincipalIdentity,
         description: Option<String>,
         scopes: Vec<Scope>,
         permissions: Vec<Permission>,
         expires: DateTime<Utc>,
     ) -> Result<crate::engine::OneTimeApiKey> {
         crate::engine::NewApiKey::new_for_user(description, scopes, permissions, expires, self.id)
-            .qualify(db, self.id)
+            .qualify(db, principal)
             .await
     }
 
     pub async fn request_org_token(
         &self,
         db: &sea_orm::DatabaseConnection,
+        principal: &super::principal::PrincipalIdentity,
         description: Option<String>,
         scopes: Vec<Scope>,
         permissions: Vec<Permission>,
@@ -140,7 +142,7 @@ impl User {
         org_id: i64,
     ) -> Result<crate::engine::OneTimeApiKey> {
         crate::engine::NewApiKey::new_for_org(description, scopes, permissions, expires, org_id)
-            .qualify(db, self.id)
+            .qualify(db, principal)
             .await
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Error, Result, entities::*};
+use crate::{Error, Result, engine::OwnerId, entities::*};
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, NotSet, QueryFilter, Set, prelude::Expr,
@@ -65,13 +65,59 @@ impl NewApiKey {
     pub async fn qualify<C: sea_orm::ConnectionTrait>(
         self,
         db: &C,
-        requesting_user_id: i64,
+        principal: &super::principal::PrincipalIdentity,
     ) -> Result<OneTimeApiKey> {
-        if let Some(..) = self.user_id {
+        if let Some(uid) = self.user_id {
+            let requesting_user = principal.user().ok_or_else(|| {
+                Error::Validation("Cannot create user token without user principal".into())
+            })?;
+
+            if uid != requesting_user.id {
+                return Err(Error::Validation(
+                    "Cannot create token for different user".into(),
+                ));
+            }
+
+            let auth_result = super::fluent::AuthCheck::new(db, principal)
+                .token(0, OwnerId::User(requesting_user.id))
+                .can_create_personal()
+                .await?;
+
+            let event = principal.audit_event(
+                super::events::EventType::PermissionProtected {
+                    permission: Permission::CreatePersonalToken,
+                    resource: super::authorization::ResourceIdentifier::Token(
+                        super::authorization::TokenResource {
+                            id: 0,
+                            owner: OwnerId::User(requesting_user.id),
+                        },
+                    ),
+                },
+                &auth_result,
+            )?;
+
+            kintsu_registry_events::emit_event(event)?;
+
+            auth_result.require()?;
         } else if let Some(org_id) = self.org_id {
-            if let Some(org) = Org::by_id(db, org_id).await? {
-                org.must_be_admin(db, requesting_user_id)
+            if let Some(_org) = Org::by_id(db, org_id).await? {
+                let auth_result = super::fluent::AuthCheck::new(db, principal)
+                    .org(org_id)
+                    .can_create_token()
                     .await?;
+
+                let event = principal.audit_event(
+                    super::events::EventType::PermissionProtected {
+                        permission: Permission::CreateOrgToken,
+                        resource: super::authorization::ResourceIdentifier::Organization(
+                            super::authorization::OrgResource { id: org_id },
+                        ),
+                    },
+                    &auth_result,
+                )?;
+                kintsu_registry_events::emit_event(event)?;
+
+                auth_result.require()?;
             } else {
                 return Err(Error::Validation("Organization not found".into()));
             }
@@ -182,24 +228,43 @@ impl ApiKey {
     pub async fn revoke_token<C: sea_orm::ConnectionTrait>(
         self,
         db: &C,
-        user: &User,
+        principal: &super::principal::PrincipalIdentity,
     ) -> Result<()> {
-        const PERM: &str = "You do not have sufficient priviledges to revoke this token";
-
         let owner = self.get_token_owner(db).await?;
+        let owner_id = owner.owner_id();
 
-        match owner {
-            crate::engine::Entity::Org(org) => {
-                if !org.is_user_admin(db, user.id).await? {
-                    return Err(Error::Unauthorized(PERM.into()));
-                }
+        let (permission, auth_result) = match owner_id {
+            OwnerId::User(user_id) => {
+                let result = super::fluent::AuthCheck::new(db, principal)
+                    .token(self.id, OwnerId::User(user_id))
+                    .can_revoke_personal()
+                    .await?;
+                (Permission::RevokePersonalToken, result)
             },
-            crate::engine::Entity::User(owner) => {
-                if owner.id != user.id {
-                    return Err(Error::Unauthorized(PERM.into()));
-                }
+            OwnerId::Org(org_id) => {
+                let result = super::fluent::AuthCheck::new(db, principal)
+                    .org(org_id)
+                    .can_revoke_token()
+                    .await?;
+                (Permission::RevokeOrgToken, result)
             },
-        }
+        };
+
+        let event = principal.audit_event(
+            super::events::EventType::PermissionProtected {
+                permission,
+                resource: super::authorization::ResourceIdentifier::Token(
+                    super::authorization::TokenResource {
+                        id: self.id,
+                        owner: owner_id,
+                    },
+                ),
+            },
+            &auth_result,
+        )?;
+        kintsu_registry_events::emit_event(event)?;
+
+        auth_result.require()?;
 
         let count = ApiKeyPrivateEntity::update_many()
             .col_expr(ApiKeyColumn::RevokedAt, Expr::value(Utc::now()))
@@ -207,23 +272,21 @@ impl ApiKey {
             .exec(db)
             .await?;
 
-        Ok(if count.rows_affected == 0 {
-            return Err(Error::NotFound(
-                "Token not found, already revoked, or not owned by user".into(),
-            ));
-        } else {
-            ()
-        })
+        if count.rows_affected == 0 {
+            return Err(Error::NotFound("Token not found or already revoked".into()));
+        }
+
+        Ok(())
     }
 
     pub async fn revoke_token_by_id<C: sea_orm::ConnectionTrait>(
         db: &C,
         token_id: i64,
-        user: &User,
+        principal: &super::principal::PrincipalIdentity,
     ) -> Result<()> {
         Self::by_id(db, token_id)
             .await?
-            .revoke_token(db, user)
+            .revoke_token(db, principal)
             .await
     }
 

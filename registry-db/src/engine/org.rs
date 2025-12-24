@@ -89,29 +89,43 @@ impl Org {
             > 0)
     }
 
-    pub async fn must_be_admin<C: sea_orm::ConnectionTrait>(
+    pub async fn invite_to_org(
         &self,
-        db: &C,
-        user_id: i64,
-    ) -> Result<()> {
-        if !self.is_user_admin(db, user_id).await? {
-            return Err(Error::Unauthorized(
-                "User is not an admin of the organization".into(),
-            ));
-        }
-        Ok(())
+        invite: &OrgInvite,
+    ) -> Result<OrgInvite> {
+        let invite = ();
+
+        todo!()
     }
+}
+
+pub struct OrgInvite {
+    pub org_id: i64,
+    pub invitee_gh_login: String,
+    pub role: OrgRoleType,
 }
 
 pub async fn import_organization<C: sea_orm::ConnectionTrait + TransactionTrait>(
     db: &C,
+    principal: &super::principal::PrincipalIdentity,
     gh_id: i32,
     org_name: String,
     gh_avatar: String,
-    admin_user_id: i64,
 ) -> Result<Org> {
-    Ok(db
+    if !principal.is_session() {
+        return Err(Error::Validation(
+            "Organization import requires user session (not API key)".into(),
+        ));
+    }
+
+    let user = principal
+        .user()
+        .ok_or_else(|| Error::Internal("Session principal missing user data".into()))?;
+
+    let org_result = db
         .transaction::<_, Org, Error>(|txn| {
+            let admin_user_id = user.id;
+            let org_name = org_name.clone();
             Box::pin(async move {
                 let existing = OrgEntity::find()
                     .filter(
@@ -150,5 +164,111 @@ pub async fn import_organization<C: sea_orm::ConnectionTrait + TransactionTrait>
                 Ok(new_org)
             })
         })
-        .await?)
+        .await?;
+
+    let event = kintsu_registry_auth::AuditEvent::builder()
+        .timestamp(chrono::Utc::now())
+        .principal_type(principal.principal_type())
+        .principal_id(principal.principal_id())
+        .event_type(serde_json::to_value(
+            &super::events::EventType::ImportOrganization {
+                org_id: org_result.id,
+                gh_org_id: gh_id,
+                gh_org_login: org_name,
+            },
+        )?)
+        .allowed(true)
+        .reason("Session-only operation".to_string())
+        .policy_checks(vec![])
+        .build();
+
+    kintsu_registry_events::emit_event(event)?;
+
+    Ok(org_result)
+}
+
+pub async fn grant_role<C: sea_orm::ConnectionTrait>(
+    db: &C,
+    principal: &super::principal::PrincipalIdentity,
+    org_id: i64,
+    user_id: i64,
+    role: OrgRoleType,
+) -> Result<OrgRole> {
+    let auth_result = super::fluent::AuthCheck::new(db, principal)
+        .org(org_id)
+        .can_grant_role()
+        .await?;
+
+    let event = principal.audit_event(
+        super::events::EventType::PermissionProtected {
+            permission: Permission::GrantOrgRole,
+            resource: super::authorization::ResourceIdentifier::Organization(
+                super::authorization::OrgResource { id: org_id },
+            ),
+        },
+        &auth_result,
+    )?;
+    kintsu_registry_events::emit_event(event)?;
+
+    auth_result.require()?;
+
+    let existing = OrgRoleEntity::find()
+        .filter(OrgRoleColumn::OrgId.eq(org_id))
+        .filter(OrgRoleColumn::UserId.eq(user_id))
+        .filter(OrgRoleColumn::Role.eq(role.clone()))
+        .filter(OrgRoleColumn::RevokedAt.is_null())
+        .one(db)
+        .await?;
+
+    if existing.is_some() {
+        return Err(Error::Validation("Role already granted".into()));
+    }
+
+    let active_model = OrgRoleActiveModel {
+        org_id: Set(org_id),
+        user_id: Set(user_id),
+        role: Set(role),
+        revoked_at: NotSet,
+    };
+
+    Ok(active_model.insert(db).await?)
+}
+
+pub async fn revoke_role<C: sea_orm::ConnectionTrait>(
+    db: &C,
+    principal: &super::principal::PrincipalIdentity,
+    org_id: i64,
+    user_id: i64,
+) -> Result<()> {
+    let auth_result = super::fluent::AuthCheck::new(db, principal)
+        .org(org_id)
+        .can_revoke_role()
+        .await?;
+
+    let event = principal.audit_event(
+        super::events::EventType::PermissionProtected {
+            permission: Permission::RevokeOrgRole,
+            resource: super::authorization::ResourceIdentifier::OrgRole(
+                super::authorization::OrgRoleResource { org_id, user_id },
+            ),
+        },
+        &auth_result,
+    )?;
+    kintsu_registry_events::emit_event(event)?;
+
+    auth_result.require()?;
+
+    let role = OrgRoleEntity::find()
+        .filter(OrgRoleColumn::OrgId.eq(org_id))
+        .filter(OrgRoleColumn::UserId.eq(user_id))
+        .filter(OrgRoleColumn::RevokedAt.is_null())
+        .one(db)
+        .await?
+        .ok_or_else(|| Error::NotFound("Org role not found".into()))?;
+
+    let mut active_model: OrgRoleActiveModel = role.into();
+    active_model.revoked_at = Set(Some(chrono::Utc::now()));
+    active_model.update(db).await?;
+
+    Ok(())
 }

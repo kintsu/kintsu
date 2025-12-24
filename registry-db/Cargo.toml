@@ -11,12 +11,15 @@ test = [
     "dep:testcontainers",
     "dep:testcontainers-modules",
     "kintsu-registry-storage/test",
+    "kintsu-registry-events/test",
 ]
 
 [dependencies]
 kintsu-fs = { path = "../fs", features = ["db", "api"] }
 kintsu-manifests = { path = "../manifests" }
 kintsu-parser = { path = "../parser", features = ["db", "api"] }
+kintsu-registry-auth = { path = "../registry-auth" }
+kintsu-registry-events = { path = "../registry-events" }
 kintsu-registry-storage = { path = "../registry-storage" }
 chrono = { workspace = true, features = ["serde"] }
 paste = { workspace = true }
@@ -29,6 +32,7 @@ sea-orm = { features = [
 ], workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sha256 = { workspace = true }
 testcontainers = { workspace = true, optional = true }
 testcontainers-modules = { features = [
@@ -38,3 +42,13 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 utoipa = { workspace = true, features = ["chrono"] }
 validator = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+chrono = { workspace = true }
+kintsu-registry-auth = { path = "../registry-auth" }
+kintsu-registry-events = { path = "../registry-events", features = ["test"] }
+kintsu-registry-storage = { path = "../registry-storage", features = ["test"] }
+sea-orm = { workspace = true }
+testcontainers = { workspace = true }
+testcontainers-modules = { features = ["postgres"], workspace = true }
+tokio = { workspace = true, features = ["full", "rt-multi-thread", "macros"] }

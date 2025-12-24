@@ -61,16 +61,11 @@ pub(crate) use super::{
 };
 
 pub(crate) use super::{
-    api_key::ActiveModel as ApiKeyActiveModel,
-    downloads::ActiveModel as DownloadsActiveModel,
-    org::ActiveModel as OrgActiveModel,
-    org_invitation::ActiveModel as OrgInvitationActiveModel,
-    org_role::ActiveModel as OrgRoleActiveModel,
-    package::ActiveModel as PackageActiveModel,
+    api_key::ActiveModel as ApiKeyActiveModel, downloads::ActiveModel as DownloadsActiveModel,
+    org::ActiveModel as OrgActiveModel, org_invitation::ActiveModel as OrgInvitationActiveModel,
+    org_role::ActiveModel as OrgRoleActiveModel, package::ActiveModel as PackageActiveModel,
     schema_role::ActiveModel as SchemaRoleActiveModel,
-    user_favourite::ActiveModel as UserFavouriteActiveModel,
-    users::ActiveModel as UserActiveModel,
-    //
+    user_favourite::ActiveModel as UserFavouriteActiveModel, users::ActiveModel as UserActiveModel,
     version::ActiveModel as VersionActiveModel,
 };
 

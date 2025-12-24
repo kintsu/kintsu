@@ -3,6 +3,7 @@ use miette::{Diagnostic, NamedSource, SourceSpan};
 use std::path::Path;
 use thiserror::Error;
 
+#[allow(unused_assignments)]
 #[derive(Debug, Error, Diagnostic)]
 #[error("{message}")]
 pub struct SpanDiagnostic {

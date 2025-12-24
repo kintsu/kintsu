@@ -1,8 +1,9 @@
-use crate::DbConn;
+use crate::{DbConn, principal::Principal};
 use actix_web::{
-    Responder, get, post,
+    Responder, delete, get, post,
     web::{self},
 };
+use kintsu_registry_core::models::{GrantSchemaRoleRequest, RevokeSchemaRoleRequest};
 use kintsu_registry_db::engine::{OrderDirection, PackageOrdering, PackageOrderingField, Page};
 use validator::Validate;
 
@@ -175,6 +176,70 @@ pub async fn download_package_version(
         .await?;
 
     Ok(web::Json(source))
+}
+
+#[utoipa::path(
+    tag = PACKAGES,
+    request_body = GrantSchemaRoleRequest,
+    responses(
+        (status = 200, description = "Role granted successfully", body = kintsu_registry_db::entities::SchemaRole),
+        (status = 400, description = "Invalid request", body = crate::ErrorResponse),
+        (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
+        (status = 403, description = "Forbidden - insufficient permissions", body = crate::ErrorResponse),
+        (status = 404, description = "Package not found", body = crate::ErrorResponse),
+    ),
+    security(("api_key" = []), ("session" = []))
+)]
+#[post("/roles/package")]
+pub async fn grant_package_role(
+    principal: Principal,
+    conn: DbConn,
+    req: web::Json<GrantSchemaRoleRequest>,
+) -> crate::Result<impl Responder> {
+    req.validate()?;
+
+    let req = req.into_inner();
+    let role = kintsu_registry_db::engine::schema_role::grant_role(
+        conn.as_ref(),
+        principal.as_ref(),
+        &req.package_name,
+        req.user_id,
+        req.org_id,
+        req.role,
+    )
+    .await?;
+
+    Ok(web::Json(role))
+}
+
+#[utoipa::path(
+    tag = PACKAGES,
+    request_body = RevokeSchemaRoleRequest,
+    responses(
+        (status = 204, description = "Role revoked successfully"),
+        (status = 400, description = "Invalid request", body = crate::ErrorResponse),
+        (status = 401, description = "Unauthorized", body = crate::ErrorResponse),
+        (status = 403, description = "Forbidden - insufficient permissions", body = crate::ErrorResponse),
+        (status = 404, description = "Role not found", body = crate::ErrorResponse),
+    ),
+    security(("api_key" = []), ("session" = []))
+)]
+#[delete("/roles/package")]
+pub async fn revoke_package_role(
+    principal: Principal,
+    conn: DbConn,
+    req: web::Json<RevokeSchemaRoleRequest>,
+) -> crate::Result<impl Responder> {
+    req.validate()?;
+
+    kintsu_registry_db::engine::schema_role::revoke_role(
+        conn.as_ref(),
+        principal.as_ref(),
+        req.role_id,
+    )
+    .await?;
+
+    Ok(actix_web::HttpResponse::NoContent().finish())
 }
 
 /// Get total download count for a package
@@ -423,7 +488,7 @@ pub struct ListVersionsQuery {
 pub async fn publish_package(
     conn: DbConn,
     storage: web::Data<kintsu_registry_db::PackageStorage>,
-    api_key: crate::apikey::ApiKey,
+    principal: crate::principal::Principal,
     request: web::Json<kintsu_registry_core::models::PublishPackageRequest>,
 ) -> crate::Result<impl Responder> {
     request.validate()?;
@@ -478,7 +543,7 @@ pub async fn publish_package(
 
     let package = kintsu_registry_db::engine::package::StagePublishPackage::process(
         conn.as_ref(),
-        api_key.db,
+        principal.as_ref(),
         storage.into_inner(),
         request.0.package_data,
         request.0.manifest,
@@ -488,4 +553,23 @@ pub async fn publish_package(
     .await?;
 
     Ok(web::Json(package))
+}
+
+#[post("/package/{name}/{version}/yank")]
+pub async fn yank_package_version(
+    path: web::Path<(String, String)>,
+    conn: DbConn,
+    principal: crate::principal::Principal,
+) -> crate::Result<impl Responder> {
+    let (name, version) = path.into_inner();
+
+    kintsu_registry_db::entities::Package::yank_version(
+        conn.as_ref(),
+        principal.as_ref(),
+        &name,
+        &version,
+    )
+    .await?;
+
+    Ok(actix_web::HttpResponse::NoContent().finish())
 }
