@@ -257,10 +257,6 @@ impl PackageManifest {
     }
 }
 
-impl NewForNamed for PackageManifest {
-    const NAME: &str = "schema.toml";
-}
-
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(serde::Deserialize, serde::Serialize, Clone, validator::Validate)]
 pub struct GitDependency {
@@ -346,6 +342,51 @@ impl validator::Validate for Dependency {
             Dependency::PathWithRemote(dep) => dep.validate(),
         }
     }
+}
+
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum PackageManifests {
+    V1(PackageManifest),
+}
+
+impl validator::Validate for PackageManifests {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        match self {
+            PackageManifests::V1(manifest) => manifest.validate(),
+        }
+    }
+}
+
+impl PackageManifests {
+    pub fn package(&self) -> &PackageMeta {
+        match self {
+            PackageManifests::V1(manifest) => &manifest.package,
+        }
+    }
+
+    pub fn dependencies(&self) -> &NamedDependencies {
+        match self {
+            PackageManifests::V1(manifest) => &manifest.dependencies,
+        }
+    }
+
+    pub fn files(&self) -> &FileConfig {
+        match self {
+            PackageManifests::V1(manifest) => &manifest.files,
+        }
+    }
+
+    pub fn prepare_publish(&mut self) -> Result<(), validator::ValidationErrors> {
+        match self {
+            PackageManifests::V1(manifest) => manifest.prepare_publish(),
+        }
+    }
+}
+
+impl NewForNamed for PackageManifests {
+    const NAME: &str = "schema.toml";
 }
 
 #[cfg(test)]

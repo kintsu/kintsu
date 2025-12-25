@@ -4,14 +4,13 @@ pub mod config;
 pub mod lock;
 pub mod manager;
 pub mod package;
-pub mod registry;
 pub mod rules;
 pub mod version;
 
 use convert_case::{Case, Casing};
 
 pub use crate::config::NewForConfig;
-use crate::{config::NewForNamed, package::PackageManifest};
+use crate::{config::NewForNamed, package::PackageManifests};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -82,7 +81,7 @@ pub fn init(
 ) -> Result<()> {
     use validator::Validate;
 
-    let pkg = package::PackageManifest {
+    let pkg = package::PackageManifests::V1(package::PackageManifest {
         package: package::PackageMeta {
             name,
             description: None,
@@ -96,13 +95,13 @@ pub fn init(
         },
         dependencies: Default::default(),
         files: Default::default(),
-    };
+    });
 
     pkg.validate()?;
 
-    let dir = dir.unwrap_or_else(|| PathBuf::from(pkg.package.name.clone()));
+    let dir = dir.unwrap_or_else(|| PathBuf::from(pkg.package().name.clone()));
 
-    let manifest = dir.join(PackageManifest::NAME);
+    let manifest = dir.join(PackageManifests::NAME);
 
     if !dir.exists() {
         std::fs::create_dir(&dir)?;
@@ -113,7 +112,7 @@ pub fn init(
 
     let schema = dir.join("schema/");
     if !schema.exists() {
-        std::fs::create_dir(dir)?;
+        std::fs::create_dir(&schema)?;
     }
 
     let lib = schema.join("lib.ks");
@@ -122,7 +121,7 @@ pub fn init(
             lib,
             format!(
                 "#![version(1)]\nnamespace {};\n",
-                pkg.package.name.to_case(Case::Snake)
+                pkg.package().name.to_case(Case::Snake)
             ),
         )?;
     }

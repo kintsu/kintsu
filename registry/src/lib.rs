@@ -179,7 +179,16 @@ impl Error {
             Error::Database(kintsu_registry_db::Error::Unauthorized(msg)) => {
                 ErrorResponse::from_public_error(PublicErrorType::Unauthorized, Some(msg.clone()))
             },
+            Error::Database(kintsu_registry_db::Error::Conflict(msg)) => {
+                ErrorResponse::from_public_error(PublicErrorType::Validation, Some(msg.clone()))
+            },
 
+            Error::Database(kintsu_registry_db::Error::InvalidManifest(manifest)) => {
+                ErrorResponse::from_public_error(
+                    PublicErrorType::ManifestError,
+                    Some(manifest.to_string()),
+                )
+            },
             Error::Database(kintsu_registry_db::Error::InvalidToken) => {
                 ErrorResponse::from_public_error(
                     PublicErrorType::InvalidToken,
@@ -251,6 +260,7 @@ impl Error {
         }
     }
 }
+
 impl ResponseError for Error {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {

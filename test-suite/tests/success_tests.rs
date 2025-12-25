@@ -159,7 +159,8 @@ async fn compile_valid_lockfile_checksum() {
     let fs = memory! {
         "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
         "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-        "pkg/schema.toml" => r#"[package]
+        "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -206,12 +207,14 @@ compiler_test! {
     root: "pkg",
     memory: || {
         memory! {
-            "lib/schema.toml" => r#"[package]
+            "lib/schema.toml" => r#"version = "v1"
+[package]
 name = "lib"
 version = "1.2.3"
 "#,
             "lib/schema/lib.ks" => "namespace lib;\nnamespace types {\n\tstruct Item { id: i32 };\n};",
-            "pkg/schema.toml" => r#"[package]
+            "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 

@@ -24,7 +24,7 @@ use super::namespace::NamespaceCtx;
 
 pub struct SchemaCtx {
     pub root_path: PathBuf,
-    pub package: kintsu_manifests::package::PackageManifest,
+    pub package: kintsu_manifests::package::PackageManifests,
     pub namespaces: BTreeMap<String, Arc<Mutex<NamespaceCtx>>>,
     pub registry: TypeRegistry,
 }
@@ -39,7 +39,7 @@ impl SchemaCtx {
 
         let root_path = root_path.as_ref();
 
-        let package = kintsu_manifests::package::PackageManifest::new(fs, root_path)?;
+        let package = kintsu_manifests::package::PackageManifests::new(fs, root_path)?;
 
         let lib_path = root_path.join("schema").join("lib.ks");
 
@@ -55,7 +55,7 @@ impl SchemaCtx {
             })?;
 
         let root_ctx =
-            super::paths::RefContext::new(package.package.name.to_case(Case::Snake), vec![]);
+            super::paths::RefContext::new(package.package().name.to_case(Case::Snake), vec![]);
 
         let lib_source = Arc::new(lib_source);
         let mut tt = crate::tokens::tokenize(&lib_source).map_err(|e: LexingError| {
@@ -156,7 +156,7 @@ impl SchemaCtx {
             } else {
                 let include = vec![format!("{}/**/*.ks", dir_path.display())];
 
-                fs.find_glob(&include, &package.files.exclude)
+                fs.find_glob(&include, &package.files().exclude)
                     .map_err(crate::Error::from)?
             };
 

@@ -480,7 +480,8 @@ fn generate_manifest(
     dependencies: &[String],
 ) -> String {
     let mut manifest = format!(
-        "[package]
+        "version = \"v1\"
+[package]
 name = \"{name}\"
 version = \"1.0.0\"
 description = \"Generated package\"

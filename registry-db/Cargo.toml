@@ -31,6 +31,7 @@ sea-orm = { features = [
     "chrono",
 ], workspace = true }
 secrecy = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha256 = { workspace = true }

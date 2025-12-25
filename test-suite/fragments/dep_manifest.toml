@@ -1,3 +1,5 @@
+version = "v1"
+
 [package]
 name = "dep"
 version = "1.0.0"

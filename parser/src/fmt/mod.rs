@@ -1,3 +1,4 @@
+use kintsu_cli_core::ProgressManager;
 use kintsu_manifests::NewForConfig;
 use miette::IntoDiagnostic;
 use std::sync::Arc;
@@ -75,14 +76,34 @@ pub async fn fmt<S: AsRef<str>>(
     targets: Vec<impl AsRef<std::path::Path> + Send + Sync>,
     dry: bool,
 ) -> miette::Result<()> {
+    fmt_with_progress(config_dir, targets, dry, ProgressManager::disabled()).await
+}
+
+pub async fn fmt_with_progress<S: AsRef<str>>(
+    config_dir: Option<S>,
+    targets: Vec<impl AsRef<std::path::Path> + Send + Sync>,
+    dry: bool,
+    progress: ProgressManager,
+) -> miette::Result<()> {
     let config = Arc::new(FormatConfig::new(config_dir).into_diagnostic()?);
+    let bar = progress.add_bar(targets.len() as u64, kintsu_cli_core::prefixes::FORMATTING);
+
     let mut futs = vec![];
     for t in targets {
         let config = config.clone();
-        futs.push(Box::pin(async move { format_file(&config, t, dry).await }));
+        let bar = bar.clone();
+        futs.push(Box::pin(async move {
+            let path_display = t.as_ref().display().to_string();
+            let result = format_file(&config, &t, dry).await;
+            bar.inc(1);
+            bar.set_message(path_display);
+            result
+        }));
     }
     for f in futures_util::future::join_all(futs).await {
         f?;
     }
+
+    bar.finish_and_clear();
     Ok(())
 }

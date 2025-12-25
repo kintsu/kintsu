@@ -7,7 +7,7 @@ use std::{
 use kintsu_fs::FileSystem;
 use kintsu_manifests::{
     lock::LockedSource,
-    package::{Dependency, PackageManifest},
+    package::{Dependency, PackageManifests},
     version::{Version, VersionExt},
 };
 use tokio::sync::RwLock;
@@ -21,16 +21,17 @@ use crate::ctx::{
 
 use super::{
     coordinator::{CoordinatorState, dependency_coordinator, dependency_worker},
-    progress::CompilationProgress,
     resolver::ResolvedDependency,
     state::{ResolvedMetadata, SharedCompilationState},
     utils::{normalize_import_to_package_name, normalize_package_to_import_name},
 };
 
+use kintsu_cli_core::ProgressManager;
+
 #[derive(Clone)]
 pub(super) struct ParentContext {
     pub path: PathBuf,
-    pub manifest: Arc<PackageManifest>,
+    pub manifest: Arc<PackageManifests>,
 }
 
 #[derive(Clone)]
@@ -65,7 +66,7 @@ impl DependencyLoader {
         type_registry: TypeRegistry,
         root_path: PathBuf,
         max_concurrent_tasks: usize,
-        progress: &CompilationProgress,
+        progress: &ProgressManager,
     ) -> crate::Result<()> {
         let coord_state = CoordinatorState::new(state.clone(), progress.clone());
 
@@ -90,7 +91,7 @@ impl DependencyLoader {
                 {
                     initial_tasks.push(CompilationTask {
                         package_name: pkg_name,
-                        dependency_chain: vec![root.package.package.name.clone()],
+                        dependency_chain: vec![root.package.package().name.clone()],
                         parent_context: root_context.clone(),
                     });
                 }
@@ -222,7 +223,7 @@ impl DependencyLoader {
         }
 
         let dep = parent_manifest
-            .dependencies
+            .dependencies()
             .get(&normalize_import_to_package_name(dep_name))
             .ok_or_else(|| {
                 crate::Error::InternalError {
@@ -460,12 +461,12 @@ impl DependencyLoader {
     }
 
     fn build_locked_source(
-        root_package: &PackageManifest,
+        root_package: &PackageManifests,
         dep_name: &str,
         resolved_path: &Path,
     ) -> LockedSource {
         match &root_package
-            .dependencies
+            .dependencies()
             .get(&normalize_import_to_package_name(dep_name))
         {
             Some(Dependency::Path(path)) => {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use indicatif::ProgressBar;
+use kintsu_cli_core::ProgressBar;
 use pathfinding::prelude::*;
 
 use crate::{
@@ -224,7 +224,7 @@ impl SchemaCompiler {
         tracing::debug!("Starting schema compilation");
 
         let root_package_normalized =
-            normalize_package_to_import_name(&ctx.root.package.package.name);
+            normalize_package_to_import_name(&ctx.root.package.package().name);
 
         let target = normalize_package_to_import_name(&schema_id.package_name);
 
@@ -282,6 +282,7 @@ impl SchemaCompiler {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn pretty_print_groups(groups: &Vec<Vec<CacheKey>>) -> String {
         let mut output = String::new();
         for (level, group) in groups.iter().enumerate() {
@@ -297,12 +298,12 @@ impl SchemaCompiler {
     async fn resolve_schema_types(
         ctx: &super::CompileCtx,
         schema_id: &CacheKey,
-        resolution_bar: &indicatif::ProgressBar,
+        resolution_bar: &ProgressBar,
     ) -> crate::Result<()> {
         tracing::debug!("Starting schema type resolution");
 
         let root_package_normalized =
-            normalize_package_to_import_name(&ctx.root.package.package.name);
+            normalize_package_to_import_name(&ctx.root.package.package().name);
 
         let target = normalize_package_to_import_name(&schema_id.package_name);
 
@@ -362,7 +363,7 @@ impl SchemaCompiler {
     async fn resolve_namespace_types(
         schema: &Arc<SchemaCtx>,
         ns_name: &str,
-        resolution_bar: &indicatif::ProgressBar,
+        resolution_bar: &ProgressBar,
     ) -> crate::Result<()> {
         use super::super::resolve::TypeResolver;
 
@@ -440,7 +441,7 @@ impl SchemaCompiler {
         for (ns_name, ns_ctx) in &schema.namespaces {
             for import in &ns_ctx.lock().await.imports {
                 let ref_ctx = import.value.as_ref_context();
-                if ref_ctx.package == schema.package.package.name
+                if ref_ctx.package == schema.package.package().name
                     && let Some(target_top) = ref_ctx.namespace.first()
                     && nodes.contains::<String>(target_top)
                 {
@@ -750,8 +751,8 @@ impl SchemaCompiler {
     }
 
     fn build_cache_key_for_schema(schema: &SchemaCtx) -> crate::Result<CacheKey> {
-        let package_name = normalize_import_to_package_name(&schema.package.package.name);
-        let version = schema.package.package.version.0.clone();
+        let package_name = normalize_import_to_package_name(&schema.package.package().name);
+        let version = schema.package.package().version.0.clone();
         Ok(CacheKey::new(package_name, version, None))
     }
 
@@ -764,7 +765,8 @@ impl SchemaCompiler {
                 let ref_ctx = import.value.as_ref_context();
                 let package = ref_ctx.package.clone();
 
-                if package != schema.package.package.name && seen_packages.insert(package.clone()) {
+                if package != schema.package.package().name && seen_packages.insert(package.clone())
+                {
                     imports.push(Import {
                         name: package,
                         resolved_id: None, // Will be resolved by build_dependencies()

@@ -8,6 +8,6 @@ fn main() {
             .show_table_of_contents(true)
             .title("Cli Reference".into());
         let md = clap_markdown::help_markdown_custom::<Cli>(&opts);
-        std::fs::write("docs/src/cli.md", md).unwrap();
+        std::fs::write("./cli.md", md).unwrap();
     }
 }

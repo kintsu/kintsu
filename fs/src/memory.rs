@@ -354,10 +354,15 @@ impl MemoryFileSystem {
 
         let all_files = fs.find_glob(&include, &exclude)?;
 
+        // Normalize root_path to handle "./path" vs "path" differences
+        let normalized_root = remove_relative(root_path);
+
         for file_path in all_files {
-            let relative_path = file_path
-                .strip_prefix(root_path)
-                .unwrap_or(&file_path);
+            // Normalize file_path as well for consistent comparison
+            let normalized_file = remove_relative(&file_path);
+            let relative_path = normalized_file
+                .strip_prefix(&normalized_root)
+                .unwrap_or(&normalized_file);
             let content = fs.read(&file_path).await?;
             memory_fs
                 .files
@@ -685,5 +690,98 @@ mod test {
                 .iter()
                 .any(|p| p.to_str() == Some("tests/test.rs"))
         );
+    }
+
+    #[tokio::test]
+    async fn test_extract_from_with_dot_slash_prefix() {
+        // Regression test: extract_from should normalize paths so that
+        // "./pkg-1/schema.toml" becomes "schema.toml" not "pkg-1/schema.toml"
+        let source_fs = memory! {
+            "pkg-1/schema.toml" => "version = \"v1\"\n[package]\nname = \"pkg-1\"",
+            "pkg-1/schema/lib.ks" => "namespace types;",
+        };
+
+        // Use "./" prefix like the CLI does
+        let extracted = MemoryFileSystem::extract_from(
+            &source_fs,
+            "./pkg-1",
+            &["/**/*.ks", "/schema.toml"],
+            &Vec::<String>::new(),
+        )
+        .await
+        .unwrap();
+
+        // Files should be stored WITHOUT the pkg-1 prefix
+        assert!(
+            extracted.exists_sync("schema.toml".as_ref()),
+            "schema.toml should exist at root, not pkg-1/schema.toml"
+        );
+        assert!(
+            extracted.exists_sync("schema/lib.ks".as_ref()),
+            "schema/lib.ks should exist, not pkg-1/schema/lib.ks"
+        );
+
+        // Verify the paths are NOT stored with the prefix
+        assert!(
+            !extracted.exists_sync("pkg-1/schema.toml".as_ref()),
+            "should not have pkg-1/ prefix"
+        );
+
+        // Verify content is correct
+        let content = extracted
+            .read_to_string_sync("schema.toml".as_ref())
+            .unwrap();
+        assert!(content.contains("pkg-1"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_from_without_dot_slash_prefix() {
+        // Test that extraction works without "./" prefix too
+        let source_fs = memory! {
+            "pkg-1/schema.toml" => "version = \"v1\"\n[package]\nname = \"pkg-1\"",
+            "pkg-1/schema/lib.ks" => "namespace types;",
+        };
+
+        // Use path without "./" prefix
+        let extracted = MemoryFileSystem::extract_from(
+            &source_fs,
+            "pkg-1",
+            &["/**/*.ks", "/schema.toml"],
+            &Vec::<String>::new(),
+        )
+        .await
+        .unwrap();
+
+        // Files should be stored WITHOUT the pkg-1 prefix
+        assert!(
+            extracted.exists_sync("schema.toml".as_ref()),
+            "schema.toml should exist at root"
+        );
+        assert!(
+            extracted.exists_sync("schema/lib.ks".as_ref()),
+            "schema/lib.ks should exist"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_from_nested_path() {
+        // Test extraction from deeply nested paths
+        let source_fs = memory! {
+            "a/b/c/file.txt" => "content",
+            "a/b/c/sub/nested.txt" => "nested content",
+        };
+
+        let extracted = MemoryFileSystem::extract_from(
+            &source_fs,
+            "./a/b/c",
+            &["/**/*.txt"],
+            &Vec::<String>::new(),
+        )
+        .await
+        .unwrap();
+
+        assert!(extracted.exists_sync("file.txt".as_ref()));
+        assert!(extracted.exists_sync("sub/nested.txt".as_ref()));
+        assert!(!extracted.exists_sync("a/b/c/file.txt".as_ref()));
     }
 }

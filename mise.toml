@@ -55,7 +55,7 @@ env.RUSTDOCFLAGS = "-Awarnings -Cinline-threshold=0 -Clink-dead-code -Coverflow-
 [tasks.compile-tape]
 run = ["vhs ../kintsu-docs/demos/compile.vhs.tape"]
 env.LOG_LEVEL = "error"
-
+env.KINTSU_REGISTRY_URL = "http://localhost:8000"
 
 [tools]
 bun = "latest"
@@ -64,3 +64,4 @@ cargo-insta = "latest"
 node = "latest"
 prek = "latest"
 uv = "latest"
+vhs = "latest"

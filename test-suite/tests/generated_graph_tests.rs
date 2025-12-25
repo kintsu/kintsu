@@ -28,6 +28,30 @@ async fn compile_linear_dependency_chain() {
 }
 
 #[tokio::test]
+async fn compile_linear_100_dependency_chain() {
+    let mut g = GraphGenerator::new();
+
+    let specs = g.generate(GraphPattern::Linear { depth: 100 });
+    let specs = g.create_root_with_dependencies(vec![specs]);
+
+    let mut fs = MemFs::new();
+    populate_fs(&mut fs, &specs);
+
+    let mut harness = TestHarness::with_metadata(
+        fs,
+        "compile_linear_100_dependency_chain",
+        "Linear 100 Dependency Chain",
+        "Test lockfile generation for a linear chain of dependencies (100 deep)",
+        true,
+        vec![Tag::Dependencies],
+    )
+    .with_root(g.root_package());
+
+    let ctx = harness.compile_pass().await;
+    harness.assert_lockfile_written();
+}
+
+#[tokio::test]
 async fn compile_diamond_dependencies() {
     let mut g = GraphGenerator::new();
     let specs = g.generate(GraphPattern::Diamond { layers: 2 });

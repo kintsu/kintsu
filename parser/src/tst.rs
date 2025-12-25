@@ -13,7 +13,7 @@ use crate::{
     tokens::{self, AstResult, IdentToken, ToTokens, tokenize},
 };
 use kintsu_manifests::{
-    package::{FileConfig, PackageManifest, PackageMeta},
+    package::{FileConfig, PackageManifest, PackageManifests, PackageMeta},
     version::{VersionSerde, parse_version},
 };
 pub use kintsu_testing::logging;
@@ -131,7 +131,7 @@ pub async fn resolver_with_checked(
 
     let registry = ns.registry.clone();
     let schema = SchemaCtx {
-        package: PackageManifest {
+        package: PackageManifests::V1(PackageManifest {
             package: PackageMeta {
                 name: "test_package".to_string(),
                 version: VersionSerde(parse_version("0.1.0").unwrap()),
@@ -145,7 +145,7 @@ pub async fn resolver_with_checked(
             },
             files: FileConfig::default(),
             dependencies: BTreeMap::new(),
-        },
+        }),
         namespaces: vec![("test".into(), Arc::new(Mutex::new(ns)))]
             .into_iter()
             .collect(),
@@ -211,7 +211,7 @@ pub async fn register_namespace_types(ns: NamespaceCtx) -> crate::Result<Arc<Mut
     let registry = ns.registry.clone();
 
     let schema = SchemaCtx {
-        package: PackageManifest {
+        package: PackageManifests::V1(PackageManifest {
             package: PackageMeta {
                 name: "test_package".to_string(),
                 version: VersionSerde(parse_version("0.1.0").unwrap()),
@@ -225,7 +225,7 @@ pub async fn register_namespace_types(ns: NamespaceCtx) -> crate::Result<Arc<Mut
             },
             files: FileConfig::default(),
             dependencies: BTreeMap::new(),
-        },
+        }),
         namespaces: vec![("test".into(), Arc::new(Mutex::new(ns)))]
             .into_iter()
             .collect(),

@@ -37,7 +37,8 @@ compiler_test! {
     root: "pkg-a",
     memory: || {
         memory! {
-            "pkg-a/schema.toml" => r#"[package]
+            "pkg-a/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg-a"
 version = "1.0.0"
 
@@ -76,7 +77,8 @@ compiler_test! {
         memory! {
             "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
             "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-            "pkg/schema.toml" => r#"[package]
+            "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -118,13 +120,13 @@ compiler_test! {
     root: "app",
     memory: || {
         memory! {
-            "lib/schema.toml" => r#"
+            "lib/schema.toml" => r#"version = "v1"
             [package]
             name = "lib"
             version = "2.0.0"
         "#,
             "lib/schema/lib.ks" => "namespace lib; namespace bar { struct Item { id: u64 }; };",
-            "pkg-a/schema.toml" => r#"
+            "pkg-a/schema.toml" => r#"version = "v1"
             [package]
             name = "pkg-a"
             version = "1.0.0"
@@ -133,7 +135,7 @@ compiler_test! {
             lib = { path = "../lib", version = "^1.0" }
         "#,
             "pkg-a/schema/lib.ks" => "namespace pkg_a; namespace foo { use lib;  type Foo = lib::bar::Item; };",
-            "pkg-b/schema.toml" => r#"
+            "pkg-b/schema.toml" => r#"version = "v1"
             [package]
             name = "pkg-b"
             version = "1.0.0"
@@ -142,7 +144,7 @@ compiler_test! {
             lib = { path = "../lib", version = "^2.0" }
         "#,
             "pkg-b/schema/lib.ks" => "namespace pkg_b; namespace baz { use lib; type Baz = lib::bar::Item; };",
-            "app/schema.toml" => r#"
+            "app/schema.toml" => r#"version = "v1"
             [package]
             name = "app"
             version = "1.0.0"

@@ -139,12 +139,32 @@ impl RegistryClient {
 
     pub async fn publish_compiled_package(
         &self,
-        mut manifest: kintsu_manifests::package::PackageManifest,
+        manifest: kintsu_manifests::package::PackageManifests,
         package_data: std::sync::Arc<dyn kintsu_fs::FileSystem>,
         root_path: impl AsRef<std::path::Path>,
     ) -> Result<(), Error> {
-        let package_name = manifest.package.name.clone();
+        self.publish_compiled_package_with_progress(
+            manifest,
+            package_data,
+            root_path,
+            kintsu_cli_core::ProgressManager::disabled(),
+        )
+        .await
+    }
 
+    pub async fn publish_compiled_package_with_progress(
+        &self,
+        mut manifest: kintsu_manifests::package::PackageManifests,
+        package_data: std::sync::Arc<dyn kintsu_fs::FileSystem>,
+        root_path: impl AsRef<std::path::Path>,
+        progress: kintsu_cli_core::ProgressManager,
+    ) -> Result<(), Error> {
+        let package_name = manifest.package().name.clone();
+
+        progress.println(
+            kintsu_cli_core::prefixes::PREPARING,
+            &format!("package {}...", package_name),
+        );
         manifest.prepare_publish()?;
 
         let package_data = kintsu_fs::memory::MemoryFileSystem::extract_from(
@@ -170,9 +190,27 @@ impl RegistryClient {
             "application/json".parse().unwrap(),
         );
 
+        progress.println(
+            kintsu_cli_core::prefixes::UPLOADING,
+            &format!("to {}...", self.base_url),
+        );
+
         let published = self
             .perform_authenticated::<kintsu_registry_core::models::Version>(request)
             .await?;
+
+        progress.println(
+            kintsu_cli_core::prefixes::PUBLISHED,
+            &format!(
+                "{}@{} → {}",
+                package_name,
+                published.qualified_version,
+                self.url(&format!(
+                    "/packages/{}/{}",
+                    package_name, published.qualified_version
+                ))
+            ),
+        );
 
         tracing::info!("Published {}@{}", package_name, published.qualified_version);
         tracing::info!(

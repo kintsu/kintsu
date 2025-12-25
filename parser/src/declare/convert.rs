@@ -51,7 +51,7 @@ impl CompileCtx {
         schema: &SchemaCtx,
         registry: &crate::ctx::registry::TypeRegistry,
     ) -> crate::Result<TypeRegistryDeclaration> {
-        let package_name = schema.package.package.name.clone();
+        let package_name = schema.package.package().name.clone();
         let mut external_refs = BTreeSet::new();
 
         let mut namespaces = BTreeMap::new();

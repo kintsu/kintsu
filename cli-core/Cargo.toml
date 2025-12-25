@@ -1,5 +1,5 @@
 [package]
-name = "kintsu-parser-core"
+name = "kintsu-cli-core"
 edition = "2024"
 version.workspace = true
 license-file.workspace = true
@@ -7,3 +7,6 @@ homepage.workspace = true
 authors.workspace = true
 
 [dependencies]
+clap = { workspace = true, features = ["derive"] }
+console = { workspace = true }
+indicatif = { workspace = true }

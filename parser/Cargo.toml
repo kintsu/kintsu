@@ -17,16 +17,15 @@ api = ["dep:utoipa"]
 db = ["dep:sea-orm", "dep:serde_json"]
 
 [dependencies]
+kintsu-cli-core = { path = "../cli-core" }
 kintsu-fs = { path = "../fs" }
 kintsu-manifests = { path = "../manifests" }
 bon = { workspace = true }
-console = { workspace = true }
 convert_case = { workspace = true }
 crossbeam = { workspace = true }
 dyn-inventory = { workspace = true }
 futures-util = { workspace = true }
 glob = { workspace = true }
-indicatif = { workspace = true }
 inventory = { workspace = true }
 logos = { workspace = true }
 miette = { workspace = true, features = ["fancy"] }

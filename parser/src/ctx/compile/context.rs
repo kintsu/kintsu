@@ -17,7 +17,7 @@ use super::{
     state::SharedCompilationState,
 };
 
-use super::progress::CompilationProgress;
+use kintsu_cli_core::ProgressManager;
 
 pub struct CompileCtx {
     pub root: Arc<SchemaCtx>,
@@ -31,7 +31,7 @@ pub struct CompileCtx {
     pub(super) cache: SchemaCache,
 
     pub(super) root_path: PathBuf,
-    pub(super) progress: CompilationProgress,
+    pub(super) progress: ProgressManager,
 }
 
 impl CompileCtx {
@@ -80,12 +80,19 @@ impl CompileCtx {
 
     pub async fn finalize(&self) -> crate::Result<()> {
         if self.should_write_lockfile().await {
-            let root_version = parse_version(&self.root.package.package.version.to_string())?;
+            let root_version = parse_version(
+                &self
+                    .root
+                    .package
+                    .package()
+                    .version
+                    .to_string(),
+            )?;
             LockfileManager::write_lockfile(
                 &self.state,
                 self.root_fs.clone(),
                 &self.root_path,
-                &self.root.package.package.name,
+                &self.root.package.package().name,
                 root_version,
             )
             .await?;
@@ -163,7 +170,7 @@ impl CompileCtx {
         max_concurrent_tasks: usize,
         show_progress: bool,
     ) -> crate::Result<Self> {
-        let progress = CompilationProgress::new(show_progress);
+        let progress = ProgressManager::new(show_progress);
         let registry = TypeRegistry::new();
 
         let pb = progress.add_spinner("Initializing");
@@ -228,7 +235,7 @@ impl CompileCtx {
         max_concurrent_tasks: usize,
         show_progress: bool,
     ) -> crate::Result<Self> {
-        let progress = CompilationProgress::new(show_progress);
+        let progress = ProgressManager::new(show_progress);
         let registry = TypeRegistry::new();
 
         let pb = progress.add_spinner("Initializing");
@@ -243,7 +250,7 @@ impl CompileCtx {
         let root =
             Arc::new(SchemaCtx::from_path(fs.as_ref(), entry_path_ref, registry.clone()).await?);
 
-        pb.finish_with_message(format!("completed {}", root.package.package.name));
+        pb.finish_with_message(format!("completed {}", root.package.package().name));
 
         let cache = SchemaCache::new();
 

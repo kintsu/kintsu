@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use kintsu_cli_core::WithProgressConfig;
 use kintsu_manifests::NewForConfig;
 
 #[derive(Default, clap::ValueEnum, Clone, Debug)]
@@ -52,55 +53,74 @@ impl Cli {
                     .await
             },
             Command::Check(args) => {
-                // we only need to initialize as we perform pre-checks at object creation
-                // let gen_conf = kintsu_core::generate::GenerationConfig::new(
-                //     args.config.config_dir.as_deref(),
-                // )?;
-                // let _ = kintsu_core::generate::Generation::new(gen_conf)?;
-                let p = kintsu_parser::ctx::CompileCtx::from_entry_point_with_progress(
+                let progress = args.progress.create_manager();
+
+                let ctx = kintsu_parser::ctx::CompileCtx::from_entry_point_with_progress(
                     args.config.config_dir.unwrap_or("./".into()),
-                    !args.no_progress,
+                    progress.is_enabled(),
                 )
                 .await
                 .map_err(|err| err.to_report(None, None, None))?;
 
-                p.finalize().await?;
+                ctx.finalize().await?;
 
+                progress.complete("compilation");
                 Ok(())
             },
             Command::Init(args) => Ok(kintsu_manifests::init(args.name, args.dir)?),
 
             Command::Fmt(args) => {
+                let progress = args.progress.create_manager();
                 let targets = kintsu_fs::match_paths::match_paths(&args.include, &args.exclude)?;
 
-                Ok(kintsu_parser::fmt::fmt(args.config.config_dir, targets, args.dry).await?)
+                kintsu_parser::fmt::fmt_with_progress(
+                    args.config.config_dir,
+                    targets,
+                    args.dry,
+                    progress.clone(),
+                )
+                .await?;
+
+                progress.complete("formatting");
+                Ok(())
             },
             Command::Registry { command } => {
                 match command {
                     RegistryCommand::Publish(opts) => {
+                        let progress = opts.progress.create_manager();
                         let root_dir = opts.config.config_dir.unwrap_or("./".into());
+
+                        // Phase 1: Compilation
                         let ctx = kintsu_parser::ctx::CompileCtx::from_entry_point_with_progress(
                             root_dir.clone(),
-                            !opts.no_progress,
+                            progress.is_enabled(),
                         )
                         .await
                         .map_err(|err| err.to_report(None, None, None))?;
 
                         ctx.finalize().await?;
 
+                        // Phase 2: Publishing
+                        progress.transition_phase("Publishing");
+
                         let client = kintsu_env_client::RegistryClient::new(
                             &opts.registry.base_url,
                             Some(opts.registry.token),
                         )?;
 
+                        let pkg_name = ctx.root.package.package().name.clone();
+                        let version = ctx.root.package.package().version.clone();
+
                         client
-                            .publish_compiled_package(
+                            .publish_compiled_package_with_progress(
                                 ctx.root.package.clone(),
                                 ctx.root_fs.clone(),
                                 root_dir.clone(),
+                                progress.clone(),
                             )
                             .await?;
 
+                        progress.complete(format!("published {}@{}", pkg_name, version));
                         Ok(())
                     },
                 }
@@ -137,7 +157,12 @@ enum Command {
 
 #[derive(clap::Args, Debug, Clone)]
 struct WithRegistry {
-    #[clap(short = 'r', long, help = "the base url of the registry.")]
+    #[clap(
+        short = 'r',
+        long,
+        env = "KINTSU_REGISTRY_URL",
+        help = "the base url of the registry."
+    )]
     base_url: String,
 
     #[clap(
@@ -158,6 +183,9 @@ struct WithConfig {
 struct GenArgs {
     #[clap(flatten)]
     config: WithConfig,
+
+    #[clap(flatten)]
+    progress: WithProgressConfig,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -165,8 +193,8 @@ struct CheckArgs {
     #[clap(flatten)]
     config: WithConfig,
 
-    #[clap(long, default_value_t = false, help = "disable compilation progress")]
-    no_progress: bool,
+    #[clap(flatten)]
+    progress: WithProgressConfig,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -185,6 +213,9 @@ struct InitArgs {
 struct FmtArgs {
     #[clap(flatten)]
     config: WithConfig,
+
+    #[clap(flatten)]
+    progress: WithProgressConfig,
 
     #[clap(
         long,
@@ -230,6 +261,6 @@ struct PublishArgs {
     #[clap(flatten)]
     registry: WithRegistry,
 
-    #[clap(long, default_value_t = false, help = "disable compilation progress")]
-    no_progress: bool,
+    #[clap(flatten)]
+    progress: WithProgressConfig,
 }

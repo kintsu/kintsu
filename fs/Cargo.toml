@@ -23,3 +23,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

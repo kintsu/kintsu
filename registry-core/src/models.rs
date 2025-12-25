@@ -69,9 +69,10 @@ pub struct ImportOrgRequest {
 pub struct PublishPackageRequest {
     // raw manifest file content - we need to get the meta from this + memory fs
     #[validate(nested)]
-    pub manifest: kintsu_manifests::package::PackageManifest,
+    pub manifest: kintsu_manifests::package::PackageManifests,
     pub package_data: kintsu_fs::memory::MemoryFileSystem,
 }
+
 impl PublishPackageRequest {
     pub fn validate_publishing_package_data(&self) -> std::result::Result<(), Vec<PackagingError>> {
         if self.package_data.list_files().is_empty() {
@@ -92,7 +93,7 @@ impl PublishPackageRequest {
                     let name = name.to_string_lossy();
                     let ext = ext.to_string_lossy();
 
-                    if name == kintsu_manifests::package::PackageManifest::NAME {
+                    if name == kintsu_manifests::package::PackageManifests::NAME {
                         has_manifest = true;
                     } else if name == "lib.ks" {
                         has_schema_lib = true;

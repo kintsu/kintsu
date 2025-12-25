@@ -45,12 +45,12 @@ impl StagePublishPackage {
         storage: std::sync::Arc<PackageStorage>,
 
         fs: kintsu_fs::memory::MemoryFileSystem,
-        manifest: kintsu_manifests::package::PackageManifest,
+        manifest: kintsu_manifests::package::PackageManifests,
 
         declarations: kintsu_parser::declare::DeclarationVersion,
         manifest_dependencies: Vec<i64>,
     ) -> Result<Version> {
-        let package = &manifest.package;
+        let package = manifest.package();
 
         let description = PathOrText::text_opt(package.description.as_ref(), &fs)?;
         let license = PathOrText::text_opt(package.license.as_ref(), &fs)?
@@ -164,11 +164,18 @@ impl StagePublishPackage {
             .await?)
     }
 
+    /// Resolve manifest dependencies to their version IDs in the database.
+    ///
+    /// This function uses semver matching - a dependency on `^1.0.0` will match
+    /// any published version satisfying that requirement (e.g., `1.0.0`, `1.2.3`).
+    /// For each dependency, the highest matching version is selected.
     pub async fn manifest_dependencies<C: sea_orm::ConnectionTrait>(
         db: &C,
         dependencies: &kintsu_manifests::package::NamedDependencies,
     ) -> Result<Vec<i64>> {
-        let mut deps_to_check = Vec::new();
+        use kintsu_manifests::version::VersionReqSerde;
+
+        let mut deps_to_check: Vec<(String, VersionReqSerde)> = Vec::new();
         let mut unresolved = vec![];
 
         for (name, dep) in dependencies {
@@ -199,20 +206,24 @@ impl StagePublishPackage {
             return Ok(vec![]);
         }
 
+        // Collect unique package names to query
+        let package_names: std::collections::HashSet<&str> = deps_to_check
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect();
+
         use sea_orm::Condition;
 
+        // Query all versions for required packages (filter by package name only)
         let mut conditions = Condition::any();
-        for (name, version) in &deps_to_check {
-            conditions = conditions.add(
-                Condition::all()
-                    .add(PackageColumn::Name.eq(name.as_str()))
-                    .add(VersionColumn::QualifiedVersion.eq(version.to_string())),
-            );
+        for name in &package_names {
+            conditions = conditions.add(PackageColumn::Name.eq(*name));
         }
 
-        let found_deps: Vec<(i64, String, String)> = VersionEntity::find()
+        let all_versions: Vec<(i64, String, VersionSerde)> = VersionEntity::find()
             .inner_join(PackageEntity)
             .filter(conditions)
+            .filter(VersionColumn::YankedAt.is_null()) // Exclude yanked versions
             .select_only()
             .column(VersionColumn::Id)
             .column(PackageColumn::Name)
@@ -221,18 +232,45 @@ impl StagePublishPackage {
             .all(db)
             .await?;
 
-        let found_set: std::collections::HashSet<(String, String)> = found_deps
-            .iter()
-            .map(|(_, name, ver)| (name.clone(), ver.clone()))
-            .collect();
+        // Group versions by package name
+        let mut versions_by_package: std::collections::HashMap<
+            String,
+            Vec<(i64, semver::Version)>,
+        > = std::collections::HashMap::new();
+        for (id, name, version) in all_versions {
+            versions_by_package
+                .entry(name)
+                .or_default()
+                .push((id, version.0));
+        }
 
+        // For each dependency, find the best matching version
+        let mut resolved_ids = Vec::new();
         let mut missing = vec![];
-        for (name, version) in &deps_to_check {
-            if !found_set.contains(&(name.to_string(), version.to_string())) {
-                missing.push(InvalidManifest::UnresolvedDependency {
-                    name: name.clone(),
-                    version: Some(version.clone()),
+
+        for (name, version_req) in &deps_to_check {
+            let matching_version = versions_by_package
+                .get(name)
+                .and_then(|versions| {
+                    // Find all versions matching the requirement
+                    let mut matching: Vec<_> = versions
+                        .iter()
+                        .filter(|(_, v)| version_req.matches(v))
+                        .collect();
+
+                    // Sort descending to get the highest matching version
+                    matching.sort_by(|a, b| b.1.cmp(&a.1));
+                    matching.first().map(|(id, _)| *id)
                 });
+
+            match matching_version {
+                Some(id) => resolved_ids.push(id),
+                None => {
+                    missing.push(InvalidManifest::UnresolvedDependency {
+                        name: name.clone(),
+                        version: Some(version_req.clone()),
+                    })
+                },
             }
         }
 
@@ -240,10 +278,7 @@ impl StagePublishPackage {
             return Err(InvalidManifest::UnresolvedDependencies { sources: missing }.into());
         }
 
-        Ok(found_deps
-            .into_iter()
-            .map(|(version_id, _, _)| version_id)
-            .collect())
+        Ok(resolved_ids)
     }
 }
 

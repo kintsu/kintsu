@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "core", "derives", "env", "env-client", "examples/*", "fs", "manifests", "parser", "parser-core", "registry", "registry-auth", "registry-core", "registry-db", "registry-events", "registry-storage", "sdk", "test-macros", "test-suite", "testing"]
+members = ["cli", "cli-core", "core", "derives", "env", "env-client", "examples/*", "fs", "manifests", "parser", "registry", "registry-auth", "registry-core", "registry-db", "registry-events", "registry-storage", "sdk", "test-macros", "test-suite", "testing"]
 resolver = "3"
 
 [workspace.package]

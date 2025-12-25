@@ -16,6 +16,7 @@ name = "kintsu"
 name = "emit"
 
 [dependencies]
+kintsu-cli-core = { path = "../cli-core" }
 kintsu-core = { path = "../core", features = ["generate", "chrono", "time"] }
 kintsu-env-client = { path = "../env-client" }
 kintsu-fs = { path = "../fs" }

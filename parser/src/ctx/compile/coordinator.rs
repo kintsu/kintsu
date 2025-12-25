@@ -12,22 +12,23 @@ use crate::ctx::{cache::SchemaCache, registry::TypeRegistry};
 
 use super::{
     loader::{CompilationTask, DependencyTaskResult},
-    progress::CompilationProgress,
     state::SharedCompilationState,
 };
+
+use kintsu_cli_core::ProgressManager;
 
 #[derive(Clone)]
 pub(super) struct CoordinatorState {
     pending_tasks: Arc<AtomicUsize>,
     errors: Arc<Mutex<Vec<crate::Error>>>,
     state: Arc<RwLock<SharedCompilationState>>,
-    progress: CompilationProgress,
+    progress: ProgressManager,
 }
 
 impl CoordinatorState {
     pub fn new(
         state: Arc<RwLock<SharedCompilationState>>,
-        progress: CompilationProgress,
+        progress: ProgressManager,
     ) -> Self {
         Self {
             pending_tasks: Arc::new(AtomicUsize::new(0)),
@@ -73,7 +74,7 @@ impl CoordinatorState {
         &self.state
     }
 
-    pub fn progress(&self) -> &CompilationProgress {
+    pub fn progress(&self) -> &ProgressManager {
         &self.progress
     }
 }

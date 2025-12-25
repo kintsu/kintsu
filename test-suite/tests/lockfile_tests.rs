@@ -13,7 +13,8 @@ compiler_test! {
         memory! {
                 "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
                 "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-                "pkg/schema.toml" => r#"[package]
+                "pkg/schema.toml" => r#"version = "v1"
+        [package]
         name = "pkg"
         version = "1.0.0"
 
@@ -42,7 +43,8 @@ async fn test_lockfile_02_unchanged_no_rewrite() {
     let fs = memory! {
         "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
         "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-        "pkg/schema.toml" => r#"[package]
+        "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -79,17 +81,20 @@ dep = { path = "../dep" }
 #[tokio::test]
 async fn test_lockfile_03_dependency_added() {
     let fs = memory! {
-        "dep-a/schema.toml" => r#"[package]
+        "dep-a/schema.toml" => r#"version = "v1"
+[package]
 name = "dep-a"
 version = "1.0.0"
 "#,
         "dep-a/schema/lib.ks" => "namespace dep_a;\nnamespace types { struct A { value: str }; };",
-        "dep-b/schema.toml" => r#"[package]
+        "dep-b/schema.toml" => r#"version = "v1"
+[package]
 name = "dep-b"
 version = "1.0.0"
 "#,
         "dep-b/schema/lib.ks" => "namespace dep_b;\nnamespace types { struct B { count: i32 }; };",
-        "pkg/schema.toml" => r#"[package]
+        "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -114,7 +119,8 @@ dep-a = { path = "../dep-a" }
     // Add second dependency to manifest and usage
     harness.add_text_file(
         "pkg/schema.toml",
-        r#"[package]
+        r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -153,12 +159,14 @@ compiler_test! {
     root: "pkg",
     memory: || {
         memory! {
-            "lib/schema.toml" => r#"[package]
+            "lib/schema.toml" => r#"version = "v1"
+[package]
 name = "lib"
 version = "1.5.0"
 "#,
             "lib/schema/lib.ks" => "namespace lib;\nnamespace types { struct Item { id: u64 }; };",
-            "pkg/schema.toml" => r#"[package]
+            "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 
@@ -252,7 +260,8 @@ async fn test_operation_02_with_dependency_analysis() {
     let fs = memory! {
         "dep/schema.toml" => include_str!("../fragments/dep_manifest.toml"),
         "dep/schema/lib.ks" => include_str!("../fragments/dep_lib.ks"),
-        "pkg/schema.toml" => r#"[package]
+        "pkg/schema.toml" => r#"version = "v1"
+[package]
 name = "pkg"
 version = "1.0.0"
 

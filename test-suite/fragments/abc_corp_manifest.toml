@@ -1,3 +1,5 @@
+version = "v1"
+
 [package]
 name = "abc-corp"
 version = "1.0.0"

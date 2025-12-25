@@ -500,7 +500,7 @@ pub async fn publish_package(
 
     let deps = kintsu_registry_db::engine::package::StagePublishPackage::manifest_dependencies(
         conn.as_ref(),
-        &request.manifest.dependencies,
+        request.manifest.dependencies(),
     )
     .await?;
 
