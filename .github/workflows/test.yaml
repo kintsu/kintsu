@@ -22,6 +22,7 @@ jobs:
   test:
     name: Test
     runs-on: ${{ matrix.runner }}
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'dependabot') }}
     strategy:
       fail-fast: false
       matrix:
