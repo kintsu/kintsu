@@ -14,12 +14,17 @@ impl TestS3Ctx {
     pub async fn new() -> Self {
         let container = GenericImage::new("rustfs/rustfs", "latest")
             .with_exposed_port(9000.tcp())
+            .with_exposed_port(9001.tcp())
             .with_wait_for(WaitFor::message_on_stdout("localhost"))
-            .with_env_var("RUSTFS_ACCESS_KEY", "foobarbaz")
-            .with_env_var("RUSTFS_SECRET_KEY", "bazbarfoo")
-            .with_env_var("RUSTFS_LOG_LEVEL", "info")
             .with_env_var("RUSTFS_ADDRESS", "0.0.0.0:9000")
+            .with_env_var("RUSTFS_CONSOLE_ADDRESS", "0.0.0.0:9001")
+            .with_env_var("RUSTFS_CONSOLE_ENABLE", "true")
             .with_env_var("RUSTFS_EXTERNAL_ADDRESS", ":9000")
+            .with_env_var("RUSTFS_CORS_ALLOWED_ORIGINS", "*")
+            .with_env_var("RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS", "*")
+            .with_env_var("RUSTFS_ACCESS_KEY", "rustfsadmin")
+            .with_env_var("RUSTFS_SECRET_KEY", "rustfsadmin")
+            .with_env_var("RUSTFS_LOG_LEVEL", "info")
             .start()
             .await
             .expect("Failed to start rustfs");
@@ -33,8 +38,8 @@ impl TestS3Ctx {
             endpoint: format!("http://127.0.0.1:{host_port}"),
             bucket: "test-bucket".to_string(),
             region: "ca-central-1".to_string(),
-            access_key_id: "foobarbaz".into(),
-            secret_access_key: "bazbarfoo".into(),
+            access_key_id: "rustfsadmin".into(),
+            secret_access_key: "rustfsadmin".into(),
         };
 
         let client = crate::s3::S3Storage::<()>::new(&conf).await;
