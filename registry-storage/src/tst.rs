@@ -11,6 +11,7 @@ pub struct TestS3Ctx {
 }
 
 impl TestS3Ctx {
+    // https://github.com/rustfs/rustfs/issues/1236
     const TAG: &'static str =
         "sha256:8e467b32af3ff83e70c70dddb0c36b5e611f46e89a3075db8770aea4f30b2fe3";
 
