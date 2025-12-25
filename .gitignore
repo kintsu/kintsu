@@ -9,6 +9,8 @@ test-suite/*.json
 
 .github/workflows/docker-release-registry.yaml
 
+junit.xml
+
 timings.json
 
 /lcov-viewer

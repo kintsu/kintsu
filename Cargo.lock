@@ -3802,7 +3802,7 @@ dependencies = [
 name = "kintsu-derives"
 version = "0.1.0"
 dependencies = [
- "convert_case 0.8.0",
+ "convert_case 0.10.0",
  "darling 0.23.0",
  "glob",
  "kintsu-core",
