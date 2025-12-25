@@ -30,7 +30,7 @@ run = [
 
 [tasks.junit]
 run = [
-    '[[ "$NEXTEST_PROFILE" = "ci" ]] && cp target/nextest/ci/junit.xml ./junit.xml || cp target/nextest/default/junit.xml ./junit.xml'
+    'if [ "$NEXTEST_PROFILE" = "ci" ]; then cp target/nextest/ci/junit.xml ./junit.xml; else cp target/nextest/default/junit.xml ./junit.xml; fi'
 ]
 
 
