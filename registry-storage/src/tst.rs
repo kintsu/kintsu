@@ -11,8 +11,11 @@ pub struct TestS3Ctx {
 }
 
 impl TestS3Ctx {
+    const TAG: &'static str =
+        "sha256:8e467b32af3ff83e70c70dddb0c36b5e611f46e89a3075db8770aea4f30b2fe3";
+
     pub async fn new() -> Self {
-        let container = GenericImage::new("rustfs/rustfs", "latest")
+        let container = GenericImage::new("rustfs/rustfs", Self::TAG)
             .with_exposed_port(9000.tcp())
             .with_exposed_port(9001.tcp())
             .with_wait_for(WaitFor::message_on_stdout("localhost"))
