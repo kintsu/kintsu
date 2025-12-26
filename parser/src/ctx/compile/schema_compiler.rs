@@ -1,17 +1,27 @@
-use std::sync::Arc;
-
-use kintsu_cli_core::ProgressBar;
-use pathfinding::prelude::*;
+use super::super::resolve::TypeResolver;
 
 use crate::{
+    ast::{ty::Type, variadic::Variant},
     ctx::{
         SchemaCtx,
         cache::CacheKey,
-        common::{Definition, NamespaceChild},
+        common::{Definition, NamespaceChild, WithSource},
         compile::utils::{normalize_import_to_package_name, normalize_package_to_import_name},
-        graph::schemas::{Import, SchemaDependencyGraph},
+        graph::{
+            TypeExtractor,
+            schemas::{Import, SchemaDependencyGraph},
+        },
+        resolve::helpers::build_struct_def_from_anonymous,
     },
-    tokens::ToTokens,
+    defs::Spanned,
+    tokens::{IdentToken, ToTokens},
+};
+use convert_case::{Case, Casing};
+use kintsu_cli_core::ProgressBar;
+use pathfinding::prelude::*;
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    sync::Arc,
 };
 
 async fn run_in_group<
@@ -365,8 +375,6 @@ impl SchemaCompiler {
         ns_name: &str,
         resolution_bar: &ProgressBar,
     ) -> crate::Result<()> {
-        use super::super::resolve::TypeResolver;
-
         tracing::debug!("Starting TypeResolver");
 
         let ns = schema
@@ -426,8 +434,6 @@ impl SchemaCompiler {
     }
 
     async fn namespace_levels(schema: &SchemaCtx) -> Vec<Vec<String>> {
-        use std::collections::{BTreeMap, BTreeSet, VecDeque};
-
         let mut nodes: BTreeSet<String> = BTreeSet::new();
         let mut adj: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut indegree: BTreeMap<String, usize> = BTreeMap::new();
@@ -526,12 +532,13 @@ impl SchemaCompiler {
                 }
             })?;
 
+        Self::extract_anonymous_structs(ns_ctx).await?;
+
         tracing::trace!(
             child_count = ns_ctx.lock().await.children.len(),
             "Namespace context retrieved"
         );
 
-        use crate::ctx::graph::TypeExtractor;
         let ns = ns_ctx.lock().await;
         let type_graph = TypeExtractor::extract_from_namespace(&ns, &ns.ctx);
         drop(ns);
@@ -748,6 +755,160 @@ impl SchemaCompiler {
         tracing::trace!("type registration successful");
 
         Ok(())
+    }
+
+    /// Extract anonymous structs from type definitions before type registration.
+    /// This includes:
+    /// - LocalStruct variants from oneofs/errors: {ParentName}{VariantName} per RFC-0008
+    /// - Anonymous structs in struct fields: {StructName}{FieldName} in PascalCase
+    /// This must happen BEFORE type graph extraction so the structs are visible during type registration.
+    async fn extract_anonymous_structs(
+        ns_ctx: &tokio::sync::Mutex<crate::ctx::NamespaceCtx>
+    ) -> crate::Result<()> {
+        let mut extracted = Vec::new();
+
+        {
+            let ns = ns_ctx.lock().await;
+
+            for (item_ctx, child) in &ns.children {
+                match &child.value {
+                    // Extract LocalStruct variants from oneofs and errors
+                    NamespaceChild::OneOf(oneof_def) => {
+                        let parent_name = item_ctx.name.borrow_string().clone();
+                        for variant in &oneof_def.def.value.variants.values {
+                            if let Variant::LocalStruct { name, inner, .. } = &variant.value.value {
+                                let variant_name = name.borrow_string().clone();
+                                let struct_name = format!("{}{}", parent_name, variant_name);
+
+                                tracing::trace!(
+                                    parent = %parent_name,
+                                    variant = %variant_name,
+                                    struct_name = %struct_name,
+                                    "Extracting LocalStruct variant to named struct"
+                                );
+
+                                let struct_def = build_struct_def_from_anonymous(
+                                    struct_name.clone(),
+                                    inner.value.clone(),
+                                    child.source.clone(),
+                                );
+
+                                let new_item_ctx = ns
+                                    .ctx
+                                    .item(Spanned::call_site(IdentToken::new(struct_name)));
+
+                                extracted.push((new_item_ctx, struct_def));
+                            }
+                        }
+                    },
+                    NamespaceChild::Error(error_def) => {
+                        let parent_name = item_ctx.name.borrow_string().clone();
+                        for variant in &error_def.def.value.variants.values {
+                            if let Variant::LocalStruct { name, inner, .. } = &variant.value.value {
+                                let variant_name = name.borrow_string().clone();
+                                let struct_name = format!("{}{}", parent_name, variant_name);
+
+                                tracing::trace!(
+                                    parent = %parent_name,
+                                    variant = %variant_name,
+                                    struct_name = %struct_name,
+                                    "Extracting LocalStruct variant from error to named struct"
+                                );
+
+                                let struct_def = build_struct_def_from_anonymous(
+                                    struct_name.clone(),
+                                    inner.value.clone(),
+                                    child.source.clone(),
+                                );
+
+                                let new_item_ctx = ns
+                                    .ctx
+                                    .item(Spanned::call_site(IdentToken::new(struct_name)));
+
+                                extracted.push((new_item_ctx, struct_def));
+                            }
+                        }
+                    },
+                    // Extract anonymous structs from struct fields
+                    NamespaceChild::Struct(struct_def) => {
+                        let parent_name = item_ctx.name.borrow_string().clone();
+                        Self::extract_anonymous_from_struct_fields(
+                            &ns,
+                            &parent_name,
+                            &struct_def.def.value.args.values,
+                            &child.source,
+                            &mut extracted,
+                        );
+                    },
+                    _ => {},
+                }
+            }
+        }
+
+        // Insert extracted structs into namespace children
+        if !extracted.is_empty() {
+            let mut ns = ns_ctx.lock().await;
+            for (item_ctx, struct_def) in extracted {
+                tracing::trace!(
+                    struct_name = %item_ctx.name.borrow_string(),
+                    "Registering extracted anonymous struct as namespace child"
+                );
+                let child = NamespaceChild::Struct(struct_def.value);
+                ns.children
+                    .insert(item_ctx, child.with_source(struct_def.source));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Recursively extract anonymous structs from struct fields.
+    fn extract_anonymous_from_struct_fields(
+        ns: &crate::ctx::NamespaceCtx,
+        context: &str,
+        fields: &[crate::tokens::RepeatedItem<crate::ast::strct::Arg, crate::Token![,]>],
+        source: &std::path::PathBuf,
+        extracted: &mut Vec<(
+            crate::ctx::NamedItemContext,
+            crate::ctx::common::FromNamedSource<crate::ast::items::StructDef>,
+        )>,
+    ) {
+        for field in fields {
+            let field_name = field.value.name.borrow_string().clone();
+
+            if let Type::Struct { ty } = &field.value.typ {
+                // Generate name: {Context}_{FieldName} -> PascalCase
+                let struct_name = format!("{}_{}", context, field_name).to_case(Case::Pascal);
+
+                tracing::trace!(
+                    context = %context,
+                    field = %field_name,
+                    struct_name = %struct_name,
+                    "Extracting anonymous struct from field"
+                );
+
+                let struct_def = build_struct_def_from_anonymous(
+                    struct_name.clone(),
+                    ty.value.clone(),
+                    source.clone(),
+                );
+
+                let new_item_ctx = ns
+                    .ctx
+                    .item(Spanned::call_site(IdentToken::new(struct_name.clone())));
+
+                extracted.push((new_item_ctx, struct_def));
+
+                // Recursively extract from the nested struct's fields
+                Self::extract_anonymous_from_struct_fields(
+                    ns,
+                    &struct_name,
+                    &ty.value.fields.value.values,
+                    source,
+                    extracted,
+                );
+            }
+        }
     }
 
     fn build_cache_key_for_schema(schema: &SchemaCtx) -> crate::Result<CacheKey> {

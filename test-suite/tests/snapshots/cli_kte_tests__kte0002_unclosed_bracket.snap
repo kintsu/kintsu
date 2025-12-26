@@ -1,0 +1,17 @@
+---
+source: test-suite/tests/cli_kte_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected ], found end of token stream
+   ╭─[./tmp/cli_test_kte0002_unclosed_bracket/pkg/schema/types.ks:8:41]
+ 3 │ struct User {
+ 4 │     id: u64,
+ 5 │     name: str
+ 6 │ };
+ 7 │ 
+ 8 │ type PartialUser = Pick[User, id | name;
+   ·                                         ┬
+   ·                                         ╰── unknown lexing error: expected ], found end of token stream
+   ╰────

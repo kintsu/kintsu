@@ -96,6 +96,17 @@ mod tests {
         }; "parses simple type alias"
     )]
     #[test_case::test_case(
+        "type Combined = A &| B;", |kinds| {
+            assert!(matches!(kinds[0], Token::KwType));
+            assert!(matches!(kinds[1], Token::Ident(s) if s == "Combined"));
+            assert!(matches!(kinds[2], Token::Eq));
+            assert!(matches!(kinds[3], Token::Ident(s) if s == "A"));
+            assert!(matches!(kinds[4], Token::AmpPipe));
+            assert!(matches!(kinds[5], Token::Ident(s) if s == "B"));
+            assert!(matches!(kinds[6], Token::Semi));
+        }; "parses union or type alias"
+    )]
+    #[test_case::test_case(
         "#[version(1)]", |kinds| {
             assert!(matches!(kinds[0], Token::Hash));
             assert!(matches!(kinds[1], Token::LBracket));

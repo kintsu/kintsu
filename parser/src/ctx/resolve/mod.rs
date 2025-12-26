@@ -2,6 +2,9 @@ pub(super) mod aliases;
 pub(super) mod anonymous;
 pub(super) mod helpers;
 pub(super) mod metadata;
+pub(super) mod tagging;
+pub(super) mod type_expr;
+pub(super) mod union_or;
 pub(super) mod unions;
 pub(super) mod validation;
 
@@ -82,13 +85,27 @@ impl TypeResolver {
     }
 
     pub async fn resolve(mut self) -> crate::Result<NamespaceResolution> {
+        // Phase 1: Extract anonymous structs
         self.anonymous_structs().await?;
+        // Phase 2: Identify union types
         self.identify_unions().await?;
+        // Phase 3: Resolve type aliases
         self.resolve_type_aliases().await?;
+        // Phase 3.5: Resolve union or compositions (RFC-0016)
+        self.resolve_union_or().await?;
+        // Phase 3.6: Resolve type expressions (RFC-0018)
+        self.resolve_type_expressions().await?;
+        // Phase 4: Validate unions
         self.validate_unions().await?;
+        // Phase 4.5: Validate tagging (RFC-0017)
+        self.validate_tagging().await?;
+        // Phase 5: Merge unions into structs
         self.merge_unions().await?;
+        // Phase 6: Resolve versions
         self.resolve_versions().await?;
+        // Phase 7: Resolve error types
         self.resolve_error_types().await?;
+        // Phase 8: Validate all references
         self.validate_all_references().await?;
 
         Ok(self.resolution)

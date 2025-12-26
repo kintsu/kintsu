@@ -4,10 +4,120 @@ use crate::{
     bail_unchecked,
     defs::Spanned,
     tokens::{
-        self, BangToken, Bracket, HashToken, IdentToken, Paren, Parse, Peek, ToTokens, bracket,
-        paren,
+        self, BangToken, Bracket, EqToken, HashToken, IdentToken, Paren, Parse, Peek, ToTokens,
+        bracket, paren,
     },
 };
+
+/// Raw content for `#[tag(...)]` attributes.
+/// Parses the content inside the parentheses as comma-separated key-value pairs.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct RawTagContent {
+    /// Parsed tag arguments, either keywords or key=value pairs
+    pub args: Vec<TagArg>,
+}
+
+/// A single argument in a tag attribute.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum TagArg {
+    /// Simple keyword: `external`, `untagged`, `index`, `type_hint`
+    Keyword(Spanned<IdentToken>),
+    /// Key-value pair with string: `name = "kind"`
+    StringValue {
+        key: Spanned<IdentToken>,
+        eq: Spanned<EqToken>,
+        value: Spanned<crate::tokens::StringToken>,
+    },
+    /// Key-value pair with bool: `type_hint = false`
+    BoolValue {
+        key: Spanned<IdentToken>,
+        eq: Spanned<EqToken>,
+        value: Spanned<IdentToken>,
+    },
+}
+
+impl Peek for RawTagContent {
+    fn peek(stream: &crate::tokens::TokenStream) -> bool {
+        // Tag content can start with an identifier (keyword or key)
+        stream.peek::<IdentToken>()
+    }
+}
+
+impl Parse for RawTagContent {
+    fn parse(stream: &mut crate::tokens::TokenStream) -> Result<Self, crate::tokens::LexingError> {
+        let mut args = vec![];
+
+        while stream.peek::<IdentToken>() {
+            let ident: Spanned<IdentToken> = stream.parse()?;
+
+            // Check if this is key=value or just a keyword
+            if stream.peek::<EqToken>() {
+                let eq: Spanned<EqToken> = stream.parse()?;
+
+                // Value can be string or bool identifier (true/false)
+                if stream.peek::<crate::tokens::StringToken>() {
+                    let value: Spanned<crate::tokens::StringToken> = stream.parse()?;
+                    args.push(TagArg::StringValue {
+                        key: ident,
+                        eq,
+                        value,
+                    });
+                } else {
+                    // Must be bool identifier (true/false) or another keyword
+                    let value: Spanned<IdentToken> = stream.parse()?;
+                    args.push(TagArg::BoolValue {
+                        key: ident,
+                        eq,
+                        value,
+                    });
+                }
+            } else {
+                // Just a keyword
+                args.push(TagArg::Keyword(ident));
+            }
+
+            // Consume optional comma separator
+            if stream.peek::<crate::tokens::CommaToken>() {
+                let _: Spanned<crate::tokens::CommaToken> = stream.parse()?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(Self { args })
+    }
+}
+
+impl ToTokens for RawTagContent {
+    fn write(
+        &self,
+        tt: &mut crate::fmt::Printer,
+    ) {
+        for (i, arg) in self.args.iter().enumerate() {
+            if i > 0 {
+                tt.word(", ");
+            }
+            match arg {
+                TagArg::Keyword(k) => tt.write(k),
+                TagArg::StringValue { key, value, .. } => {
+                    tt.write(key);
+                    tt.word(" = ");
+                    tt.write(value);
+                },
+                TagArg::BoolValue { key, value, .. } => {
+                    tt.write(key);
+                    tt.word(" = ");
+                    tt.write(value);
+                },
+            }
+        }
+    }
+}
+
+/// Type alias for raw tag meta parsing
+pub type RawTagMeta = Meta<RawTagContent>;
+/// Type alias for rename meta - takes a single string argument
+pub type RawRenameMeta = Meta<crate::tokens::StringToken>;
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct Meta<Value: Parse> {
@@ -116,6 +226,12 @@ impl ErrorMeta {
 pub enum ItemMetaItem {
     Version(VersionMeta),
     Error(ErrorMeta),
+    /// Tagging attribute: `#[tag(...)]` or `#![tag(...)]`
+    /// Full parsing support added in Phase 3 (Tagging implementation)
+    Tag(TagMeta),
+    /// Rename attribute: `#[rename("name")]`
+    /// Full parsing support added in Phase 3 (Tagging implementation)
+    Rename(RenameMeta),
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -139,44 +255,146 @@ impl Parse for ItemMeta {
     fn parse(stream: &mut tokens::TokenStream) -> Result<Self, tokens::LexingError> {
         let mut meta = vec![];
         loop {
-            if stream.peek::<IntMeta>() {
-                let this: Spanned<IntMeta> = stream.parse()?;
-                match this.name.borrow_string().as_ref() {
-                    "version" => meta.push(ItemMetaItem::Version(this)),
-                    unknown => {
-                        return Err(crate::LexingError::unknown_meta(
-                            vec!["version"],
-                            unknown.into(),
-                            &this.name.span,
-                        ));
-                    },
-                }
-            } else if stream.peek::<StrMeta>() {
-                let this: Spanned<StrMeta> = stream.parse()?;
-                return Err(crate::LexingError::unknown_meta(
-                    vec!["<placeholder>"],
-                    this.name.borrow_string().into(),
-                    &this.name.span,
-                ));
-            } else if stream.peek::<IdentMeta>() {
-                let this: Spanned<IdentMeta> = stream.parse()?;
-                match this.name.borrow_string().as_ref() {
-                    "err" => meta.push(ItemMetaItem::Error(this)),
-                    unknown => {
-                        return Err(crate::LexingError::unknown_meta(
-                            vec!["err"],
-                            unknown.into(),
-                            &this.name.span,
-                        ));
-                    },
-                }
-            } else {
+            // Check if this looks like a meta attribute (starts with #)
+            if !stream.peek::<HashToken>() {
                 break;
+            }
+
+            // Peek at the attribute name to decide how to parse
+            let meta_name = peek_meta_name(stream);
+
+            match meta_name.as_deref() {
+                Some("version") => {
+                    let this: Spanned<IntMeta> = stream.parse()?;
+                    meta.push(ItemMetaItem::Version(this));
+                },
+                Some("err") => {
+                    let this: Spanned<IdentMeta> = stream.parse()?;
+                    meta.push(ItemMetaItem::Error(this));
+                },
+                Some("tag") => {
+                    let raw: Spanned<RawTagMeta> = stream.parse()?;
+                    let tag_attr = parse_tag_content(&raw.value.value)?;
+                    let tag_meta =
+                        Spanned::new(raw.span.span().start, raw.span.span().end, tag_attr);
+                    meta.push(ItemMetaItem::Tag(tag_meta));
+                },
+                Some("rename") => {
+                    let raw: Spanned<StrMeta> = stream.parse()?;
+                    let rename_attr = RenameAttribute {
+                        name: raw.value.value.borrow_string().to_string(),
+                    };
+                    let rename_meta =
+                        Spanned::new(raw.span.span().start, raw.span.span().end, rename_attr);
+                    meta.push(ItemMetaItem::Rename(rename_meta));
+                },
+                Some(unknown) => {
+                    // Consume the meta using RawTagMeta which is most permissive
+                    let raw: Spanned<RawTagMeta> = stream.parse()?;
+                    return Err(crate::LexingError::unknown_meta(
+                        vec!["version", "err", "tag", "rename"],
+                        unknown.into(),
+                        &raw.name.span,
+                    ));
+                },
+                None => break,
             }
         }
 
         Ok(Self { meta })
     }
+}
+
+/// Peek at the name of a meta attribute without consuming
+fn peek_meta_name(stream: &tokens::TokenStream) -> Option<String> {
+    let mut stream = stream.fork();
+    // Skip # and optional !
+    let _: Spanned<HashToken> = stream.parse().ok()?;
+    let _: Option<Spanned<BangToken>> = Option::parse(&mut stream).ok()?;
+    // Parse [ ... ]
+    let mut bracket;
+    let _ = bracket!(bracket in stream; None);
+    // Get the name
+    let name: Spanned<IdentToken> = bracket.parse().ok()?;
+    Some(name.borrow_string().to_string())
+}
+
+/// Parse RawTagContent into TagAttribute per RFC-0017 syntax
+fn parse_tag_content(content: &RawTagContent) -> Result<TagAttribute, crate::LexingError> {
+    let mut style = TagStyle::TypeHint;
+    let mut type_hint = true;
+    let mut name_field: Option<String> = None;
+    let mut content_field: Option<String> = None;
+    let mut is_index = false;
+
+    for arg in &content.args {
+        match arg {
+            TagArg::Keyword(kw) => {
+                let kw_str = kw.borrow_string();
+                match kw_str.as_ref() {
+                    "external" => style = TagStyle::External,
+                    "untagged" => {
+                        style = TagStyle::Untagged;
+                        type_hint = false;
+                    },
+                    "index" => is_index = true,
+                    "type_hint" => {}, // Default, just confirming
+                    _ => {
+                        // Unknown keyword in tag - use unknown_meta error
+                        return Err(crate::LexingError::unknown_meta(
+                            vec!["external", "untagged", "index", "type_hint"],
+                            kw_str.to_string(),
+                            &kw.span,
+                        ));
+                    },
+                }
+            },
+            TagArg::StringValue { key, value, .. } => {
+                let key_str = key.borrow_string();
+                let val_str = value.borrow_string().to_string();
+                match key_str.as_ref() {
+                    "name" => name_field = Some(val_str),
+                    "content" => content_field = Some(val_str),
+                    _ => {
+                        return Err(crate::LexingError::unknown_meta(
+                            vec!["name", "content"],
+                            key_str.to_string(),
+                            &key.span,
+                        ));
+                    },
+                }
+            },
+            TagArg::BoolValue { key, value, .. } => {
+                let key_str = key.borrow_string();
+                let val_str = value.borrow_string();
+                match key_str.as_ref() {
+                    "type_hint" => {
+                        type_hint = val_str == "true";
+                    },
+                    _ => {
+                        return Err(crate::LexingError::unknown_meta(
+                            vec!["type_hint"],
+                            key_str.to_string(),
+                            &key.span,
+                        ));
+                    },
+                }
+            },
+        }
+    }
+
+    // Determine final style based on parsed args
+    if is_index {
+        style = TagStyle::Index { name: name_field };
+    } else if let Some(name) = name_field {
+        if let Some(content) = content_field {
+            style = TagStyle::Adjacent { name, content };
+        } else {
+            style = TagStyle::Internal { name };
+        }
+    }
+
+    Ok(TagAttribute { style, type_hint })
 }
 
 impl ToTokens for ItemMetaItem {
@@ -187,6 +405,8 @@ impl ToTokens for ItemMetaItem {
         match self {
             ItemMetaItem::Version(m) => tt.write(m),
             ItemMetaItem::Error(m) => tt.write(m),
+            ItemMetaItem::Tag(m) => m.write(tt),
+            ItemMetaItem::Rename(m) => m.write(tt),
         }
     }
 }
@@ -202,14 +422,140 @@ impl ToTokens for ItemMeta {
     }
 }
 
+// Variant Tagging Support per RFC-0017, SPEC-0016, TSY-0013
+/// Tag style for variant types (oneof, error).
+///
+/// Controls how discriminated unions are serialized with type identifiers.
+/// Per SPEC-0016 Section "Parsed AST representation".
+///
+/// **Spec references:** RFC-0017, SPEC-0016, TSY-0013
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(tag = "style", rename_all = "snake_case")]
+pub enum TagStyle {
+    /// Type hint tagging (default) - untagged + @kintsu discriminator field.
+    /// This is the global default when no `#[tag(...)]` is specified.
+    #[default]
+    TypeHint,
+
+    /// External tagging: `{ "variant_name": { ...fields... } }`
+    External,
+
+    /// Internal tagging: `{ "tag_field": "variant_name", ...fields... }`
+    Internal {
+        /// The field name for the tag (e.g., "kind", "type")
+        name: String,
+    },
+
+    /// Adjacent tagging: `{ "tag_field": "variant_name", "content_field": {...} }`
+    Adjacent {
+        /// The field name for the tag (e.g., "kind")
+        name: String,
+        /// The field name for the content (e.g., "data")
+        content: String,
+    },
+
+    /// Untagged: serialize variant directly without any discriminator.
+    /// Requires variants to be structurally distinguishable.
+    Untagged,
+
+    /// Index-based tagging: uses numeric index instead of variant name.
+    Index {
+        /// Optional field name for the index (defaults to "kind" if None)
+        name: Option<String>,
+    },
+}
+
+/// Parsed `#[tag(...)]` attribute per SPEC-0016.
+///
+/// **Spec references:** RFC-0017, SPEC-0016, TSY-0013
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TagAttribute {
+    /// The resolved tagging style
+    pub style: TagStyle,
+    /// Whether type_hint is enabled (adds @kintsu field)
+    pub type_hint: bool,
+}
+
+impl Default for TagAttribute {
+    fn default() -> Self {
+        Self {
+            style: TagStyle::TypeHint,
+            type_hint: true,
+        }
+    }
+}
+
+/// Parsed `#[rename(...)]` attribute per TSY-0013.
+///
+/// Applied to individual variants to override snake_case normalization.
+///
+/// **Spec references:** TSY-0013
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RenameAttribute {
+    /// The custom serialized name for the variant
+    pub name: String,
+}
+
+/// Type alias for tag meta - parsed `#[tag(style)]` or `#[tag(name = "x")]`
+pub type TagMeta = Spanned<TagAttribute>;
+
+/// Type alias for rename meta - parsed `#[rename("custom_name")]`
+pub type RenameMeta = Spanned<RenameAttribute>;
+
+impl ToTokens for TagAttribute {
+    fn write(
+        &self,
+        tt: &mut crate::fmt::Printer,
+    ) {
+        tt.word("#[tag(");
+        match &self.style {
+            TagStyle::TypeHint => tt.word("type_hint"),
+            TagStyle::External => tt.word("external"),
+            TagStyle::Internal { name } => {
+                tt.word("name = \"");
+                tt.word(name);
+                tt.word("\"");
+            },
+            TagStyle::Adjacent { name, content } => {
+                tt.word("name = \"");
+                tt.word(name);
+                tt.word("\", content = \"");
+                tt.word(content);
+                tt.word("\"");
+            },
+            TagStyle::Untagged => tt.word("untagged"),
+            TagStyle::Index { name } => {
+                tt.word("index");
+                if let Some(n) = name {
+                    tt.word(", name = \"");
+                    tt.word(n);
+                    tt.word("\"");
+                }
+            },
+        }
+        if !self.type_hint && !matches!(self.style, TagStyle::TypeHint | TagStyle::Untagged) {
+            tt.word(", type_hint = false");
+        }
+        tt.word(")]");
+    }
+}
+
+impl ToTokens for RenameAttribute {
+    fn write(
+        &self,
+        tt: &mut crate::fmt::Printer,
+    ) {
+        tt.word("#[rename(\"");
+        tt.word(&self.name);
+        tt.word("\")]");
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::fmt::Debug;
 
-    use crate::{
-        Error,
-        tokens::{AstResult, Parse, tokenize},
-    };
+    use crate::tokens::{AstResult, Parse, tokenize};
 
     use super::*;
 
@@ -270,46 +616,95 @@ mod test {
         assert_eq!(error_name, expect_error);
     }
 
-    #[test_case::test_case("#[unknown(1)]", vec![
-        "unknown meta attribute, 'unknown'. expected one of version",
-        "1:3"
-    ]; "unknown int meta")]
-    #[test_case::test_case("#[foo(\"bar\")]", vec![
-        "unknown meta attribute, 'foo'. expected one of <placeholder>",
-        "1:3"
-    ]; "unknown string meta")]
-    #[test_case::test_case("#![baz(42)]", vec![
-        "unknown meta attribute, 'baz'. expected one of version",
-        "1:4"
-    ]; "unknown int meta with bang")]
-    #[test_case::test_case("#![qux(\"val\")]", vec![
-        "unknown meta attribute, 'qux'. expected one of <placeholder>",
-        "1:4"
-    ]; "unknown string meta with bang")]
-    fn test_unknown_meta(
+    // Tag attribute parsing tests per RFC-0017
+    #[test_case::test_case("#[tag(external)]", TagStyle::External, true; "external tagging")]
+    #[test_case::test_case("#[tag(untagged)]", TagStyle::Untagged, false; "untagged")]
+    #[test_case::test_case("#[tag(index)]", TagStyle::Index { name: None }, true; "index tagging")]
+    #[test_case::test_case("#[tag(type_hint)]", TagStyle::TypeHint, true; "explicit type_hint")]
+    fn test_tag_keyword_parse(
         src: &str,
-        expected_diag: Vec<&str>,
+        expected_style: TagStyle,
+        expected_type_hint: bool,
     ) {
-        let mut tt = tokenize(src).expect("Should tokenize");
-        let p = std::path::Path::new("foo.ks");
-        let err = (match tt
-            .parse::<Spanned<ItemMeta>>()
-            .map_err(Error::from)
-        {
-            Ok(_) => panic!("ok"),
-            Err(e) => e,
-        })
-        .to_report_with(p, &tt.source, None);
-        let err = format!("{err:?}");
-        eprintln!("{err}");
+        let mut tt = tokenize(src).expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let tag = match meta.meta.first().unwrap() {
+            ItemMetaItem::Tag(t) => t,
+            _ => panic!("expected Tag"),
+        };
+        assert_eq!(tag.value.style, expected_style);
+        assert_eq!(tag.value.type_hint, expected_type_hint);
+    }
 
-        for d in expected_diag {
-            assert!(
-                err.contains(d),
-                "Expected diagnostic to contain:\n{}\nActual diagnostic:\n{}",
-                d,
-                err
-            );
-        }
+    #[test]
+    fn test_tag_internal_parse() {
+        let mut tt = tokenize("#[tag(name = \"kind\")]").expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let tag = match meta.meta.first().unwrap() {
+            ItemMetaItem::Tag(t) => t,
+            _ => panic!("expected Tag"),
+        };
+        assert_eq!(
+            tag.value.style,
+            TagStyle::Internal {
+                name: "kind".into()
+            }
+        );
+        assert!(tag.value.type_hint);
+    }
+
+    #[test]
+    fn test_tag_adjacent_parse() {
+        let mut tt = tokenize("#[tag(name = \"type\", content = \"data\")]").expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let tag = match meta.meta.first().unwrap() {
+            ItemMetaItem::Tag(t) => t,
+            _ => panic!("expected Tag"),
+        };
+        assert_eq!(
+            tag.value.style,
+            TagStyle::Adjacent {
+                name: "type".into(),
+                content: "data".into()
+            }
+        );
+    }
+
+    #[test]
+    fn test_tag_index_with_name() {
+        let mut tt = tokenize("#[tag(index, name = \"t\")]").expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let tag = match meta.meta.first().unwrap() {
+            ItemMetaItem::Tag(t) => t,
+            _ => panic!("expected Tag"),
+        };
+        assert_eq!(
+            tag.value.style,
+            TagStyle::Index {
+                name: Some("t".into())
+            }
+        );
+    }
+
+    #[test]
+    fn test_tag_type_hint_false() {
+        let mut tt = tokenize("#[tag(type_hint = false)]").expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let tag = match meta.meta.first().unwrap() {
+            ItemMetaItem::Tag(t) => t,
+            _ => panic!("expected Tag"),
+        };
+        assert!(!tag.value.type_hint);
+    }
+
+    #[test]
+    fn test_rename_parse() {
+        let mut tt = tokenize("#[rename(\"custom_name\")]").expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        let rename = match meta.meta.first().unwrap() {
+            ItemMetaItem::Rename(r) => r,
+            _ => panic!("expected Rename"),
+        };
+        assert_eq!(rename.value.name, "custom_name");
     }
 }

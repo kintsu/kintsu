@@ -4,6 +4,27 @@ use serde::{Deserialize, Serialize};
 
 use super::context::DeclNamedItemContext;
 
+/// Type expression operators per RFC-0018
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeclTypeExprOp {
+    /// Pick specific fields from a struct: `Pick[T, f1 | f2]`
+    Pick,
+    /// Omit specific fields from a struct: `Omit[T, f1 | f2]`
+    Omit,
+    /// Make all/selected fields optional: `Partial[T]` or `Partial[T, f1 | f2]`
+    Partial,
+    /// Make all/selected fields required: `Required[T]` or `Required[T, f1 | f2]`
+    Required,
+    /// Remove variants from a oneof: `Exclude[T, V1 | V2]`
+    Exclude,
+    /// Keep only specified variants: `Extract[T, V1 | V2]`
+    Extract,
+    /// Get element type of array: `ArrayItem[T[]]`
+    ArrayItem,
+}
+
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -101,6 +122,17 @@ pub enum DeclType {
         #[cfg_attr(feature = "api", schema(no_recursion))]
         inner_type: Box<DeclType>,
     },
+
+    /// Type expression - deferred to code generation per RFC-0018
+    TypeExpr {
+        /// The operator (Pick, Omit, Partial, etc.)
+        op: DeclTypeExprOp,
+        /// The target type being transformed
+        #[cfg_attr(feature = "api", schema(no_recursion))]
+        target: Box<DeclType>,
+        /// Optional selectors (field names or variant names)
+        selectors: Option<Vec<String>>,
+    },
 }
 
 impl DeclType {
@@ -139,6 +171,9 @@ impl DeclType {
             },
             Self::Paren { inner_type } => {
                 inner_type.collect_external_refs(root_package, refs);
+            },
+            Self::TypeExpr { target, .. } => {
+                target.collect_external_refs(root_package, refs);
             },
             Self::Builtin { .. } => {},
         }

@@ -6,7 +6,47 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+pub mod cli_tests;
 pub mod many;
+
+pub use cli_tests::*;
+
+/// Type of test report for JSONL output.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TestReportType {
+    /// CLI error test result
+    CliTest,
+    /// Compile/harness test result
+    CompileTest,
+}
+
+/// Wrapper for JSONL output with type tag.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct TestReport<T> {
+    /// Type of test report
+    #[serde(rename = "type")]
+    pub report_type: TestReportType,
+    /// The test result content
+    pub test: T,
+}
+
+impl<T> TestReport<T> {
+    pub fn cli_test(test: T) -> Self {
+        Self {
+            report_type: TestReportType::CliTest,
+            test,
+        }
+    }
+
+    pub fn compile_test(test: T) -> Self {
+        Self {
+            report_type: TestReportType::CompileTest,
+            test,
+        }
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
@@ -79,6 +119,26 @@ pub struct TestResult {
     pub actual_pass: bool,
     pub matches_expectation: bool,
     pub error_message: Option<String>,
+}
+
+impl TestResult {
+    /// Write this result to the test-suite.jsonl file with type wrapper
+    pub fn write_to_jsonl(&self) {
+        use std::{fs::OpenOptions, io::Write, path::PathBuf};
+
+        let jsonl_path = PathBuf::from("./test-suite.jsonl");
+
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&jsonl_path)
+        {
+            let report = TestReport::compile_test(self);
+            if let Ok(json) = serde_json::to_string(&report) {
+                let _ = writeln!(file, "{}", json);
+            }
+        }
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, bon::Builder)]
@@ -206,6 +266,7 @@ impl TestHarness {
                     .emit_declarations()
                     .await
                     .expect("emit declarations");
+
                 self.add_file(
                     "declarations.json",
                     serde_json::to_string(&decl).expect("serialize declarations"),

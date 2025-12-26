@@ -73,6 +73,24 @@ impl Error {
     }
 }
 
+impl From<Error> for kintsu_errors::CompilerError {
+    fn from(err: Error) -> Self {
+        use kintsu_errors::PackageError;
+        match err {
+            Error::Fs(e) => kintsu_errors::CompilerError::from(e),
+            Error::WithSource { err, .. } => (*err).into(),
+            Error::ConfigError(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::ValidationError(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::ValidationErrors(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::IoError(e) => kintsu_errors::FilesystemError::io_error(e.to_string()).into(),
+            Error::VersionError(e) => PackageError::version_error(e.to_string()).into(),
+            Error::SerError(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::DeError(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::ManifestError(e) => PackageError::manifest_error(e.to_string()).into(),
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub fn init(

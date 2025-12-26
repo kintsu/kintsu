@@ -1,0 +1,16 @@
+---
+source: test-suite/tests/cli_klx_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected {, found name
+   ╭─[./tmp/cli_test_klx9001_unexpected_token/pkg/schema/lib.ks:4:17]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     struct User name: str };
+   ·                 ──┬─
+   ·                   ╰── unknown lexing error: expected {, found name
+ 5 │ };
+   ╰────

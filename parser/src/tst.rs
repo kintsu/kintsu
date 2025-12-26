@@ -93,6 +93,7 @@ pub fn create_raw_namespace(name: &str) -> NamespaceCtx {
         comments: vec![],
         error: None,
         version: None,
+        tag: None,
         namespace: crate::tst::basic_smoke::<Item<Namespace>>(&format!("namespace {name};"))
             .unwrap()
             .with_source("foo.ks".into()), // placeholder
@@ -100,6 +101,7 @@ pub fn create_raw_namespace(name: &str) -> NamespaceCtx {
         children: Default::default(),
         registry: TypeRegistry::new(),
         resolved_errors: Default::default(),
+        resolved_aliases: Default::default(),
         resolved_versions: Default::default(),
     }
 }
@@ -207,6 +209,16 @@ entry_helper!(
     (oneof_def, crate::ast::items::OneOfDef, OneOf)
 );
 
+// Union Or types use `type_alias` since they're parsed as TypeDef with Type::UnionOr
+// Example: type_alias("Combined", "type Combined = A &| B;")
+//
+// Tagging tests use `oneof_def` with meta attributes when parsing is complete
+// Example: oneof_def("Status", "#[tag(name = \"kind\")]\ntype Status = oneof Ok | Err;")
+//
+// Type expressions use `type_alias` since they're parsed as TypeDef with TypeExpr
+// Example: type_alias("UserView", "type UserView = Pick[User, id | name];")
+// Full TypeExpr parsing added in Phase 4 (RFC-0018)
+
 pub async fn register_namespace_types(ns: NamespaceCtx) -> crate::Result<Arc<Mutex<NamespaceCtx>>> {
     let registry = ns.registry.clone();
 
@@ -239,4 +251,67 @@ pub async fn register_namespace_types(ns: NamespaceCtx) -> crate::Result<Arc<Mut
     let ns = schema.get_namespace("test").unwrap();
 
     Ok(ns)
+}
+
+/// Create a TypeResolver from raw source code (including namespace declaration)
+///
+/// This parses the full source including namespace declaration and creates a resolver.
+/// Use this for integration tests that need to test the full parsing and resolution flow.
+pub async fn resolver_from_source(source: &str) -> crate::Result<TypeResolver> {
+    use crate::ast::AstStream;
+    use std::sync::Arc;
+
+    let source = Arc::new(source.to_string());
+    let mut tt = crate::tokens::tokenize(&source).map_err(|e| {
+        crate::Error::from(e).with_source(PathBuf::from("test.ks"), Arc::clone(&source))
+    })?;
+
+    let ast = AstStream::from_tokens_with(&PathBuf::from("test.ks"), &mut tt)?;
+
+    let ref_ctx = RefContext::new("test_package".to_string(), vec![]);
+    let registry = TypeRegistry::new();
+
+    let ns = NamespaceCtx::from_ast_stream(
+        ref_ctx,
+        ast,
+        PathBuf::from("test.ks"),
+        Arc::clone(&source),
+        registry.clone(),
+    )?;
+
+    let ns_name = ns
+        .namespace
+        .value
+        .def
+        .name
+        .borrow_string()
+        .to_string();
+
+    let schema = SchemaCtx {
+        package: PackageManifests::V1(PackageManifest {
+            package: PackageMeta {
+                name: "test_package".to_string(),
+                version: VersionSerde(parse_version("0.1.0").unwrap()),
+                description: None,
+                authors: vec![],
+                homepage: None,
+                keywords: vec![],
+                license: None,
+                readme: None,
+                repository: None,
+            },
+            files: FileConfig::default(),
+            dependencies: BTreeMap::new(),
+        }),
+        namespaces: vec![(ns_name.clone(), Arc::new(Mutex::new(ns)))]
+            .into_iter()
+            .collect(),
+        root_path: PathBuf::from("."),
+        registry,
+    };
+
+    let schema = Arc::new(schema);
+    SchemaCompiler::register_types_recursive(&schema, &ns_name, 0).await?;
+
+    Ok(TypeResolver::new(schema.get_namespace(&ns_name).unwrap()))
 }

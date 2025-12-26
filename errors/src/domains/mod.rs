@@ -1,0 +1,25 @@
+pub mod filesystem;
+pub mod internal;
+pub mod lexical;
+pub mod metadata;
+pub mod namespace;
+pub mod package;
+pub mod parsing;
+pub mod resolution;
+pub mod tagging;
+pub mod type_def;
+pub mod type_expr;
+pub mod union;
+
+pub use filesystem::FilesystemError;
+pub use internal::InternalError;
+pub use lexical::LexicalError;
+pub use metadata::MetadataError;
+pub use namespace::NamespaceError;
+pub use package::PackageError;
+pub use parsing::ParsingError;
+pub use resolution::ResolutionError;
+pub use tagging::TaggingError;
+pub use type_def::TypeDefError;
+pub use type_expr::TypeExprError;
+pub use union::UnionError;

@@ -265,3 +265,82 @@ compiler_test! {
         harness.assert_lockfile_written();
     }
 }
+
+compiler_test! {
+    id: compile_union_or_basic,
+    name: "Union-Or Basic Types (RFC-0016)",
+    purpose: "Test union-or syntax with builtin and struct types",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::Union],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/union_or_basic.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        // Should have 3 type aliases defined
+        let types = ctx.type_registry().all_types();
+        assert!(types.len() >= 3, "Should have at least 3 types (StringOrInt, JsonValue, Result)");
+    }
+}
+
+compiler_test! {
+    id: compile_tagging_variants,
+    name: "Variant Tagging Styles (RFC-0017)",
+    purpose: "Test all tagging styles: external, internal, adjacent, index, untagged",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::OneOf],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/tagging_variants.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        // Should have 5 oneof types with different tagging styles
+        let types = ctx.type_registry().all_types();
+        assert!(types.len() >= 5, "Should have at least 5 oneofs with different tagging");
+    }
+}
+
+compiler_test! {
+    id: compile_type_expr_basic,
+    name: "Type Expressions Basic (RFC-0018)",
+    purpose: "Test Pick, Omit, Partial, Required, Exclude, Extract, ArrayItem operators",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::TypeAlias],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/type_expr_basic.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        // Should have User struct, Status oneof, and multiple type aliases
+        let types = ctx.type_registry().all_types();
+        assert!(types.len() >= 8, "Should have base types + type expression aliases");
+    }
+}
+
+compiler_test! {
+    id: compile_type_expr_nested,
+    name: "Nested Type Expressions (RFC-0018)",
+    purpose: "Test nested type expressions and combined features",
+    expect_pass: true,
+    tags: vec![Tag::Smoke, Tag::TypeAlias],
+    root: "pkg",
+    memory: || {
+        memory! {
+            "pkg/schema.toml" => include_str!("../fragments/minimal_manifest.toml"),
+            "pkg/schema/lib.ks" => include_str!("../fragments/type_expr_nested.ks"),
+        }
+    },
+    assertions: |_, ctx: CompileCtx| {
+        let types = ctx.type_registry().all_types();
+        assert!(types.len() >= 4, "Should have Profile, Organization, type aliases");
+    }
+}

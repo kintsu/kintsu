@@ -18,6 +18,17 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
+impl From<Error> for kintsu_errors::CompilerError {
+    fn from(err: Error) -> Self {
+        use kintsu_errors::FilesystemError;
+        match err {
+            Error::Glob(e) => FilesystemError::io_error(e.to_string()).into(),
+            Error::GlobPattern(e) => FilesystemError::invalid_glob(e.to_string()).into(),
+            Error::IoError(e) => FilesystemError::io_error(e.to_string()).into(),
+        }
+    }
+}
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub trait FileSystem: Send + Sync {

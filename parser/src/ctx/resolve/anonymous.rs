@@ -47,11 +47,24 @@ fn from_struct_fields(
     struct_def: &StructDef,
     source: &PathBuf,
 ) -> crate::Result<Vec<FromNamedSource<StructDef>>> {
+    // Anonymous structs from struct fields are extracted in extract_anonymous_structs()
+    // during register_types_recursive(), BEFORE type resolution.
+    // This ensures they're in the type registry for declaration conversion.
+    // Here we only need to traverse into nested types that aren't direct anonymous structs.
     let mut extracted = Vec::new();
 
     for field in &struct_def.def.value.args.values {
         name_gen.push(field.value.name.borrow_string().clone());
-        extracted.extend(from_type(name_gen, &field.value.typ, source)?);
+        // Skip Type::Struct - these are extracted early in extract_anonymous_structs
+        // but still recurse into other types (arrays, oneofs, etc)
+        match &field.value.typ {
+            Type::Struct { .. } => {
+                // Already extracted in extract_anonymous_structs - skip
+            },
+            _ => {
+                extracted.extend(from_type(name_gen, &field.value.typ, source)?);
+            },
+        }
         name_gen.pop();
     }
 
@@ -113,8 +126,15 @@ fn from_oneof(
             Variant::Tuple { inner, .. } => {
                 extracted.extend(from_type(name_gen, inner, source)?);
             },
-            Variant::LocalStruct { .. } => {
-                // TODO: Extract anonymous struct from variant
+            Variant::LocalStruct { inner, .. } => {
+                // LocalStruct variants are extracted in register_types_recursive with
+                // proper {ParentName}{VariantName} naming per RFC-0008.
+                // Here we only extract nested anonymous structs from the fields.
+                for field in &inner.value.fields.value.values {
+                    name_gen.push(field.value.name.borrow_string().clone());
+                    extracted.extend(from_type(name_gen, &field.value.typ, source)?);
+                    name_gen.pop();
+                }
             },
         }
         name_gen.pop();

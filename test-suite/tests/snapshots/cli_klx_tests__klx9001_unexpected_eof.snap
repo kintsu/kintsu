@@ -1,0 +1,16 @@
+---
+source: test-suite/tests/cli_klx_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected }, found end of token stream
+   ╭─[./tmp/cli_test_klx9001_unexpected_eof/pkg/schema/lib.ks:5:19]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     struct User {
+ 5 │         name: str,
+   ·                   ┬
+   ·                   ╰── unknown lexing error: expected }, found end of token stream
+   ╰────

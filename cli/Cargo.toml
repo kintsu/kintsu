@@ -19,12 +19,14 @@ name = "emit"
 kintsu-cli-core = { path = "../cli-core" }
 kintsu-core = { path = "../core", features = ["generate", "chrono", "time"] }
 kintsu-env-client = { path = "../env-client" }
+kintsu-errors = { path = "../errors" }
 kintsu-fs = { path = "../fs" }
 kintsu-manifests = { path = "../manifests" }
 kintsu-parser = { path = "../parser" }
 clap = { features = ["derive", "env"], workspace = true }
 clap-markdown = { optional = true, workspace = true }
 human-panic = { features = [], workspace = true }
+miette = { workspace = true, features = ["fancy"] }
 secrecy = { workspace = true, features = ["serde"] }
 tokio = { features = ["full"], workspace = true }
 tracing = { workspace = true, features = [] }

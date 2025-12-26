@@ -143,6 +143,8 @@ declare_tokens! {
 
     #[token("->")]
     Return,
+    #[token("&|")]
+    AmpPipe,
     #[token("&")]
     Amp,
     #[token("::")]
@@ -291,6 +293,7 @@ impl fmt::Display for Token {
             Space => write!(f, " "),
             Tab => write!(f, "\t"),
             Amp => write!(f, "&"),
+            AmpPipe => write!(f, "&|"),
             DoubleColon => write!(f, "::"),
             LBrace => write!(f, "{{"),
             RBrace => write!(f, "}}"),
@@ -411,6 +414,7 @@ fn unescape_comment(src: &str) -> String {
 #[macro_export]
 macro_rules! Token {
     [->] => { $crate::tokens::toks::ReturnToken };
+    [union_or] => { $crate::tokens::toks::AmpPipeToken };
     [&] => { $crate::tokens::toks::AmpToken };
     [::] => { $crate::tokens::toks::DoubleColonToken };
     [;] => { $crate::tokens::toks::SemiToken };

@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_klx_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected :, found str
+   ╭─[./tmp/cli_test_klx9001_syntax_missing_colon/pkg/schema/lib.ks:5:15]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     struct Foo {
+ 5 │         value str
+   ·               ─┬─
+   ·                ╰── unknown lexing error: expected :, found str
+ 6 │     };
+ 7 │ };
+   ╰────

@@ -13,6 +13,7 @@ db = ["dep:sea-orm", "dep:serde_json"]
 
 
 [dependencies]
+kintsu-errors = { path = "../errors" }
 bytes = { workspace = true }
 dashmap = { workspace = true }
 glob = { workspace = true }

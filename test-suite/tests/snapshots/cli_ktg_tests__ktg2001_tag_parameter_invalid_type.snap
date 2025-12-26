@@ -1,0 +1,19 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected ;, found #
+   ╭─[./tmp/cli_test_ktg2001_tag_parameter_invalid_type/pkg/schema/types.ks:5:1]
+ 1 │ namespace types;
+ 2 │ 
+ 3 │ struct Payload { data: str };
+ 4 │ 
+ 5 │ #[tag(name = 42)]
+   · ┬
+   · ╰── unknown lexing error: expected ;, found #
+ 6 │ type Result = oneof
+ 7 │     | Success(Payload)
+ 8 │     | Failure(str);
+   ╰────

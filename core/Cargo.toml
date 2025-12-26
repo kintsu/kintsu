@@ -14,6 +14,7 @@ time = ["dep:time"]
 
 [dependencies]
 kintsu-env-client = { path = "../env-client" }
+kintsu-errors = { path = "../errors" }
 kintsu-fs = { path = "../fs" }
 kintsu-manifests = { path = "../manifests" }
 kintsu-parser = { path = "../parser" }

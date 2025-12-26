@@ -1,0 +1,7 @@
+---
+source: test-suite/tests/cli_kpk_tests.rs
+expression: result.stderr
+---
+KPK9001
+
+  × io error: No such file or directory (os error 2)

@@ -11,7 +11,7 @@ use super::{
     meta::Meta,
     namespace::DeclNamespace,
     root::{DeclarationBundle, TypeRegistryDeclaration},
-    types::{Builtin, DeclType},
+    types::{Builtin, DeclType, DeclTypeExprOp},
 };
 use convert_case::{Case, Casing};
 use futures_util::future::{BoxFuture, FutureExt};
@@ -202,8 +202,12 @@ impl CompileCtx {
 
         match &resolved.kind {
             Definition::Struct(struct_def) => {
-                let fields =
-                    Self::convert_struct_fields(&struct_def.def.value.args, ns_ctx, external_refs)?;
+                let fields = Self::convert_struct_fields(
+                    &item_name,
+                    &struct_def.def.value.args,
+                    ns_ctx,
+                    external_refs,
+                )?;
 
                 let mut type_comments = DeclComment::new();
                 for comment_stream in struct_def.comments() {
@@ -234,6 +238,7 @@ impl CompileCtx {
             },
             Definition::OneOf(oneof_def) => {
                 let variants = Self::convert_oneof_variants(
+                    &item_name,
                     &oneof_def.def.value.variants,
                     ns_ctx,
                     external_refs,
@@ -253,9 +258,17 @@ impl CompileCtx {
                 }))
             },
             Definition::TypeAlias(typedef) => {
+                // Check if the type alias has been resolved (e.g., UnionOr -> Struct)
+                // If so, use the resolved type for conversion
+                let effective_type = ns_ctx
+                    .resolved_aliases
+                    .get(&item_name)
+                    .map(|resolved| &resolved.value)
+                    .unwrap_or(&typedef.def.value.ty.value);
+
                 // Check if the type alias targets an anonymous oneof
                 // If so, convert it to a TypeDefinition::OneOf instead
-                if let AstType::OneOf { ty } = &typedef.def.value.ty.value {
+                if let AstType::OneOf { ty } = effective_type {
                     let variants =
                         Self::convert_anonymous_oneof_variants(&ty.value, ns_ctx, external_refs)?;
 
@@ -272,8 +285,29 @@ impl CompileCtx {
                     }));
                 }
 
-                let target =
-                    Self::convert_ast_type(&typedef.def.value.ty.value, ns_ctx, external_refs)?;
+                // Check if it resolves to an anonymous struct (from UnionOr)
+                if let AstType::Struct { ty } = effective_type {
+                    let fields = Self::convert_struct_fields(
+                        &item_name,
+                        &ty.value.fields.value,
+                        ns_ctx,
+                        external_refs,
+                    )?;
+
+                    let mut type_comments = DeclComment::new();
+                    for comment_stream in typedef.comments() {
+                        type_comments.merge(extract_comments(comment_stream));
+                    }
+
+                    return Ok(TypeDefinition::Struct(DeclStruct {
+                        name: item_name,
+                        fields,
+                        meta,
+                        comments: type_comments,
+                    }));
+                }
+
+                let target = Self::convert_ast_type(effective_type, ns_ctx, external_refs)?;
 
                 // Extract type-level comments from Item<TypeAlias>
                 let mut type_comments = DeclComment::new();
@@ -290,6 +324,7 @@ impl CompileCtx {
             },
             Definition::Error(error_def) => {
                 let variants = Self::convert_oneof_variants(
+                    &item_name,
                     &error_def.def.value.variants,
                     ns_ctx,
                     external_refs,
@@ -411,6 +446,166 @@ impl CompileCtx {
                     message: "Unexpected anonymous oneof in declaration extraction".into(),
                 })
             },
+
+            AstType::UnionOr { .. } => {
+                Err(crate::Error::InternalError {
+                    message: "UnionOr types should be resolved before declaration extraction"
+                        .into(),
+                })
+            },
+
+            AstType::TypeExpr { expr } => {
+                Self::convert_type_expr(&expr.value, ns_ctx, external_refs)
+            },
+        }
+    }
+
+    /// Convert an AST type to DeclType with naming context for anonymous struct resolution.
+    /// The context is a slice of names that form the naming path (e.g., ["Profile", "settings"]).
+    fn convert_ast_type_with_context(
+        context: &[&str],
+        ast_type: &AstType,
+        ns_ctx: &NamespaceCtx,
+        external_refs: &mut BTreeSet<DeclNamedItemContext>,
+    ) -> crate::Result<DeclType> {
+        match ast_type {
+            AstType::Struct { .. } => {
+                // Anonymous struct - compute the extracted struct name from context
+                // Uses same naming as anonymous.rs: join with '_' and convert to PascalCase
+                use convert_case::{Case, Casing};
+                let generated_name = context.join("_").to_case(Case::Pascal);
+
+                // Create reference to the extracted struct
+                let item_ctx = ns_ctx
+                    .ctx
+                    .item(Spanned::call_site(IdentToken::new(generated_name)));
+                let reference = DeclNamedItemContext::from_named_item_context(&item_ctx);
+                Ok(DeclType::Named { reference })
+            },
+            // For all other types, delegate to standard conversion
+            _ => Self::convert_ast_type(ast_type, ns_ctx, external_refs),
+        }
+    }
+
+    /// Convert a type expression to DeclType
+    fn convert_type_expr(
+        expr: &crate::ast::type_expr::TypeExpr,
+        ns_ctx: &NamespaceCtx,
+        external_refs: &mut BTreeSet<DeclNamedItemContext>,
+    ) -> crate::Result<DeclType> {
+        use crate::ast::type_expr::{TypeExpr, TypeExprOp};
+
+        match expr {
+            TypeExpr::TypeRef { reference } => {
+                // Convert the type reference using existing resolution
+                let resolved = Self::resolve_path_or_ident(reference, ns_ctx)?;
+                if resolved.is_external(&ns_ctx.ctx.package) {
+                    external_refs.insert(resolved.clone());
+                }
+                Ok(DeclType::Named {
+                    reference: resolved,
+                })
+            },
+            TypeExpr::FieldAccess { .. } => {
+                // Field access in type expressions (e.g., User::profile)
+                // Not yet supported - would need path traversal
+                Err(crate::Error::InternalError {
+                    message: "Field access in type expressions not yet supported".into(),
+                })
+            },
+            TypeExpr::Op(spanned_op) => {
+                let op = &spanned_op.value;
+                match op {
+                    TypeExprOp::Pick { target, fields } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors: Vec<String> = fields
+                            .fields
+                            .iter()
+                            .map(|f| f.value.borrow_string().to_string())
+                            .collect();
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Pick,
+                            target: Box::new(target_type),
+                            selectors: Some(selectors),
+                        })
+                    },
+                    TypeExprOp::Omit { target, fields } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors: Vec<String> = fields
+                            .fields
+                            .iter()
+                            .map(|f| f.value.borrow_string().to_string())
+                            .collect();
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Omit,
+                            target: Box::new(target_type),
+                            selectors: Some(selectors),
+                        })
+                    },
+                    TypeExprOp::Partial { target, fields } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors = fields.as_ref().map(|f| {
+                            f.fields
+                                .iter()
+                                .map(|field| field.value.borrow_string().to_string())
+                                .collect()
+                        });
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Partial,
+                            target: Box::new(target_type),
+                            selectors,
+                        })
+                    },
+                    TypeExprOp::Required { target, fields } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors = fields.as_ref().map(|f| {
+                            f.fields
+                                .iter()
+                                .map(|field| field.value.borrow_string().to_string())
+                                .collect()
+                        });
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Required,
+                            target: Box::new(target_type),
+                            selectors,
+                        })
+                    },
+                    TypeExprOp::Exclude { target, variants } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors: Vec<String> = variants
+                            .variants
+                            .iter()
+                            .map(|v| v.value.borrow_string().to_string())
+                            .collect();
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Exclude,
+                            target: Box::new(target_type),
+                            selectors: Some(selectors),
+                        })
+                    },
+                    TypeExprOp::Extract { target, variants } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        let selectors: Vec<String> = variants
+                            .variants
+                            .iter()
+                            .map(|v| v.value.borrow_string().to_string())
+                            .collect();
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::Extract,
+                            target: Box::new(target_type),
+                            selectors: Some(selectors),
+                        })
+                    },
+                    TypeExprOp::ArrayItem { target } => {
+                        let target_type = Self::convert_type_expr(target, ns_ctx, external_refs)?;
+                        Ok(DeclType::TypeExpr {
+                            op: DeclTypeExprOp::ArrayItem,
+                            target: Box::new(target_type),
+                            selectors: None,
+                        })
+                    },
+                }
+            },
         }
     }
 
@@ -524,6 +719,7 @@ impl CompileCtx {
     }
 
     fn convert_struct_fields(
+        parent_name: &str,
         args: &crate::tokens::Repeated<Arg, Token![,]>,
         ns_ctx: &NamespaceCtx,
         external_refs: &mut BTreeSet<DeclNamedItemContext>,
@@ -531,10 +727,16 @@ impl CompileCtx {
         let mut decl_fields = Vec::new();
 
         for arg in &args.values {
-            let field_ty = Self::convert_ast_type(&arg.value.typ, ns_ctx, external_refs)?;
+            let field_name = arg.value.name.borrow_string().clone();
+            let field_ty = Self::convert_ast_type_with_context(
+                &[parent_name, &field_name],
+                &arg.value.typ,
+                ns_ctx,
+                external_refs,
+            )?;
 
             decl_fields.push(DeclField {
-                name: arg.value.name.borrow_string().clone(),
+                name: field_name,
                 ty: field_ty,
                 default_value: None, // TODO: default values
                 optional: matches!(arg.value.sep.value, Sep::Optional { .. }),
@@ -608,6 +810,7 @@ impl CompileCtx {
     }
 
     fn convert_oneof_variants(
+        parent_name: &str,
         variants: &crate::tokens::Repeated<Variant, Token![,]>,
         ns_ctx: &NamespaceCtx,
         external_refs: &mut BTreeSet<DeclNamedItemContext>,
@@ -615,26 +818,29 @@ impl CompileCtx {
         let mut decl_variants = Vec::new();
 
         for variant in &variants.values {
-            let variant_ty = match &variant.value.value {
-                Variant::Tuple { inner, .. } => {
-                    Self::convert_ast_type(inner, ns_ctx, external_refs)?
+            let (variant_ty, name, comments) = match &variant.value.value {
+                Variant::Tuple {
+                    inner,
+                    name,
+                    comments,
+                    ..
+                } => {
+                    let ty = Self::convert_ast_type(inner, ns_ctx, external_refs)?;
+                    (ty, name.borrow_string().clone(), extract_comments(comments))
                 },
-                Variant::LocalStruct { .. } => {
-                    return Err(crate::Error::InternalError {
-                        message: "Unexpected anonymous struct in oneof variant".into(),
-                    });
-                },
-            };
+                Variant::LocalStruct { name, comments, .. } => {
+                    // LocalStruct variants reference extracted structs by name
+                    // Struct name is {ParentName}{VariantName} per RFC-0008
+                    let variant_name = name.borrow_string().clone();
+                    let struct_name = format!("{}{}", parent_name, variant_name);
 
-            let name = match &variant.value.value {
-                Variant::Tuple { name, .. } | Variant::LocalStruct { name, .. } => {
-                    name.borrow_string().clone()
-                },
-            };
-
-            let comments = match &variant.value.value {
-                Variant::Tuple { comments, .. } | Variant::LocalStruct { comments, .. } => {
-                    extract_comments(comments)
+                    // Look up the extracted struct in the namespace
+                    let item_ctx = ns_ctx
+                        .ctx
+                        .item(Spanned::call_site(IdentToken::new(struct_name)));
+                    let reference = DeclNamedItemContext::from_named_item_context(&item_ctx);
+                    let ty = DeclType::Named { reference };
+                    (ty, variant_name, extract_comments(comments))
                 },
             };
 

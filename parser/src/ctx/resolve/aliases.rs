@@ -76,6 +76,10 @@ impl AliasGraph {
                     }
                 }
             },
+            Type::UnionOr { lhs, rhs, .. } => {
+                deps.extend(Self::extract_type_dependencies(&lhs.value));
+                deps.extend(Self::extract_type_dependencies(&rhs.value));
+            },
             Type::Paren { ty, .. } => {
                 deps.extend(Self::extract_type_dependencies(&ty.value));
             },
@@ -92,9 +96,46 @@ impl AliasGraph {
             Type::Builtin { .. } | Type::Result { .. } => {
                 // No dependencies
             },
+            Type::TypeExpr { expr } => {
+                // Type expressions have dependencies on their target types
+                // These are handled during Phase 3.6 resolution
+                deps.extend(Self::extract_type_expr_dependencies(&expr.value));
+            },
         }
 
         deps
+    }
+
+    fn extract_type_expr_dependencies(expr: &crate::ast::type_expr::TypeExpr) -> Vec<String> {
+        match expr {
+            crate::ast::type_expr::TypeExpr::TypeRef { reference } => {
+                if let PathOrIdent::Ident(ident) = reference {
+                    vec![ident.borrow_string().clone()]
+                } else {
+                    vec![]
+                }
+            },
+            crate::ast::type_expr::TypeExpr::FieldAccess { base, .. } => {
+                Self::extract_type_expr_dependencies(&base.value)
+            },
+            crate::ast::type_expr::TypeExpr::Op(op) => {
+                Self::extract_type_expr_op_dependencies(&op.value)
+            },
+        }
+    }
+
+    fn extract_type_expr_op_dependencies(op: &crate::ast::type_expr::TypeExprOp) -> Vec<String> {
+        match op {
+            crate::ast::type_expr::TypeExprOp::Pick { target, .. }
+            | crate::ast::type_expr::TypeExprOp::Omit { target, .. }
+            | crate::ast::type_expr::TypeExprOp::Partial { target, .. }
+            | crate::ast::type_expr::TypeExprOp::Required { target, .. }
+            | crate::ast::type_expr::TypeExprOp::Exclude { target, .. }
+            | crate::ast::type_expr::TypeExprOp::Extract { target, .. }
+            | crate::ast::type_expr::TypeExprOp::ArrayItem { target } => {
+                Self::extract_type_expr_dependencies(target)
+            },
+        }
     }
 
     fn detect_cycles(&self) -> crate::Result<()> {
@@ -424,6 +465,20 @@ impl TypeResolver {
                     self.resolve_type_deep(&ty.value, source, graph)
                         .await
                 },
+                Type::UnionOr { lhs, rhs, op } => {
+                    let resolved_lhs = self
+                        .resolve_type_deep(&lhs.value, source, graph)
+                        .await?;
+                    let resolved_rhs = self
+                        .resolve_type_deep(&rhs.value, source, graph)
+                        .await?;
+
+                    Ok(Type::UnionOr {
+                        lhs: Spanned::call_site(Box::new(resolved_lhs)),
+                        op: op.clone(),
+                        rhs: Spanned::call_site(Box::new(resolved_rhs)),
+                    })
+                },
                 Type::OneOf { .. } | Type::Struct { .. } => {
                     // These contain nested types but are themselves primitive
                     // For now, don't recursively resolve their contents
@@ -432,6 +487,11 @@ impl TypeResolver {
                 },
                 Type::Builtin { .. } | Type::Result { .. } => {
                     // Already primitive
+                    Ok(typ.clone())
+                },
+                Type::TypeExpr { .. } => {
+                    // Type expressions are resolved in Phase 3.6
+                    // During alias resolution, pass through unchanged
                     Ok(typ.clone())
                 },
             }

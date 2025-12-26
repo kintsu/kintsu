@@ -172,6 +172,62 @@ pub enum Error {
         found_type: String,
         operand_name: String,
     },
+
+    #[error(
+        "adjacent tagging: name field '{name}' and content field '{content}' must be different"
+    )]
+    AdjacentTagConflict { name: String, content: String },
+
+    #[error(
+        "internal tagging: tag field '{tag_field}' conflicts with existing field in variant '{variant}'"
+    )]
+    InternalTagFieldConflict { tag_field: String, variant: String },
+
+    #[error("untagged union has duplicate type '{type_name}' at indices {indices}")]
+    UntaggedDuplicateType { type_name: String, indices: String },
+
+    #[error("untagged variants at indices {indices} have indistinguishable structure")]
+    UntaggedIndistinguishable { indices: String },
+
+    #[error("internal tagging: tuple variant '{variant}' must reference a struct type")]
+    InternalTagTupleNotStruct { variant: String },
+
+    // Type Expression Errors (KTE) - RFC-0018, SPEC-0017, TSY-0014
+    #[error("{operator}: expected {expected} type, found {actual}")]
+    TypeExprTargetKindMismatch {
+        operator: String,
+        expected: String,
+        actual: String,
+    },
+
+    #[error("{operator}: field '{field}' not found in type {type_name}")]
+    TypeExprFieldNotFound {
+        operator: String,
+        field: String,
+        type_name: String,
+    },
+
+    #[error("{operator}: variant '{variant}' not found in type {type_name}")]
+    TypeExprVariantNotFound {
+        operator: String,
+        variant: String,
+        type_name: String,
+    },
+
+    #[error("{operator}: selector list cannot be empty")]
+    TypeExprEmptySelectors { operator: String },
+
+    #[error("{operator}: no fields remain after operation")]
+    TypeExprNoFieldsRemain { operator: String },
+
+    #[error("{operator}: no variants remain after operation")]
+    TypeExprNoVariantsRemain { operator: String },
+
+    #[error("type expression cycle detected: {}", chain.join(" -> "))]
+    TypeExprCycle { chain: Vec<String> },
+
+    #[error("unresolved type in type expression: '{name}'")]
+    TypeExprUnresolvedType { name: String },
 }
 
 impl Error {
@@ -367,6 +423,286 @@ impl Error {
         Self::CircularAlias {
             chain: i.into_iter().collect(),
         }
+    }
+
+    /// Converts this error to a CompilerError for the new error system.
+    pub fn to_compiler_error(&self) -> kintsu_errors::CompilerError {
+        use kintsu_errors::{domains::TaggingError, *};
+
+        let span = self
+            .extract_deepest_span()
+            .map(|(s, e)| Span::new(s, e));
+
+        match self {
+            Self::NsNotDeclared => {
+                NamespaceError::not_declared()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::NsConflict => {
+                NamespaceError::conflict()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::NsDirConflict {
+                namespace,
+                parent,
+                attempted,
+            } => {
+                NamespaceError::dir_conflict(namespace, parent.display().to_string(), attempted)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::NamespaceMismatch { expected, found } => {
+                NamespaceError::mismatch(expected, found)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::DuplicateNamespace { name } => {
+                NamespaceError::duplicate(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UnresolvedDependency { name } => {
+                NamespaceError::unresolved_dep(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UsePathNotFound { name } => {
+                NamespaceError::use_not_found(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::ResolutionError { ident } => {
+                ResolutionError::undefined_type(ident.borrow_path_inner().to_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UndefinedType { name } => {
+                ResolutionError::undefined_type(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UnresolvedType { name } => {
+                ResolutionError::undefined_type(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::CircularDependency { chain }
+            | Self::SchemaCircularDependency { schemas: chain } => {
+                ResolutionError::circular_dependency(chain.clone())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeCircularDependency { types } => {
+                ResolutionError::type_cycle(types.clone())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::CircularAlias { chain } => {
+                ResolutionError::circular_alias_from_set(chain.clone())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::DuplicateType { name } => {
+                TypeDefError::duplicate_type(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::VersionConflict { values, .. } => {
+                MetadataError::version_conflict(values.iter().copied())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::DuplicateMetaAttribute { attribute, path } => {
+                MetadataError::duplicate_attribute(attribute, path.display().to_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::VersionIncompatibility {
+                package,
+                required,
+                found,
+            } => {
+                MetadataError::version_incompatibility(package, required, found)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::LexError { ch, .. } => {
+                LexicalError::unknown_char(*ch)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::MissingErrorType { operation } => {
+                TypeDefError::missing_error_type(operation.borrow_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UnionOperandMustBeStruct {
+                found_type,
+                operand_name,
+            } => {
+                UnionError::non_struct_operand(operand_name, found_type)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::AdjacentTagConflict { name, content } => {
+                UnionError::adjacent_tag_conflict(name, content)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::InternalTagFieldConflict { tag_field, variant } => {
+                UnionError::internal_tag_field_conflict(tag_field, variant)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::UntaggedDuplicateType { type_name, indices } => {
+                TaggingError::untagged_duplicate(
+                    type_name,
+                    indices
+                        .split(", ")
+                        .filter_map(|s| s.parse().ok()),
+                )
+                .with_span_opt(span)
+                .into()
+            },
+            Self::UntaggedIndistinguishable { indices } => {
+                TaggingError::untagged_indistinguishable(
+                    indices
+                        .split(", ")
+                        .filter_map(|s| s.parse().ok()),
+                )
+                .with_span_opt(span)
+                .into()
+            },
+            Self::InternalTagTupleNotStruct { .. } => {
+                TaggingError::internal_requires_struct()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::IdentConflict {
+                namespace,
+                ident,
+                tag,
+            } => {
+                TypeDefError::ident_conflict(
+                    namespace.borrow_string(),
+                    *tag,
+                    ident.name.borrow_string(),
+                )
+                .with_span_opt(span)
+                .into()
+            },
+            Self::MissingLibError => FilesystemError::missing_lib_ks().into(),
+            Self::EmptyFileList => FilesystemError::empty_file_list().into(),
+            Self::GlobError(e) => FilesystemError::invalid_glob(e.to_string()).into(),
+            Self::IoError(e) => FilesystemError::io_error(e.to_string()).into(),
+            Self::Fs(e) => FilesystemError::io_error(e.to_string()).into(),
+            Self::LibPldMultiSegmentImport => {
+                ParsingError::lib_multi_segment_import()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::LibPldInvalidItem => {
+                ParsingError::lib_invalid_item()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::LibPldMissingNamespace => {
+                ParsingError::lib_missing_namespace()
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::LintFailure => InternalError::internal("linting errors").into(),
+            Self::FailedToCreateNamespaceCtx => InternalError::failed_namespace_ctx().into(),
+            Self::InternalError { message } => InternalError::internal(message).into(),
+            Self::WithSpan { inner, .. } => inner.to_compiler_error(),
+            Self::WithSource {
+                inner,
+                path,
+                source,
+            } => {
+                inner
+                    .to_compiler_error()
+                    .with_source_arc(path.clone(), std::sync::Arc::clone(source))
+            },
+            // These need separate handling or conversion
+            Self::AstError(e) => {
+                LexicalError::lexer_error(e.to_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::ManifestError(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::VersionError(e) => {
+                PackageError::version_error(e.to_string())
+                    .with_span_opt(span)
+                    .into()
+            },
+            // Type Expression Errors (KTE) - RFC-0018, SPEC-0017, TSY-0014
+            Self::TypeExprTargetKindMismatch {
+                operator,
+                expected,
+                actual,
+            } => {
+                TypeDefError::type_expr_target_mismatch(operator, expected, actual)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprFieldNotFound {
+                operator,
+                field,
+                type_name,
+            } => {
+                TypeDefError::type_expr_field_not_found(operator, field, type_name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprVariantNotFound {
+                operator,
+                variant,
+                type_name,
+            } => {
+                TypeDefError::type_expr_variant_not_found(operator, variant, type_name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprEmptySelectors { operator } => {
+                TypeDefError::type_expr_empty_selectors(operator)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprNoFieldsRemain { operator } => {
+                TypeDefError::type_expr_no_fields_remain(operator)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprNoVariantsRemain { operator } => {
+                TypeDefError::type_expr_no_variants_remain(operator)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprCycle { chain } => {
+                TypeDefError::type_expr_cycle(chain.clone())
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::TypeExprUnresolvedType { name } => {
+                TypeDefError::type_expr_unresolved(name)
+                    .with_span_opt(span)
+                    .into()
+            },
+            Self::Infallible(_) => unreachable!(),
+        }
+    }
+}
+
+impl From<Error> for kintsu_errors::CompilerError {
+    fn from(err: Error) -> Self {
+        err.to_compiler_error()
     }
 }
 

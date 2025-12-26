@@ -3751,10 +3751,12 @@ dependencies = [
  "kintsu-cli-core",
  "kintsu-core",
  "kintsu-env-client",
+ "kintsu-errors",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-parser",
  "kintsu-testing",
+ "miette",
  "secrecy",
  "tokio",
  "tracing",
@@ -3784,6 +3786,7 @@ dependencies = [
  "glob",
  "inventory",
  "kintsu-env-client",
+ "kintsu-errors",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-parser",
@@ -3862,6 +3865,10 @@ dependencies = [
 [[package]]
 name = "kintsu-errors"
 version = "0.1.0"
+dependencies = [
+ "glob",
+ "miette",
+]
 
 [[package]]
 name = "kintsu-fs"
@@ -3870,6 +3877,7 @@ dependencies = [
  "bytes",
  "dashmap",
  "glob",
+ "kintsu-errors",
  "sea-orm",
  "serde",
  "serde_json",
@@ -3886,6 +3894,7 @@ dependencies = [
  "config",
  "convert_case 0.10.0",
  "glob",
+ "kintsu-errors",
  "kintsu-fs",
  "prettyprint",
  "regex",
@@ -3913,6 +3922,7 @@ dependencies = [
  "glob",
  "inventory",
  "kintsu-cli-core",
+ "kintsu-errors",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-testing",
@@ -3950,6 +3960,7 @@ dependencies = [
  "kintsu-registry-auth",
  "kintsu-registry-core",
  "kintsu-registry-db",
+ "kintsu-registry-errors",
  "kintsu-registry-events",
  "kintsu-registry-storage",
  "octocrab",
@@ -4028,6 +4039,11 @@ dependencies = [
 [[package]]
 name = "kintsu-registry-errors"
 version = "0.1.0"
+dependencies = [
+ "kintsu-errors",
+ "serde",
+ "utoipa",
+]
 
 [[package]]
 name = "kintsu-registry-events"
@@ -4098,6 +4114,8 @@ dependencies = [
  "bon",
  "codspeed-divan-compat",
  "ctor",
+ "insta",
+ "kintsu-errors",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-parser",

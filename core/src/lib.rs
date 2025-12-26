@@ -147,6 +147,37 @@ impl Error {
     }
 }
 
+impl From<Error> for kintsu_errors::CompilerError {
+    fn from(err: Error) -> Self {
+        use kintsu_errors::{FilesystemError, InternalError, PackageError, TypeDefError};
+        match err {
+            Error::Io(e) => FilesystemError::io_error(e.to_string()).into(),
+            Error::TomlDe(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::TomlSer(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::Json(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::Yaml(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::NamespaceConflict { name, tag, ns } => {
+                TypeDefError::ident_conflict(ns.to_string(), tag, name.to_string()).into()
+            },
+            Error::NameNotFound { name, ns } => {
+                kintsu_errors::ResolutionError::undefined_type(format!("{ns}::{name}")).into()
+            },
+            Error::Config(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::SourceFile { error, .. } => (*error).into(),
+            Error::ContiguousError { ident, desc } => {
+                InternalError::internal(format!("'{ident}' is not contiguous with {desc}")).into()
+            },
+            Error::Validation(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::Validations(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::Manifests(e) => e.into(),
+            Error::Fs(e) => e.into(),
+            Error::Parsing(e) => e.into(),
+            Error::Miette(e) => InternalError::internal(e.to_string()).into(),
+            Error::Client(e) => InternalError::internal(e.to_string()).into(),
+        }
+    }
+}
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 // #[macro_export]
 // macro_rules! submit {

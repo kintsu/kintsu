@@ -3,11 +3,22 @@
 use clap::Parser;
 use human_panic::{Metadata, setup_panic};
 use kintsu_cli::cli::Cli;
+use miette::GraphicalReportHandler;
 use std::process::ExitCode;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<ExitCode, ()> {
+    // Setup miette for fancy error display
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            GraphicalReportHandler::new()
+                .with_theme(miette::GraphicalTheme::unicode())
+                .with_context_lines(5),
+        )
+    }))
+    .ok(); // Ignore if already set
+
     setup_panic!(
         Metadata::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
             .homepage(env!("CARGO_PKG_HOMEPAGE"))
@@ -56,7 +67,10 @@ fn main() -> Result<ExitCode, ()> {
     Ok(match rt.block_on(cli.run()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            println!("{e:?}");
+            // Convert to CompilerError for structured error codes
+            let compiler_error: kintsu_errors::CompilerError = e.into();
+            let report = compiler_error.to_report();
+            eprintln!("{report:?}");
             ExitCode::FAILURE
         },
     })

@@ -443,8 +443,93 @@ impl TypeExtractor {
                     );
                 }
             },
+            Type::UnionOr { lhs, rhs, .. } => {
+                let mut lhs_path = field_path.clone();
+                lhs_path.push("union_or_lhs".to_string());
+                Self::extract_from_type(
+                    &lhs.value,
+                    deps,
+                    lhs_path,
+                    EdgeKind::Required,
+                    ref_context,
+                    ns_ctx,
+                );
+
+                let mut rhs_path = field_path.clone();
+                rhs_path.push("union_or_rhs".to_string());
+                Self::extract_from_type(
+                    &rhs.value,
+                    deps,
+                    rhs_path,
+                    EdgeKind::Required,
+                    ref_context,
+                    ns_ctx,
+                );
+            },
             Type::Builtin { .. } => {
                 // Builtin types have no dependencies
+            },
+            Type::TypeExpr { expr } => {
+                // Type expressions have dependencies from their target type
+                Self::extract_from_type_expr(
+                    &expr.value,
+                    deps,
+                    field_path,
+                    current_kind,
+                    ref_context,
+                    ns_ctx,
+                );
+            },
+        }
+    }
+
+    fn extract_from_type_expr(
+        expr: &crate::ast::type_expr::TypeExpr,
+        deps: &mut Vec<TypeDependency>,
+        field_path: Vec<String>,
+        current_kind: EdgeKind,
+        ref_context: &RefContext,
+        ns_ctx: &NamespaceCtx,
+    ) {
+        use crate::ast::type_expr::{TypeExpr, TypeExprOp};
+        match expr {
+            TypeExpr::TypeRef { reference } => {
+                let candidates = Self::generate_candidates(reference, ref_context, ns_ctx);
+                deps.push(TypeDependency::with_candidates(
+                    candidates,
+                    current_kind,
+                    field_path,
+                ));
+            },
+            TypeExpr::FieldAccess { base, .. } => {
+                Self::extract_from_type_expr(
+                    &base.value,
+                    deps,
+                    field_path,
+                    current_kind,
+                    ref_context,
+                    ns_ctx,
+                );
+            },
+            TypeExpr::Op(op) => {
+                match &op.value {
+                    TypeExprOp::Pick { target, .. }
+                    | TypeExprOp::Omit { target, .. }
+                    | TypeExprOp::Partial { target, .. }
+                    | TypeExprOp::Required { target, .. }
+                    | TypeExprOp::Exclude { target, .. }
+                    | TypeExprOp::Extract { target, .. }
+                    | TypeExprOp::ArrayItem { target } => {
+                        Self::extract_from_type_expr(
+                            target,
+                            deps,
+                            field_path,
+                            current_kind,
+                            ref_context,
+                            ns_ctx,
+                        );
+                    },
+                }
             },
         }
     }

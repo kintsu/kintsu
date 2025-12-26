@@ -46,6 +46,12 @@ pub enum LexingError {
         found: String,
     },
 
+    #[error("unknown type expression operator '{found}'. expected one of {}", expect.join(", "))]
+    UnknownTypeExprOp {
+        expect: Vec<&'static str>,
+        found: String,
+    },
+
     #[error("invalid path: {input}. {reason}")]
     InvalidPath { input: String, reason: String },
 
@@ -113,6 +119,18 @@ impl LexingError {
         span: &Span,
     ) -> Self {
         Self::UnknownMeta {
+            expect: expect.into_iter().collect(),
+            found,
+        }
+        .with_span(span.clone())
+    }
+
+    pub fn unknown_type_expr_op<I: IntoIterator<Item = &'static str>>(
+        expect: I,
+        found: String,
+        span: &Span,
+    ) -> Self {
+        Self::UnknownTypeExprOp {
             expect: expect.into_iter().collect(),
             found,
         }

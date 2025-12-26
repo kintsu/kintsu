@@ -10,7 +10,7 @@ use crate::{
         AstStream,
         comment::CommentStream,
         items::{Item, Items, NamespaceDef, UseDef},
-        meta::{ErrorMeta, ItemMeta, ItemMetaItem, VersionMeta},
+        meta::{ErrorMeta, ItemMeta, ItemMetaItem, TagAttribute, VersionMeta},
     },
     ctx::{
         RefOrItemContext,
@@ -36,6 +36,9 @@ pub struct NamespaceCtx {
 
     pub version: Option<FromNamedSource<VersionMeta>>,
 
+    /// Namespace-level tagging default from `#![tag(...)]` per SPEC-0016 Phase 4
+    pub tag: Option<FromNamedSource<TagAttribute>>,
+
     pub namespace: FromNamedSource<NamespaceDef>,
 
     pub imports: Vec<FromNamedSource<RefOrItemContext>>,
@@ -47,6 +50,9 @@ pub struct NamespaceCtx {
     pub resolved_versions: BTreeMap<String, Spanned<u32>>,
 
     pub resolved_errors: BTreeMap<String, Spanned<String>>,
+
+    /// Resolved type aliases (e.g., UnionOr resolved to Struct)
+    pub resolved_aliases: BTreeMap<String, Spanned<crate::ast::ty::Type>>,
 }
 
 impl NamespaceCtx {
@@ -75,10 +81,12 @@ impl NamespaceCtx {
             comments: vec![],
             error: None,
             version: None,
+            tag: None,
             imports: Vec::new(),
             children: Default::default(),
             resolved_versions: Default::default(),
             resolved_errors: Default::default(),
+            resolved_aliases: Default::default(),
         }
     }
 
@@ -192,7 +200,7 @@ impl NamespaceCtx {
         );
     }
 
-    pub(super) fn from_ast_stream(
+    pub(crate) fn from_ast_stream(
         ctx: RefContext,
         ast: AstStream,
         path: PathBuf,
@@ -209,8 +217,15 @@ impl NamespaceCtx {
         let mut children = BTreeMap::new();
         let mut version: Option<FromNamedSource<VersionMeta>> = None;
         let mut error: Option<FromNamedSource<ErrorMeta>> = None;
+        let mut tag: Option<FromNamedSource<TagAttribute>> = None;
 
-        Self::extract_meta_items(&[&ast.module_meta], &path, &mut version, &mut error)?;
+        Self::extract_meta_items(
+            &[&ast.module_meta],
+            &path,
+            &mut version,
+            &mut error,
+            &mut tag,
+        )?;
 
         let ast_p = path.clone();
         let ast_s = source.clone();
@@ -218,8 +233,14 @@ impl NamespaceCtx {
         for item in ast.nodes {
             match item.value {
                 Items::Namespace(ns_def) => {
-                    Self::extract_meta_items(&ns_def.meta(), &path, &mut version, &mut error)
-                        .map_err(|err| err.with_source(ast_p.clone(), ast_s.clone()))?;
+                    Self::extract_meta_items(
+                        &ns_def.meta(),
+                        &path,
+                        &mut version,
+                        &mut error,
+                        &mut tag,
+                    )
+                    .map_err(|err| err.with_source(ast_p.clone(), ast_s.clone()))?;
 
                     if let Some(ref existing) = namespace {
                         if ns_def.def.name.borrow_string()
@@ -408,12 +429,14 @@ impl NamespaceCtx {
             comments: vec![module_comments.with_source(path.clone())],
             error,
             version,
+            tag,
             namespace,
             imports,
             children,
             registry,
             resolved_versions: BTreeMap::new(),
             resolved_errors: BTreeMap::new(),
+            resolved_aliases: BTreeMap::new(),
         })
     }
 
@@ -432,6 +455,7 @@ impl NamespaceCtx {
             &path,
             &mut self.version,
             &mut self.error,
+            &mut self.tag,
         )?;
 
         for item in ast.nodes {
@@ -454,6 +478,7 @@ impl NamespaceCtx {
                         &path,
                         &mut self.version,
                         &mut self.error,
+                        &mut self.tag,
                     )?;
                 },
                 Items::Use(use_def) => {
@@ -629,6 +654,7 @@ impl NamespaceCtx {
         path: &Path,
         version: &mut Option<FromNamedSource<VersionMeta>>,
         error: &mut Option<FromNamedSource<ErrorMeta>>,
+        tag: &mut Option<FromNamedSource<TagAttribute>>,
     ) -> crate::Result<()> {
         for meta_spanned in meta_vec {
             for meta_item in &meta_spanned.value.meta {
@@ -650,6 +676,23 @@ impl NamespaceCtx {
                             });
                         }
                         *error = Some(e.clone().with_source(path.to_path_buf()));
+                    },
+                    ItemMetaItem::Tag(t) => {
+                        // Namespace-level tag: #![tag(...)] per SPEC-0016 Phase 4
+                        if tag.is_some() {
+                            return Err(crate::Error::DuplicateMetaAttribute {
+                                attribute: "tag".to_string(),
+                                path: path.to_path_buf(),
+                            });
+                        }
+                        *tag = Some(
+                            t.value
+                                .clone()
+                                .with_source(path.to_path_buf()),
+                        );
+                    },
+                    ItemMetaItem::Rename(_) => {
+                        // Rename only valid on variants, not at namespace level - skip
                     },
                 }
             }
@@ -702,6 +745,7 @@ impl NamespaceCtx {
 
         self.resolved_versions = resolution.versions;
         self.resolved_errors = resolution.errors;
+        self.resolved_aliases = resolution.resolved_aliases;
 
         tracing::debug!(
             total_children = self.children.len(),

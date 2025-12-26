@@ -31,7 +31,7 @@ pub struct Cli {
     #[clap(
         long,
         global = true,
-        default_value = "info",
+        default_value = "error",
         env = "LOG_LEVEL",
         help = "the verbosity level to print logs at."
     )]
@@ -59,8 +59,7 @@ impl Cli {
                     args.config.config_dir.unwrap_or("./".into()),
                     progress.is_enabled(),
                 )
-                .await
-                .map_err(|err| err.to_report(None, None, None))?;
+                .await?;
 
                 ctx.finalize().await?;
 
@@ -95,8 +94,7 @@ impl Cli {
                             root_dir.clone(),
                             progress.is_enabled(),
                         )
-                        .await
-                        .map_err(|err| err.to_report(None, None, None))?;
+                        .await?;
 
                         ctx.finalize().await?;
 

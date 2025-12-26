@@ -55,6 +55,18 @@ impl DeclTypeExt for DeclType {
                 let val = value_type.to_rust_tokens(opts);
                 quote!(std::collections::BTreeMap<#key, #val>)
             },
+            DeclType::TypeExpr {
+                op,
+                target,
+                selectors,
+            } => {
+                todo!(
+                    "Type expressions are not yet supported in code generation: {:?} {:?} {:?}",
+                    op,
+                    target,
+                    selectors
+                )
+            },
             DeclType::Paren { inner_type } => inner_type.to_rust_tokens(opts),
         }
     }

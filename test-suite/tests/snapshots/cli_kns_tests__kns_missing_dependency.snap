@@ -1,0 +1,8 @@
+---
+source: test-suite/tests/cli_kns_tests.rs
+expression: result.stderr
+---
+KNS4001
+
+  × use statement 'missing_dep' does not correspond to a .ks file or directory
+  help: check the path exists or define the namespace

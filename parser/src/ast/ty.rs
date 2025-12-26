@@ -250,12 +250,22 @@ pub enum Type {
     Union {
         ty: Spanned<Union>,
     },
+    UnionOr {
+        lhs: Spanned<Box<Type>>,
+        op: SpannedToken![union_or],
+        rhs: Spanned<Box<Type>>,
+    },
     Struct {
         ty: Spanned<AnonymousStruct>,
     },
     Result {
         ty: Spanned<Box<Type>>,
         ex: SpannedToken![!],
+    },
+    /// Type expression (Pick, Omit, Partial, Required, Exclude, Extract, ArrayItem)
+    /// per RFC-0018. Resolves to concrete types during Phase 3.6.
+    TypeExpr {
+        expr: Spanned<super::type_expr::TypeExpr>,
     },
 }
 
@@ -269,7 +279,9 @@ impl Type {
             Self::Result { ty, .. } => format!("{}!", ty.type_name()),
             Self::Struct { .. } => "anon struct".into(),
             Self::Union { .. } => "union".into(),
+            Self::UnionOr { .. } => "union or".into(),
             Self::Array { ty } => ty.type_name(),
+            Self::TypeExpr { .. } => "type expr".into(),
         }
     }
 }
@@ -300,6 +312,16 @@ impl Parse for Type {
             tracing::trace!("parsing builtin in type");
             Type::Builtin {
                 ty: stream.parse()?,
+            }
+        } else if super::type_expr::TypeExprOp::peek(stream) {
+            // Type expression operators (Pick, Omit, etc.) per RFC-0018
+            // Must check before PathOrIdent since ops look like idents
+            tracing::trace!("parsing type expr in type");
+            let expr_start = stream.cursor();
+            let expr = super::type_expr::TypeExpr::parse(stream)?;
+            let expr_end = stream.cursor();
+            Type::TypeExpr {
+                expr: Spanned::new(expr_start, expr_end, expr),
             }
         } else if stream.peek::<PathOrIdent>() {
             tracing::trace!("parsing ident in type");
@@ -364,6 +386,27 @@ impl Parse for Type {
             current = Spanned::new(start, end, Type::Array { ty: array_spanned });
         }
 
+        // Parse &| (union or) - left-associative per RFC-0016
+        while stream.peek::<toks::AmpPipeToken>() {
+            let op: SpannedToken![union_or] = stream.parse()?;
+            let rhs_start = stream.current_span().span().start;
+            let rhs: Type = Type::parse(stream)?;
+            let rhs_end = stream.current_span().span().end;
+            let rhs_spanned = Spanned::new(rhs_start, rhs_end, Box::new(rhs));
+
+            let lhs_start = current.span().start;
+            let end = rhs_spanned.span().end;
+            current = Spanned::new(
+                lhs_start,
+                end,
+                Type::UnionOr {
+                    lhs: current.map(Box::new),
+                    op,
+                    rhs: rhs_spanned,
+                },
+            );
+        }
+
         if stream.peek::<Token![!]>() {
             let ex: Spanned<BangToken> = stream.parse()?;
             current = Spanned::new(
@@ -384,7 +427,7 @@ impl Peek for Type {
         stream.peek::<AnonymousOneOf>()
             || stream.peek::<AnonymousStruct>()
             || stream.peek::<Builtin>()
-            || stream.peek::<Token![ident]>()
+            || stream.peek::<Token![ident]>()  // Covers TypeExprOp (Pick, Omit, etc.)
             || stream.peek::<toks::LParenToken>()
     }
 }
@@ -401,6 +444,13 @@ impl ToTokens for Type {
             Self::Array { ty } => ty.write(tt),
             Self::Struct { ty } => ty.write(tt),
             Self::Union { ty } => ty.write(tt),
+            Self::UnionOr { lhs, op, rhs } => {
+                lhs.write(tt);
+                tt.space();
+                op.write(tt);
+                tt.space();
+                rhs.write(tt);
+            },
             Self::Result { ty, ex } => {
                 ty.write(tt);
                 ex.write(tt);
@@ -410,6 +460,7 @@ impl ToTokens for Type {
                 tt.write(ty);
                 tt.token(&Token::RParen);
             },
+            Self::TypeExpr { expr } => expr.value.write(tt),
         }
     }
 }
@@ -425,6 +476,10 @@ impl Type {
 
     pub fn is_union(&self) -> bool {
         matches!(self, Type::Union { .. })
+    }
+
+    pub fn is_union_or(&self) -> bool {
+        matches!(self, Type::UnionOr { .. })
     }
 
     pub fn is_anonymous_struct(&self) -> bool {
@@ -473,6 +528,10 @@ mod test {
     #[test_case::test_case("oneof my_struct | never"; "round trip ident and never")]
     #[test_case::test_case("my_struct & other_struct"; "basic union")]
     #[test_case::test_case("my_struct & ((other_struct & inner_struct) & next_struct)"; "nested union")]
+    #[test_case::test_case("A &| B"; "basic union or")]
+    #[test_case::test_case("A &| B &| C"; "chained union or left associative")]
+    #[test_case::test_case("(A &| B) &| C"; "union or explicit left grouping")]
+    #[test_case::test_case("A &| (B &| C)"; "union or explicit right grouping")]
     fn round_trip(src: &str) {
         crate::tst::round_trip::<super::Type>(src).unwrap();
     }

@@ -1,0 +1,8 @@
+---
+source: test-suite/tests/cli_kpr_tests.rs
+expression: result.stderr
+---
+KFS4002
+
+  × missing lib.ks: every schema must have a schema/lib.ks file
+  help: create schema/lib.ks with your namespace declaration

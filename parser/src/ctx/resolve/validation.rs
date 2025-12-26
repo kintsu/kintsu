@@ -178,8 +178,56 @@ impl TypeResolver {
                     Self::validate_type_reference(&variant.value, ns)?;
                 }
             },
+            Type::UnionOr { lhs, rhs, .. } => {
+                Self::validate_type_reference(&lhs.value, ns)?;
+                Self::validate_type_reference(&rhs.value, ns)?;
+            },
+            Type::TypeExpr { expr } => {
+                // Type expressions are validated during Phase 3.6 resolution
+                // Here we just validate references within the expression
+                Self::validate_type_expr_references(&expr.value, ns)?;
+            },
             Type::Builtin { .. } => {
                 // always valid
+            },
+        }
+        Ok(())
+    }
+
+    fn validate_type_expr_references(
+        expr: &crate::ast::type_expr::TypeExpr,
+        ns: &super::super::NamespaceCtx,
+    ) -> crate::Result<()> {
+        use crate::ast::type_expr::{TypeExpr, TypeExprOp};
+        match expr {
+            TypeExpr::TypeRef { reference } => {
+                if !ns.registry.is_valid(&ns.ctx, reference, ns) {
+                    let type_name = match reference {
+                        crate::ast::ty::PathOrIdent::Ident(name_token) => {
+                            name_token.value.borrow_string().clone()
+                        },
+                        crate::ast::ty::PathOrIdent::Path(path) => {
+                            <crate::defs::Spanned<_> as crate::ToTokens>::display(path)
+                        },
+                    };
+                    return Err(crate::Error::UndefinedType { name: type_name });
+                }
+            },
+            TypeExpr::FieldAccess { base, .. } => {
+                Self::validate_type_expr_references(&base.value, ns)?;
+            },
+            TypeExpr::Op(op) => {
+                match &op.value {
+                    TypeExprOp::Pick { target, .. }
+                    | TypeExprOp::Omit { target, .. }
+                    | TypeExprOp::Partial { target, .. }
+                    | TypeExprOp::Required { target, .. }
+                    | TypeExprOp::Exclude { target, .. }
+                    | TypeExprOp::Extract { target, .. }
+                    | TypeExprOp::ArrayItem { target } => {
+                        Self::validate_type_expr_references(target, ns)?;
+                    },
+                }
             },
         }
         Ok(())

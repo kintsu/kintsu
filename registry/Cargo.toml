@@ -16,6 +16,7 @@ kintsu-parser = { path = "../parser", features = ["api"] }
 kintsu-registry-auth = { path = "../registry-auth" }
 kintsu-registry-core = { path = "../registry-core" }
 kintsu-registry-db = { path = "../registry-db" }
+kintsu-registry-errors = { path = "../registry-errors", features = ["api"] }
 kintsu-registry-events = { path = "../registry-events" }
 kintsu-registry-storage = { path = "../registry-storage" }
 actix-web = { workspace = true, features = ["secure-cookies", "rustls-0_23"] }

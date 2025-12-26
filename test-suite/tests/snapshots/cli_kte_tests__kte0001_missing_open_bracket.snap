@@ -1,0 +1,17 @@
+---
+source: test-suite/tests/cli_kte_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: expected ;, found User
+   ╭─[./tmp/cli_test_kte0001_missing_open_bracket/pkg/schema/types.ks:9:25]
+ 4 │     id: u64,
+ 5 │     name: str,
+ 6 │     email: str
+ 7 │ };
+ 8 │ 
+ 9 │ type PartialUser = Pick User, id;
+   ·                         ──┬─
+   ·                           ╰── unknown lexing error: expected ;, found User
+   ╰────

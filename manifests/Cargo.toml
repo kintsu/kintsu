@@ -12,6 +12,7 @@ api = ["dep:utoipa"]
 # db = ["dep:sea-orm"]
 
 [dependencies]
+kintsu-errors = { path = "../errors" }
 kintsu-fs = { path = "../fs" }
 config = { workspace = true, features = ["toml"] }
 convert_case = { workspace = true }

@@ -13,6 +13,7 @@ pub mod path;
 pub mod strct;
 pub mod ty;
 pub mod ty_def;
+pub mod type_expr;
 pub mod union;
 pub mod variadic;
 
