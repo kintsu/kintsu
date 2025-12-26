@@ -1,0 +1,9 @@
+[package]
+name = "kintsu-registry-errors"
+edition = "2024"
+version.workspace = true
+license-file.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]

@@ -201,7 +201,21 @@ impl TestHarness {
         self.handle_meta(&result);
 
         match result {
-            Ok(ctx) => ctx,
+            Ok(ctx) => {
+                let decl = ctx
+                    .emit_declarations()
+                    .await
+                    .expect("emit declarations");
+                self.add_file(
+                    "declarations.json",
+                    serde_json::to_string(&decl).expect("serialize declarations"),
+                );
+                self.fs
+                    .danger_write_to_physical(format!("./tmp/{}", self.id()))
+                    .unwrap();
+
+                ctx
+            },
             Err(e) => {
                 self.fs.debug_print_files();
                 panic!(
