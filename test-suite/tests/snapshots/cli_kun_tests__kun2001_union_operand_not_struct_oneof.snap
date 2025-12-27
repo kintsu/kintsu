@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_kun_tests.rs
+expression: result.stderr
+---
+KUN2001
+
+  × union operand must be struct type: found oneof 'Variant'
+   ╭─[./tmp/cli_test_kun2001_union_operand_not_struct_oneof/pkg/schema/types.ks:9:24]
+ 4 │     id: u64
+ 5 │ };
+ 6 │ 
+ 7 │ type Variant = oneof str | i32;
+ 8 │ 
+ 9 │ type Combined = Base & Variant;
+   ·                        ───┬───
+   ·                           ╰── union operand must be struct type: found oneof 'Variant'
+   ╰────
+  help: union operations require struct types

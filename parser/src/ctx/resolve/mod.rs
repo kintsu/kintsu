@@ -27,7 +27,7 @@ use self::helpers::NameContext;
 #[derive(Default)]
 pub struct NamespaceResolution {
     pub anonymous_structs: Vec<SourceSpanned<crate::ast::items::StructDef>>,
-    pub identified_unions: Vec<Spanned<UnionRecord>>,
+    pub identified_unions: Vec<(Spanned<UnionRecord>, std::path::PathBuf)>,
     pub union_structs: Vec<SourceSpanned<crate::ast::items::StructDef>>,
     pub resolved_aliases: BTreeMap<String, Spanned<Type>>,
     pub versions: BTreeMap<String, Spanned<u32>>,
@@ -146,7 +146,7 @@ impl TypeResolver {
             self.resolution.identified_unions.extend(
                 unions_found
                     .into_iter()
-                    .map(|u| Spanned::call_site(u.value)),
+                    .map(|u| (Spanned::call_site(u.value), u.source)),
             );
 
             name_gen.pop();
@@ -160,11 +160,14 @@ impl TypeResolver {
 
         let ns = self.namespace.lock().await;
 
-        for union_record in &self.resolution.identified_unions {
+        for (union_record, source_path) in &self.resolution.identified_unions {
+            let source_content = ns.sources.get(source_path).cloned();
             unions::validate_union_record(
                 &union_record.value,
                 &ns,
                 &self.resolution.resolved_aliases,
+                source_path,
+                source_content.as_ref(),
             )
             .await?;
         }
@@ -178,8 +181,8 @@ impl TypeResolver {
 
         let ns = self.namespace.lock().await;
 
-        for union_record in &self.resolution.identified_unions {
-            let merged_struct = unions::merge_union(&union_record.value, &ns).await?;
+        for (union_record, source_path) in &self.resolution.identified_unions {
+            let merged_struct = unions::merge_union(&union_record.value, &ns, source_path).await?;
             self.resolution.union_structs.push(
                 merged_struct
                     .value

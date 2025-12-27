@@ -154,12 +154,10 @@ impl CompileCtx {
                     },
                     _ => {
                         let Some(resolved) = registry.get(named_ctx) else {
-                            return Err(crate::Error::InternalError {
-                                message: format!(
-                                    "Type '{}' not found in registry during declaration conversion. This is a compiler error.",
-                                    named_ctx.name.borrow_string()
-                                ),
-                            });
+                            return Err(crate::InternalError::internal(format!(
+                                "Type '{}' not found in registry during declaration conversion. This is a compiler error.",
+                                named_ctx.name.borrow_string()
+                            )).unlocated().build().into());
                         };
                         types.push(Self::convert_type(
                             named_ctx,
@@ -417,9 +415,12 @@ impl CompileCtx {
             },
 
             AstType::Result { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Result type conversion requires operation context".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Result type conversion requires operation context",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
 
             AstType::Paren { ty, .. } => {
@@ -430,28 +431,39 @@ impl CompileCtx {
             },
 
             AstType::Union { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Unexpected anonymous union in declaration extraction".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Unexpected anonymous union in declaration extraction",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
 
             AstType::Struct { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Unexpected anonymous struct in declaration extraction".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Unexpected anonymous struct in declaration extraction",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
 
             AstType::OneOf { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Unexpected anonymous oneof in declaration extraction".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Unexpected anonymous oneof in declaration extraction",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
 
             AstType::UnionOr { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "UnionOr types should be resolved before declaration extraction"
-                        .into(),
-                })
+                Err(crate::InternalError::internal(
+                    "UnionOr types should be resolved before declaration extraction",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
 
             AstType::TypeExpr { expr } => {
@@ -509,9 +521,12 @@ impl CompileCtx {
             TypeExpr::FieldAccess { .. } => {
                 // Field access in type expressions (e.g., User::profile)
                 // Not yet supported - would need path traversal
-                Err(crate::Error::InternalError {
-                    message: "Field access in type expressions not yet supported".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Field access in type expressions not yet supported",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
             TypeExpr::Op(spanned_op) => {
                 let op = &spanned_op.value;
@@ -622,13 +637,14 @@ impl CompileCtx {
                 let error_name = ns_ctx
                     .resolved_errors
                     .get(operation_name)
-                    .ok_or_else(|| {
-                        crate::Error::InternalError {
-                            message: format!(
-                                "Missing resolved error for operation {}",
-                                operation_name
-                            ),
-                        }
+                    .ok_or_else(|| -> crate::Error {
+                        crate::InternalError::internal(format!(
+                            "Missing resolved error for operation {}",
+                            operation_name
+                        ))
+                        .unlocated()
+                        .build()
+                        .into()
                     })?;
 
                 let error_ctx = ns_ctx
@@ -692,9 +708,13 @@ impl CompileCtx {
                 let parts: Vec<&str> = path_str.split("::").collect();
 
                 if parts.is_empty() {
-                    return Err(crate::Error::InternalError {
-                        message: format!("Empty path: {}", path_str),
-                    });
+                    return Err(crate::InternalError::internal(format!(
+                        "Empty path: {}",
+                        path_str
+                    ))
+                    .unlocated()
+                    .build()
+                    .into());
                 }
 
                 let package = parts[0].to_string();
@@ -835,6 +855,20 @@ impl CompileCtx {
                     let struct_name = format!("{}{}", parent_name, variant_name);
 
                     // Look up the extracted struct in the namespace
+                    let item_ctx = ns_ctx
+                        .ctx
+                        .item(Spanned::call_site(IdentToken::new(struct_name)));
+                    let reference = DeclNamedItemContext::from_named_item_context(&item_ctx);
+                    let ty = DeclType::Named { reference };
+                    (ty, variant_name, extract_comments(comments))
+                },
+                Variant::Unit { name, comments } => {
+                    // Unit variants reference extracted unit structs by name
+                    // Struct name is {ParentName}{VariantName} per RFC-0008
+                    let variant_name = name.borrow_string().clone();
+                    let struct_name = format!("{}{}", parent_name, variant_name);
+
+                    // Look up the extracted unit struct in the namespace
                     let item_ctx = ns_ctx
                         .ctx
                         .item(Spanned::call_site(IdentToken::new(struct_name)));

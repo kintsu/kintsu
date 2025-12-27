@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_ktr_tests.rs
+expression: result.stderr
+---
+KNS4001
+
+  × use statement 'dep' does not correspond to a .ks file or directory
+   ╭─[./tmp/cli_test_ktr_undefined_import/pkg/schema/lib.ks:1:15]
+ 1 │ ╭─▶ namespace pkg;
+ 2 │ ├─▶ use dep;
+   · ╰──── use statement 'dep' does not correspond to a .ks file or directory
+ 3 │     
+ 4 │     namespace types {
+ 5 │         struct Foo {
+ 6 │             item: dep::types::NonExistentType
+ 7 │         };
+   ╰────
+  help: check the path exists or define the namespace

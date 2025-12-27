@@ -1,0 +1,1720 @@
+[test] $ cargo insta test --features generate,chrono,time,emit,test --workspace
+   Compiling kintsu-derives v0.1.0 (/Users/joshuaauchincloss/github/kintsu/derives)
+   Compiling kintsu-test-suite v0.1.0 (/Users/joshuaauchincloss/github/kintsu/test-suite)
+   Compiling kintsu-registry v0.1.0 (/Users/joshuaauchincloss/github/kintsu/registry)
+   Compiling kintsu-cli v0.1.0 (/Users/joshuaauchincloss/github/kintsu/cli)
+warning: unused variable: `err`
+   --> test-suite/tests/failure_tests.rs:257:21
+    |
+257 |     assertions: |_, err: kintsu_parser::Error| {
+    |                     ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `ctx`
+  --> test-suite/tests/generated_graph_tests.rs:26:9
+   |
+26 |     let ctx = harness.compile_pass().await;
+   |         ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `kintsu-test-suite` (test "failure_tests") generated 1 warning (run `cargo fix --test "failure_tests" -p kintsu-test-suite` to apply 1 suggestion)
+warning: variable does not need to be mutable
+   --> test-suite/src/many.rs:717:13
+    |
+717 |         let mut g = GraphGenerator::new();
+    |             ----^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `g`
+   --> test-suite/src/many.rs:717:13
+    |
+717 |         let mut g = GraphGenerator::new();
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_g`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `kintsu-test-suite` (lib test) generated 2 warnings (run `cargo fix --lib -p kintsu-test-suite --tests` to apply 2 suggestions)
+   Compiling kintsu-core v0.1.0 (/Users/joshuaauchincloss/github/kintsu/core)
+warning: `kintsu-test-suite` (test "generated_graph_tests") generated 1 warning (run `cargo fix --test "generated_graph_tests" -p kintsu-test-suite` to apply 1 suggestion)
+   Compiling kintsu-env-client v0.1.0 (/Users/joshuaauchincloss/github/kintsu/env-client)
+   Compiling kintsu-sdk v0.1.0 (/Users/joshuaauchincloss/github/kintsu/sdk)
+warning: unused imports: `Duration` and `Utc`
+ --> registry-db/tests/common/builders.rs:6:14
+  |
+6 | use chrono::{Duration, Utc};
+  |              ^^^^^^^^  ^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `kintsu_manifests::version::Version as ManifestVersion`
+   --> registry-db/tests/common/fixtures.rs:356:13
+    |
+356 |         use kintsu_manifests::version::Version as ManifestVersion;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `builders::*`
+ --> registry-db/tests/common/mod.rs:7:9
+  |
+7 | pub use builders::*;
+  |         ^^^^^^^^^^^
+
+warning: unused import: `fixtures::*`
+ --> registry-db/tests/common/mod.rs:8:9
+  |
+8 | pub use fixtures::*;
+  |         ^^^^^^^^^^^
+
+warning: unused import: `kintsu_registry_db::tst::TestDbCtx`
+  --> registry-db/tests/common/mod.rs:11:9
+   |
+11 | pub use kintsu_registry_db::tst::TestDbCtx;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Error`, `Result`, `engine::*`, and `entities::*`
+  --> registry-db/tests/common/mod.rs:14:30
+   |
+14 | pub use kintsu_registry_db::{Error, Result, engine::*, entities::*};
+   |                              ^^^^^  ^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Utc`
+  --> registry-db/tests/common/mod.rs:16:18
+   |
+16 | pub use chrono::{Duration, Utc};
+   |                  ^^^^^^^^  ^^^
+
+warning: unused imports: `DownloadHistory`, `Paginated`, `PrincipalIdentity`, and `StagePublishPackage`
+ --> registry-db/tests/package_tests.rs:7:9
+  |
+7 |         Paginated, PrincipalIdentity,
+  |         ^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+8 |         package::{DownloadHistory, StagePublishPackage},
+  |                   ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ScenarioBuilder` is never constructed
+  --> registry-db/tests/common/builders.rs:17:12
+   |
+17 | pub struct ScenarioBuilder<'a> {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: multiple associated items are never used
+   --> registry-db/tests/common/builders.rs:24:12
+    |
+ 22 | impl<'a> ScenarioBuilder<'a> {
+    | ---------------------------- associated items in this implementation
+ 23 |     /// Create a new scenario builder with database connection
+ 24 |     pub fn new(db: &'a DatabaseConnection) -> Self {
+    |            ^^^
+...
+ 29 |     pub fn with_storage(
+    |            ^^^^^^^^^^^^
+...
+ 38 |     pub async fn create_user_with_org(
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+ 58 |     pub async fn create_package_with_version(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+109 |     pub async fn create_user_with_api_key(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+129 |     pub async fn create_user_with_scoped_api_key(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+148 |     pub async fn grant_org_role(
+    |                  ^^^^^^^^^^^^^^
+...
+163 |     pub async fn grant_schema_role(
+    |                  ^^^^^^^^^^^^^^^^^
+...
+182 |     pub async fn create_org_with_api_key(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+203 |     pub async fn create_publisher(&self) -> Result<(User, OneTimeApiKey)> {
+    |                  ^^^^^^^^^^^^^^^^
+...
+209 |     pub async fn create_org_owned_package(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+223 |     pub async fn create_user_owned_package(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `email`, `gh_id`, and `gh_avatar` are never used
+  --> registry-db/tests/common/fixtures.rs:55:12
+   |
+54 | impl UserFixture {
+   | ---------------- methods in this implementation
+55 |     pub fn email(
+   |            ^^^^^
+...
+63 |     pub fn gh_id(
+   |            ^^^^^
+...
+79 |     pub fn gh_avatar(
+   |            ^^^^^^^^^
+
+warning: methods `gh_id` and `gh_avatar` are never used
+   --> registry-db/tests/common/fixtures.rs:136:12
+    |
+127 | impl OrgFixture {
+    | --------------- methods in this implementation
+...
+136 |     pub fn gh_id(
+    |            ^^^^^
+...
+144 |     pub fn gh_avatar(
+    |            ^^^^^^^^^
+
+warning: multiple methods are never used
+   --> registry-db/tests/common/fixtures.rs:259:12
+    |
+250 | impl VersionFixture {
+    | ------------------- methods in this implementation
+...
+259 |     pub fn source_checksum(
+    |            ^^^^^^^^^^^^^^^
+...
+267 |     pub fn declarations_checksum(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+275 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+283 |     pub fn homepage(
+    |            ^^^^^^^^
+...
+291 |     pub fn license(
+    |            ^^^^^^^
+...
+299 |     pub fn readme(
+    |            ^^^^^^
+...
+307 |     pub fn repository(
+    |            ^^^^^^^^^^
+...
+315 |     pub fn dependencies(
+    |            ^^^^^^^^^^^^
+...
+323 |     pub fn keywords(
+    |            ^^^^^^^^
+
+warning: struct `ApiKeyFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:387:12
+    |
+387 | pub struct ApiKeyFixture {
+    |            ^^^^^^^^^^^^^
+
+warning: function `api_key` is never used
+   --> registry-db/tests/common/fixtures.rs:396:8
+    |
+396 | pub fn api_key() -> ApiKeyFixture {
+    |        ^^^^^^^
+
+warning: multiple methods are never used
+   --> registry-db/tests/common/fixtures.rs:408:12
+    |
+407 | impl ApiKeyFixture {
+    | ------------------ methods in this implementation
+408 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+416 |     pub fn expires(
+    |            ^^^^^^^
+...
+424 |     pub fn scopes(
+    |            ^^^^^^
+...
+435 |     pub fn permissions(
+    |            ^^^^^^^^^^^
+...
+443 |     pub fn user(
+    |            ^^^^
+...
+452 |     pub fn org(
+    |            ^^^
+...
+461 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: struct `OrgRoleFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:500:12
+    |
+500 | pub struct OrgRoleFixture {
+    |            ^^^^^^^^^^^^^^
+
+warning: function `org_role` is never used
+   --> registry-db/tests/common/fixtures.rs:506:8
+    |
+506 | pub fn org_role(
+    |        ^^^^^^^^
+
+warning: methods `admin`, `member`, and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:518:12
+    |
+517 | impl OrgRoleFixture {
+    | ------------------- methods in this implementation
+518 |     pub fn admin(mut self) -> Self {
+    |            ^^^^^
+...
+523 |     pub fn member(mut self) -> Self {
+    |            ^^^^^^
+...
+528 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: method `author` is never used
+   --> registry-db/tests/common/fixtures.rs:586:12
+    |
+562 | impl SchemaRoleFixture {
+    | ---------------------- method in this implementation
+...
+586 |     pub fn author(mut self) -> Self {
+    |            ^^^^^^
+
+warning: methods `day` and `count` are never used
+   --> registry-db/tests/common/fixtures.rs:662:12
+    |
+661 | impl DownloadsFixture {
+    | --------------------- methods in this implementation
+662 |     pub fn day(
+    |            ^^^
+...
+670 |     pub fn count(
+    |            ^^^^^
+
+warning: struct `OrgInvitationFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:695:12
+    |
+695 | pub struct OrgInvitationFixture {
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `org_invitation` is never used
+   --> registry-db/tests/common/fixtures.rs:702:8
+    |
+702 | pub fn org_invitation(
+    |        ^^^^^^^^^^^^^^
+
+warning: methods `admin`, `member`, and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:716:12
+    |
+715 | impl OrgInvitationFixture {
+    | ------------------------- methods in this implementation
+716 |     pub fn admin(mut self) -> Self {
+    |            ^^^^^
+...
+721 |     pub fn member(mut self) -> Self {
+    |            ^^^^^^
+...
+726 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: `kintsu-registry-db` (test "package_tests") generated 24 warnings (run `cargo fix --test "package_tests" -p kintsu-registry-db` to apply 8 suggestions)
+warning: methods `name`, `gh_id`, and `gh_avatar` are never used
+   --> registry-db/tests/common/fixtures.rs:128:12
+    |
+127 | impl OrgFixture {
+    | --------------- methods in this implementation
+128 |     pub fn name(
+    |            ^^^^
+...
+136 |     pub fn gh_id(
+    |            ^^^^^
+...
+144 |     pub fn gh_avatar(
+    |            ^^^^^^^^^
+
+warning: struct `VersionFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:214:12
+    |
+214 | pub struct VersionFixture {
+    |            ^^^^^^^^^^^^^^
+
+warning: function `version` is never used
+   --> registry-db/tests/common/fixtures.rs:231:8
+    |
+231 | pub fn version(package_id: i64) -> VersionFixture {
+    |        ^^^^^^^
+
+warning: multiple methods are never used
+   --> registry-db/tests/common/fixtures.rs:251:12
+    |
+250 | impl VersionFixture {
+    | ------------------- methods in this implementation
+251 |     pub fn version(
+    |            ^^^^^^^
+...
+259 |     pub fn source_checksum(
+    |            ^^^^^^^^^^^^^^^
+...
+267 |     pub fn declarations_checksum(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+275 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+283 |     pub fn homepage(
+    |            ^^^^^^^^
+...
+291 |     pub fn license(
+    |            ^^^^^^^
+...
+299 |     pub fn readme(
+    |            ^^^^^^
+...
+307 |     pub fn repository(
+    |            ^^^^^^^^^^
+...
+315 |     pub fn dependencies(
+    |            ^^^^^^^^^^^^
+...
+323 |     pub fn keywords(
+    |            ^^^^^^^^
+...
+334 |     pub fn publisher_user(
+    |            ^^^^^^^^^^^^^^
+...
+343 |     pub fn publisher_org(
+    |            ^^^^^^^^^^^^^
+...
+352 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: methods `description`, `expires`, and `org` are never used
+   --> registry-db/tests/common/fixtures.rs:408:12
+    |
+407 | impl ApiKeyFixture {
+    | ------------------ methods in this implementation
+408 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+416 |     pub fn expires(
+    |            ^^^^^^^
+...
+452 |     pub fn org(
+    |            ^^^
+
+warning: struct `DownloadsFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:644:12
+    |
+644 | pub struct DownloadsFixture {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `downloads` is never used
+   --> registry-db/tests/common/fixtures.rs:650:8
+    |
+650 | pub fn downloads(
+    |        ^^^^^^^^^
+
+warning: methods `day`, `count`, and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:662:12
+    |
+661 | impl DownloadsFixture {
+    | --------------------- methods in this implementation
+662 |     pub fn day(
+    |            ^^^
+...
+670 |     pub fn count(
+    |            ^^^^^
+...
+678 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: `kintsu-registry-db` (test "authorization_tests") generated 22 warnings (14 duplicates)
+   Compiling kintsu-registry-db v0.1.0 (/Users/joshuaauchincloss/github/kintsu/registry-db)
+warning: unused import: `OwnerId`
+  --> registry-db/tests/api_key_tests.rs:11:38
+   |
+11 |     engine::{Entity as EngineEntity, OwnerId, PrincipalIdentity, api_key::NewApiKey},
+   |                                      ^^^^^^^
+
+warning: static `PACKAGE_COUNTER` is never used
+  --> registry-db/tests/common/fixtures.rs:19:8
+   |
+19 | static PACKAGE_COUNTER: AtomicI64 = AtomicI64::new(1);
+   |        ^^^^^^^^^^^^^^^
+
+warning: function `next_package_n` is never used
+  --> registry-db/tests/common/fixtures.rs:30:4
+   |
+30 | fn next_package_n() -> i64 {
+   |    ^^^^^^^^^^^^^^
+
+warning: struct `PackageFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:177:12
+    |
+177 | pub struct PackageFixture {
+    |            ^^^^^^^^^^^^^^
+
+warning: function `package` is never used
+   --> registry-db/tests/common/fixtures.rs:181:8
+    |
+181 | pub fn package() -> PackageFixture {
+    |        ^^^^^^^
+
+warning: methods `name` and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:186:12
+    |
+185 | impl PackageFixture {
+    | ------------------- methods in this implementation
+186 |     pub fn name(
+    |            ^^^^
+...
+194 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: method `member` is never used
+   --> registry-db/tests/common/fixtures.rs:523:12
+    |
+517 | impl OrgRoleFixture {
+    | ------------------- method in this implementation
+...
+523 |     pub fn member(mut self) -> Self {
+    |            ^^^^^^
+
+warning: struct `SchemaRoleFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:546:12
+    |
+546 | pub struct SchemaRoleFixture {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: function `schema_role` is never used
+   --> registry-db/tests/common/fixtures.rs:553:8
+    |
+553 | pub fn schema_role(package_id: i64) -> SchemaRoleFixture {
+    |        ^^^^^^^^^^^
+
+warning: methods `user`, `org`, `admin`, `author`, `revoked`, and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:563:12
+    |
+562 | impl SchemaRoleFixture {
+    | ---------------------- methods in this implementation
+563 |     pub fn user(
+    |            ^^^^
+...
+572 |     pub fn org(
+    |            ^^^
+...
+581 |     pub fn admin(mut self) -> Self {
+    |            ^^^^^
+...
+586 |     pub fn author(mut self) -> Self {
+    |            ^^^^^^
+...
+591 |     pub fn revoked(self) -> SchemaRoleFixtureRevoked {
+    |            ^^^^^^^
+...
+598 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: struct `SchemaRoleFixtureRevoked` is never constructed
+   --> registry-db/tests/common/fixtures.rs:618:12
+    |
+618 | pub struct SchemaRoleFixtureRevoked {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `insert` is never used
+   --> registry-db/tests/common/fixtures.rs:624:18
+    |
+623 | impl SchemaRoleFixtureRevoked {
+    | ----------------------------- method in this implementation
+624 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: `kintsu-registry-db` (test "api_key_tests") generated 32 warnings (20 duplicates) (run `cargo fix --test "api_key_tests" -p kintsu-registry-db` to apply 1 suggestion)
+warning: unused import: `engine::version::QualifiedPackageVersion`
+ --> registry-db/tests/version_tests.rs:9:26
+  |
+9 | use kintsu_registry_db::{engine::version::QualifiedPackageVersion, entities::*, tst::TestDbCtx};
+  |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: static `ORG_COUNTER` is never used
+  --> registry-db/tests/common/fixtures.rs:18:8
+   |
+18 | static ORG_COUNTER: AtomicI64 = AtomicI64::new(1);
+   |        ^^^^^^^^^^^
+
+warning: function `next_org_n` is never used
+  --> registry-db/tests/common/fixtures.rs:26:4
+   |
+26 | fn next_org_n() -> i64 {
+   |    ^^^^^^^^^^
+
+warning: struct `OrgFixture` is never constructed
+   --> registry-db/tests/common/fixtures.rs:113:12
+    |
+113 | pub struct OrgFixture {
+    |            ^^^^^^^^^^
+
+warning: function `org` is never used
+   --> registry-db/tests/common/fixtures.rs:119:8
+    |
+119 | pub fn org() -> OrgFixture {
+    |        ^^^
+
+warning: methods `name`, `gh_id`, `gh_avatar`, and `insert` are never used
+   --> registry-db/tests/common/fixtures.rs:128:12
+    |
+127 | impl OrgFixture {
+    | --------------- methods in this implementation
+128 |     pub fn name(
+    |            ^^^^
+...
+136 |     pub fn gh_id(
+    |            ^^^^^
+...
+144 |     pub fn gh_avatar(
+    |            ^^^^^^^^^
+...
+152 |     pub async fn insert(
+    |                  ^^^^^^
+
+warning: multiple methods are never used
+   --> registry-db/tests/common/fixtures.rs:259:12
+    |
+250 | impl VersionFixture {
+    | ------------------- methods in this implementation
+...
+259 |     pub fn source_checksum(
+    |            ^^^^^^^^^^^^^^^
+...
+267 |     pub fn declarations_checksum(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+275 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+283 |     pub fn homepage(
+    |            ^^^^^^^^
+...
+291 |     pub fn license(
+    |            ^^^^^^^
+...
+299 |     pub fn readme(
+    |            ^^^^^^
+...
+307 |     pub fn repository(
+    |            ^^^^^^^^^^
+...
+323 |     pub fn keywords(
+    |            ^^^^^^^^
+...
+343 |     pub fn publisher_org(
+    |            ^^^^^^^^^^^^^
+
+warning: `kintsu-registry-db` (test "version_tests") generated 34 warnings (27 duplicates) (run `cargo fix --test "version_tests" -p kintsu-registry-db` to apply 1 suggestion)
+warning: method `admin` is never used
+   --> registry-db/tests/common/fixtures.rs:716:12
+    |
+715 | impl OrgInvitationFixture {
+    | ------------------------- method in this implementation
+716 |     pub fn admin(mut self) -> Self {
+    |            ^^^^^
+
+warning: `kintsu-registry-db` (test "org_invite_tests") generated 30 warnings (29 duplicates)
+warning: unused import: `ty`
+   --> core/src/lib.rs:257:57
+    |
+257 |         Struct, Type, Typed, VariantKind, Version, map, ty,
+    |                                                         ^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `expires`, `scopes`, and `permissions` are never used
+   --> registry-db/tests/common/fixtures.rs:416:12
+    |
+407 | impl ApiKeyFixture {
+    | ------------------ methods in this implementation
+...
+416 |     pub fn expires(
+    |            ^^^^^^^
+...
+424 |     pub fn scopes(
+    |            ^^^^^^
+...
+435 |     pub fn permissions(
+    |            ^^^^^^^^^^^
+
+warning: `kintsu-registry-db` (test "org_tests") generated 31 warnings (30 duplicates)
+warning: unused import: `super::*`
+   --> registry-storage/src/s3.rs:171:9
+    |
+171 |     use super::*;
+    |         ^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `kintsu-registry-storage` (lib test) generated 1 warning (run `cargo fix --lib -p kintsu-registry-storage --tests` to apply 1 suggestion)
+warning: methods `gh_id` and `gh_avatar` are never used
+  --> registry-db/tests/common/fixtures.rs:63:12
+   |
+54 | impl UserFixture {
+   | ---------------- methods in this implementation
+...
+63 |     pub fn gh_id(
+   |            ^^^^^
+...
+79 |     pub fn gh_avatar(
+   |            ^^^^^^^^^
+
+warning: multiple methods are never used
+   --> registry-db/tests/common/fixtures.rs:259:12
+    |
+250 | impl VersionFixture {
+    | ------------------- methods in this implementation
+...
+259 |     pub fn source_checksum(
+    |            ^^^^^^^^^^^^^^^
+...
+267 |     pub fn declarations_checksum(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+275 |     pub fn description(
+    |            ^^^^^^^^^^^
+...
+283 |     pub fn homepage(
+    |            ^^^^^^^^
+...
+291 |     pub fn license(
+    |            ^^^^^^^
+...
+299 |     pub fn readme(
+    |            ^^^^^^
+...
+307 |     pub fn repository(
+    |            ^^^^^^^^^^
+...
+315 |     pub fn dependencies(
+    |            ^^^^^^^^^^^^
+...
+323 |     pub fn keywords(
+    |            ^^^^^^^^
+...
+343 |     pub fn publisher_org(
+    |            ^^^^^^^^^^^^^
+
+warning: methods `org`, `author`, and `revoked` are never used
+   --> registry-db/tests/common/fixtures.rs:572:12
+    |
+562 | impl SchemaRoleFixture {
+    | ---------------------- methods in this implementation
+...
+572 |     pub fn org(
+    |            ^^^
+...
+586 |     pub fn author(mut self) -> Self {
+    |            ^^^^^^
+...
+591 |     pub fn revoked(self) -> SchemaRoleFixtureRevoked {
+    |            ^^^^^^^
+
+warning: unused imports: `Error` and `NewUser`
+  --> registry-db/tests/user_tests.rs:11:5
+   |
+11 |     Error,
+   |     ^^^^^
+...
+14 |         user::{NewUser, create_or_update_user_from_oauth},
+   |                ^^^^^^^
+
+warning: method `gh_avatar` is never used
+  --> registry-db/tests/common/fixtures.rs:79:12
+   |
+54 | impl UserFixture {
+   | ---------------- method in this implementation
+...
+79 |     pub fn gh_avatar(
+   |            ^^^^^^^^^
+
+warning: `kintsu-core` (lib test) generated 1 warning (run `cargo fix --lib -p kintsu-core --tests` to apply 1 suggestion)
+   Compiling test-gen-a v0.1.0 (/Users/joshuaauchincloss/github/kintsu/examples/gen-a)
+warning: `kintsu-registry-db` (test "favourites_tests") generated 31 warnings (31 duplicates)
+warning: `kintsu-registry-db` (test "fixtures_tests") generated 25 warnings (22 duplicates)
+warning: `kintsu-registry-db` (test "user_tests") generated 32 warnings (30 duplicates) (run `cargo fix --test "user_tests" -p kintsu-registry-db` to apply 1 suggestion)
+warning: `kintsu-registry-db` (test "schema_role_tests") generated 27 warnings (27 duplicates)
+warning: unused import: `ServiceResponse`
+ --> registry/tests/common/request.rs:5:20
+  |
+5 |     dev::{Service, ServiceResponse},
+  |                    ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `kintsu_registry_db::entities::SchemaRoleType`
+  --> registry/tests/principal_tests.rs:14:5
+   |
+14 | use kintsu_registry_db::entities::SchemaRoleType;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `s3` is never read
+  --> registry/tests/common/ctx.rs:28:9
+   |
+26 | pub struct TestRegistryCtx {
+   |            --------------- field in this struct
+27 |     pub db: TestDbCtx,
+28 |     pub s3: TestS3Ctx,
+   |         ^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `create_publisher`, `create_reader`, `create_org_member`, and `create_user_with_token_and_permission` are never used
+   --> registry/tests/common/ctx.rs:119:18
+    |
+ 38 | impl TestRegistryCtx {
+    | -------------------- methods in this implementation
+...
+119 |     pub async fn create_publisher(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^^^^
+...
+135 |     pub async fn create_reader(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^
+...
+186 |     pub async fn create_org_member(
+    |                  ^^^^^^^^^^^^^^^^^
+...
+227 |     pub async fn create_user_with_token_and_permission(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `put` is never used
+   --> registry/tests/common/ctx.rs:273:12
+    |
+247 | impl TestRegistryCtx {
+    | -------------------- method in this implementation
+...
+273 |     pub fn put<'a>(
+    |            ^^^
+
+warning: associated items `put`, `content_type`, `body`, and `query` are never used
+   --> registry/tests/common/request.rs:49:12
+    |
+ 23 | impl<'ctx> RequestBuilder<'ctx> {
+    | ------------------------------- associated items in this implementation
+...
+ 49 |     pub fn put(
+    |            ^^^
+...
+102 |     pub fn content_type(
+    |            ^^^^^^^^^^^^
+...
+112 |     pub fn body(
+    |            ^^^^
+...
+121 |     pub fn query(
+    |            ^^^^^
+
+warning: multiple methods are never used
+   --> registry/tests/common/response.rs:30:12
+    |
+ 13 | impl TestResponse {
+    | ----------------- methods in this implementation
+...
+ 30 |     pub fn body(&self) -> &[u8] {
+    |            ^^^^
+...
+ 57 |     pub fn assert_ok(self) -> Self {
+    |            ^^^^^^^^^
+...
+ 62 |     pub fn assert_created(self) -> Self {
+    |            ^^^^^^^^^^^^^^
+...
+ 67 |     pub fn assert_no_content(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^
+...
+ 72 |     pub fn assert_bad_request(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+ 82 |     pub fn assert_forbidden(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 87 |     pub fn assert_not_found(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 92 |     pub fn assert_conflict(self) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+ 99 |     pub fn json<T: DeserializeOwned>(self) -> T {
+    |            ^^^^
+...
+110 |     pub fn error_response(self) -> ErrorResponse {
+    |            ^^^^^^^^^^^^^^
+...
+139 |     pub fn assert_validation_error(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+163 |     pub fn assert_unauthorized_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+169 |     pub fn assert_forbidden_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+181 |     pub fn assert_token_expired_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+187 |     pub fn assert_error_contains(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `conn`, `create_publisher`, `create_reader`, `create_user_with_expired_token`, and `create_user_with_token_and_permission` are never used
+   --> registry/tests/common/ctx.rs:72:12
+    |
+ 38 | impl TestRegistryCtx {
+    | -------------------- methods in this implementation
+...
+ 72 |     pub fn conn(&self) -> &sea_orm::DatabaseConnection {
+    |            ^^^^
+...
+119 |     pub async fn create_publisher(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^^^^
+...
+135 |     pub async fn create_reader(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^
+...
+210 |     pub async fn create_user_with_expired_token(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+227 |     pub async fn create_user_with_token_and_permission(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `put`, `bytes`, `content_type`, `body`, and `header` are never used
+   --> registry/tests/common/request.rs:49:12
+    |
+ 23 | impl<'ctx> RequestBuilder<'ctx> {
+    | ------------------------------- associated items in this implementation
+...
+ 49 |     pub fn put(
+    |            ^^^
+...
+ 93 |     pub fn bytes(
+    |            ^^^^^
+...
+102 |     pub fn content_type(
+    |            ^^^^^^^^^^^^
+...
+112 |     pub fn body(
+    |            ^^^^
+...
+132 |     pub fn header(
+    |            ^^^^^^
+
+warning: multiple methods are never used
+   --> registry/tests/common/response.rs:30:12
+    |
+ 13 | impl TestResponse {
+    | ----------------- methods in this implementation
+...
+ 30 |     pub fn body(&self) -> &[u8] {
+    |            ^^^^
+...
+ 62 |     pub fn assert_created(self) -> Self {
+    |            ^^^^^^^^^^^^^^
+...
+ 67 |     pub fn assert_no_content(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^
+...
+ 87 |     pub fn assert_not_found(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 92 |     pub fn assert_conflict(self) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+110 |     pub fn error_response(self) -> ErrorResponse {
+    |            ^^^^^^^^^^^^^^
+...
+139 |     pub fn assert_validation_error(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+163 |     pub fn assert_unauthorized_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+169 |     pub fn assert_forbidden_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+181 |     pub fn assert_token_expired_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+187 |     pub fn assert_error_contains(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `admin`
+   --> registry/tests/permission_tests.rs:292:15
+    |
+292 |     let (org, admin, admin_token) = ctx.create_org_with_admin().await;
+    |               ^^^^^ help: if this is intentional, prefix it with an underscore: `_admin`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `member`
+   --> registry/tests/permission_tests.rs:318:10
+    |
+318 |     let (member, member_token) = ctx.create_org_member(org.id).await;
+    |          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_member`
+
+warning: associated items `put`, `bytes`, `content_type`, `body`, `query`, and `header` are never used
+   --> registry/tests/common/request.rs:49:12
+    |
+ 23 | impl<'ctx> RequestBuilder<'ctx> {
+    | ------------------------------- associated items in this implementation
+...
+ 49 |     pub fn put(
+    |            ^^^
+...
+ 93 |     pub fn bytes(
+    |            ^^^^^
+...
+102 |     pub fn content_type(
+    |            ^^^^^^^^^^^^
+...
+112 |     pub fn body(
+    |            ^^^^
+...
+121 |     pub fn query(
+    |            ^^^^^
+...
+132 |     pub fn header(
+    |            ^^^^^^
+
+warning: multiple methods are never used
+   --> registry/tests/common/response.rs:25:12
+    |
+ 13 | impl TestResponse {
+    | ----------------- methods in this implementation
+...
+ 25 |     pub fn status(&self) -> StatusCode {
+    |            ^^^^^^
+...
+ 30 |     pub fn body(&self) -> &[u8] {
+    |            ^^^^
+...
+ 62 |     pub fn assert_created(self) -> Self {
+    |            ^^^^^^^^^^^^^^
+...
+ 72 |     pub fn assert_bad_request(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+ 77 |     pub fn assert_unauthorized(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+ 87 |     pub fn assert_not_found(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 92 |     pub fn assert_conflict(self) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+ 99 |     pub fn json<T: DeserializeOwned>(self) -> T {
+    |            ^^^^
+...
+110 |     pub fn error_response(self) -> ErrorResponse {
+    |            ^^^^^^^^^^^^^^
+...
+117 |     pub fn assert_error_type(
+    |            ^^^^^^^^^^^^^^^^^
+...
+139 |     pub fn assert_validation_error(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+163 |     pub fn assert_unauthorized_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+169 |     pub fn assert_forbidden_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+175 |     pub fn assert_invalid_token_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+181 |     pub fn assert_token_expired_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+187 |     pub fn assert_error_contains(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `conn`, `create_publisher`, `create_reader`, `create_org_member`, and `create_user_with_expired_token` are never used
+   --> registry/tests/common/ctx.rs:72:12
+    |
+ 38 | impl TestRegistryCtx {
+    | -------------------- methods in this implementation
+...
+ 72 |     pub fn conn(&self) -> &sea_orm::DatabaseConnection {
+    |            ^^^^
+...
+119 |     pub async fn create_publisher(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^^^^
+...
+135 |     pub async fn create_reader(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^
+...
+186 |     pub async fn create_org_member(
+    |                  ^^^^^^^^^^^^^^^^^
+...
+210 |     pub async fn create_user_with_expired_token(&self) -> (User, String) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `put`, `bytes`, and `header` are never used
+   --> registry/tests/common/request.rs:49:12
+    |
+ 23 | impl<'ctx> RequestBuilder<'ctx> {
+    | ------------------------------- associated items in this implementation
+...
+ 49 |     pub fn put(
+    |            ^^^
+...
+ 93 |     pub fn bytes(
+    |            ^^^^^
+...
+132 |     pub fn header(
+    |            ^^^^^^
+
+warning: multiple methods are never used
+   --> registry/tests/common/response.rs:25:12
+    |
+ 13 | impl TestResponse {
+    | ----------------- methods in this implementation
+...
+ 25 |     pub fn status(&self) -> StatusCode {
+    |            ^^^^^^
+...
+ 30 |     pub fn body(&self) -> &[u8] {
+    |            ^^^^
+...
+ 62 |     pub fn assert_created(self) -> Self {
+    |            ^^^^^^^^^^^^^^
+...
+ 67 |     pub fn assert_no_content(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^
+...
+ 82 |     pub fn assert_forbidden(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 92 |     pub fn assert_conflict(self) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+ 99 |     pub fn json<T: DeserializeOwned>(self) -> T {
+    |            ^^^^
+...
+110 |     pub fn error_response(self) -> ErrorResponse {
+    |            ^^^^^^^^^^^^^^
+...
+117 |     pub fn assert_error_type(
+    |            ^^^^^^^^^^^^^^^^^
+...
+139 |     pub fn assert_validation_error(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+163 |     pub fn assert_unauthorized_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+169 |     pub fn assert_forbidden_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+175 |     pub fn assert_invalid_token_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+181 |     pub fn assert_token_expired_error(self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+187 |     pub fn assert_error_contains(
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `kintsu-registry` (test "permission_tests") generated 8 warnings (4 duplicates) (run `cargo fix --test "permission_tests" -p kintsu-registry` to apply 2 suggestions)
+warning: `kintsu-registry` (test "apikey_tests") generated 6 warnings (3 duplicates)
+warning: `kintsu-registry` (test "principal_tests") generated 7 warnings (run `cargo fix --test "principal_tests" -p kintsu-registry` to apply 2 suggestions)
+warning: `kintsu-registry` (test "validation_tests") generated 6 warnings (3 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.88s
+────────────
+ Nextest run ID a3009db7-e49c-4e46-860a-785ce5226945 with nextest profile: default
+    Starting 822 tests across 67 binaries (7 tests skipped)
+        PASS [   0.010s] (  1/822) kintsu-core generate::rust::test::test_ident
+        PASS [   0.010s] (  2/822) kintsu-core ty::test::display_case::array_string
+        PASS [   0.010s] (  3/822) kintsu-core ty::test::display_case::array_of_opt_u16
+        PASS [   0.010s] (  4/822) kintsu-core test::ty_resolution
+        PASS [   0.012s] (  5/822) kintsu-core test::test_de_basic_op
+        PASS [   0.012s] (  6/822) kintsu-core test::test_de_basic_enum
+        PASS [   0.013s] (  7/822) kintsu-core generate::files::test::test_mem
+        PASS [   0.014s] (  8/822) kintsu-core generate::files::test::test_file
+        PASS [   0.014s] (  9/822) kintsu-core checks::test::test_plugin::test_plugin_loads
+        PASS [   0.014s] ( 10/822) kintsu-core test::test_de_basic_struct
+        PASS [   0.010s] ( 11/822) kintsu-core ty::test::display_case::array_u8
+        PASS [   0.010s] ( 12/822) kintsu-core ty::test::display_case::bool
+        PASS [   0.010s] ( 13/822) kintsu-core ty::test::display_case::complex
+        PASS [   0.010s] ( 14/822) kintsu-core ty::test::display_case::binary
+        PASS [   0.008s] ( 15/822) kintsu-core ty::test::display_case::datetime
+        PASS [   0.021s] ( 16/822) kintsu-core generate::test::test_gen_mem
+        PASS [   0.010s] ( 17/822) kintsu-core ty::test::display_case::enum_ref
+        PASS [   0.009s] ( 18/822) kintsu-core ty::test::display_case::f32
+        PASS [   0.009s] ( 19/822) kintsu-core ty::test::display_case::i16
+        PASS [   0.009s] ( 20/822) kintsu-core ty::test::display_case::f64
+        PASS [   0.007s] ( 21/822) kintsu-core ty::test::display_case::i32
+        PASS [   0.008s] ( 22/822) kintsu-core ty::test::display_case::i64
+        PASS [   0.008s] ( 23/822) kintsu-core ty::test::display_case::i8
+        PASS [   0.008s] ( 24/822) kintsu-core ty::test::display_case::never
+        PASS [   0.010s] ( 25/822) kintsu-core ty::test::display_case::nested_opt_u8
+        PASS [   0.009s] ( 26/822) kintsu-core ty::test::display_case::one_of_ref
+        PASS [   0.008s] ( 27/822) kintsu-core ty::test::display_case::opt_array_opt_i32
+        PASS [   0.007s] ( 28/822) kintsu-core ty::test::display_case::opt_sized_array_i32
+        PASS [   0.008s] ( 29/822) kintsu-core ty::test::display_case::opt_array_u8
+        PASS [   0.010s] ( 30/822) kintsu-core ty::test::display_case::opt_u32
+        PASS [   0.009s] ( 31/822) kintsu-core ty::test::display_case::sized_array_i16
+        PASS [   0.007s] ( 32/822) kintsu-core ty::test::display_case::u16
+        PASS [   0.009s] ( 33/822) kintsu-core ty::test::display_case::sized_array_of_opt_string
+        PASS [   0.008s] ( 34/822) kintsu-core ty::test::display_case::triple_opt_f64
+        PASS [   0.008s] ( 35/822) kintsu-core ty::test::display_case::struct_ref
+        PASS [   0.010s] ( 36/822) kintsu-core ty::test::display_case::string
+        PASS [   0.008s] ( 37/822) kintsu-core ty::test::display_case::u64
+        PASS [   0.009s] ( 38/822) kintsu-core ty::test::display_case::u8
+        PASS [   0.011s] ( 39/822) kintsu-core ty::test::display_case::u32
+        PASS [   0.010s] ( 40/822) kintsu-core ty::test::display_case::usize
+        PASS [   0.009s] ( 41/822) kintsu-core ty::test::from_rust_type::_option_i32_4_sized_array
+        PASS [   0.009s] ( 42/822) kintsu-core ty::test::from_rust_type::_u8_16_sized_array
+        PASS [   0.009s] ( 43/822) kintsu-core ty::test::from_rust_type::_vec_u8_2_
+        PASS [   0.008s] ( 44/822) kintsu-core ty::test::from_rust_type::f32_into_f32
+        PASS [   0.010s] ( 45/822) kintsu-core ty::test::from_rust_type::_u16_2_3_nested_sized_arrays
+        PASS [   0.008s] ( 46/822) kintsu-core ty::test::from_rust_type::f64_into_f64
+        PASS [   0.009s] ( 47/822) kintsu-core ty::test::from_rust_type::i16_into_i16
+        PASS [   0.012s] ( 48/822) kintsu-core ty::test::from_rust_type::bool_into_bool
+        PASS [   0.008s] ( 49/822) kintsu-core ty::test::from_rust_type::i64_into_i64
+        PASS [   0.010s] ( 50/822) kintsu-core ty::test::from_rust_type::i32_into_i32
+        PASS [   0.008s] ( 51/822) kintsu-core ty::test::from_rust_type::option_option_i32_nested
+        PASS [   0.009s] ( 52/822) kintsu-core ty::test::from_rust_type::option_into_never
+        PASS [   0.009s] ( 53/822) kintsu-core ty::test::from_rust_type::option_u8_into_option_u8_
+        PASS [   0.008s] ( 54/822) kintsu-core ty::test::from_rust_type::option_vec_option_u16_2_
+        PASS [   0.008s] ( 55/822) kintsu-core ty::test::from_rust_type::option_vec_u8_
+        PASS [   0.010s] ( 56/822) kintsu-core ty::test::from_rust_type::option_u8_4_
+        PASS [   0.060s] ( 57/822) kintsu-core generate::test::test_config_loader
+        PASS [   0.009s] ( 58/822) kintsu-core ty::test::from_rust_type::triple_option_u8_
+        PASS [   0.007s] ( 59/822) kintsu-core ty::test::from_rust_type::u32_into_u32
+        PASS [   0.011s] ( 60/822) kintsu-core ty::test::from_rust_type::string_into_string
+        PASS [   0.009s] ( 61/822) kintsu-core ty::test::from_rust_type::u16_into_u16
+        PASS [   0.008s] ( 62/822) kintsu-core ty::test::from_rust_type::u64_into_u64
+        PASS [   0.007s] ( 63/822) kintsu-core ty::test::from_rust_type::usize_into_usize
+        PASS [   0.008s] ( 64/822) kintsu-core ty::test::from_rust_type::vec_u8_4_
+        PASS [   0.008s] ( 65/822) kintsu-core ty::test::from_rust_type::unit_into_never
+        PASS [   0.009s] ( 66/822) kintsu-core ty::test::from_rust_type::vec_array_never_
+        PASS [   0.009s] ( 67/822) kintsu-core ty::test::from_rust_type::vec_vec_u16_nested_arrays
+        PASS [   0.009s] ( 68/822) kintsu-core ty::test::from_rust_type::u8_into_u8
+        PASS [   0.009s] ( 69/822) kintsu-core ty::test::simplify_then_display_case::opt_opt_array_never_simplifies_to_never
+        PASS [   0.010s] ( 70/822) kintsu-core ty::test::from_rust_type::vec_option_u8_
+        PASS [   0.010s] ( 71/822) kintsu-core ty::test::from_rust_type::vec_u8_into_array_u8_
+        PASS [   0.010s] ( 72/822) kintsu-core ty::test::ty_simplify_case::_10_opts_f64_collapse
+        PASS [   0.011s] ( 73/822) kintsu-core ty::test::simplify_then_display_case::vec_u8_simplifies_to_binary
+        PASS [   0.007s] ( 74/822) kintsu-core ty::test::ty_simplify_case::_1_opt_never
+        PASS [   0.008s] ( 75/822) kintsu-core ty::test::ty_simplify_case::_10_opts_never
+        PASS [   0.008s] ( 76/822) kintsu-core ty::test::ty_simplify_case::_2_opts_never
+        PASS [   0.008s] ( 77/822) kintsu-core ty::test::ty_simplify_case::_3_opts_never
+        PASS [   0.008s] ( 78/822) kintsu-core ty::test::ty_simplify_case::_4_opts_never
+        PASS [   0.008s] ( 79/822) kintsu-core ty::test::ty_simplify_case::_5_opts_never
+        PASS [   0.009s] ( 80/822) kintsu-core ty::test::ty_simplify_case::_7_opts_never
+        PASS [   0.010s] ( 81/822) kintsu-core ty::test::ty_simplify_case::_5_opts_u16_collapse
+        PASS [   0.008s] ( 82/822) kintsu-core ty::test::ty_simplify_case::array_of_opt_u8_unchanged
+        PASS [   0.011s] ( 83/822) kintsu-core ty::test::ty_simplify_case::_6_opts_never
+        PASS [   0.008s] ( 84/822) kintsu-core ty::test::ty_simplify_case::double_opt_u8_collapses
+        PASS [   0.011s] ( 85/822) kintsu-core ty::test::ty_simplify_case::_8_opts_never
+        PASS [   0.011s] ( 86/822) kintsu-core ty::test::ty_simplify_case::_9_opts_never
+        PASS [   0.008s] ( 87/822) kintsu-core ty::test::ty_simplify_case::opt_sized_array_opt_u8_unchanged
+        PASS [   0.010s] ( 88/822) kintsu-core ty::test::ty_simplify_case::opt_array_u8_to_opt_binary_
+        PASS [   0.008s] ( 89/822) kintsu-core ty::test::ty_simplify_case::sized_array_of_opt_u8_unchanged
+        PASS [   0.011s] ( 90/822) kintsu-core ty::test::ty_simplify_case::opt_opt_array_never_into_never
+        PASS [   0.009s] ( 91/822) kintsu-core ty::test::ty_simplify_case::single_opt_u8
+        PASS [   0.010s] ( 92/822) kintsu-core ty::test::ty_simplify_case::single_opt_never
+        PASS [   0.010s] ( 93/822) kintsu-core ty::test::ty_simplify_case::string_stays_string
+        PASS [   0.010s] ( 94/822) kintsu-core ty::test::ty_simplify_case::triple_opt_u8_collapses
+        PASS [   0.008s] ( 95/822) kintsu-core ty::test::ty_simplify_case::vec_u8_binary
+        PASS [   0.010s] ( 96/822) kintsu-core ty::test::ty_simplify_case::u8_stays_u8
+        PASS [   0.007s] ( 97/822) kintsu-errors builder::tests::builder_with_source
+        PASS [   0.007s] ( 98/822) kintsu-errors builder::tests::builder_with_span
+        PASS [   0.010s] ( 99/822) kintsu-errors builder::tests::builder_unlocated
+        PASS [   0.012s] (100/822) kintsu-derives shared::test::test_attribute_docs::_abc_doc_abc_doc_expects
+        PASS [   0.011s] (101/822) kintsu-derives shared::test::test_attribute_docs::r_test_multi_line_docs_test_multi_nline_ndocs_expects
+        PASS [   0.006s] (102/822) kintsu-errors code::tests::severity_properties
+        PASS [   0.006s] (103/822) kintsu-errors diagnostic::tests::diagnostic_basic
+        PASS [   0.006s] (104/822) kintsu-errors diagnostic::tests::diagnostic_with_source
+        PASS [   0.006s] (105/822) kintsu-errors macros::tests::test_error_code
+        PASS [   0.013s] (106/822) kintsu-env test::test_conn
+        PASS [   0.011s] (107/822) kintsu-errors code::tests::error_code_display
+        PASS [   0.007s] (108/822) kintsu-errors macros::tests::test_help_text
+        PASS [   0.007s] (109/822) kintsu-errors macros::tests::test_severity
+        PASS [   0.006s] (110/822) kintsu-errors span::tests::span_conversions
+        PASS [   0.007s] (111/822) kintsu-errors macros::tests::test_message_with_fields
+        PASS [   0.007s] (112/822) kintsu-errors macros::tests::test_with_span
+        PASS [   0.006s] (113/822) kintsu-errors span::tests::span_merge
+        PASS [   0.008s] (114/822) kintsu-errors span::tests::span_basics
+        PASS [   0.007s] (115/822) kintsu-errors tests::error_with_source
+        PASS [   0.007s] (116/822) kintsu-errors tests::multiple_errors
+        PASS [   0.008s] (117/822) kintsu-errors tests::error_code_generation
+        PASS [   0.008s] (118/822) kintsu-errors tests::error_message
+        PASS [   0.008s] (119/822) kintsu-events bundle::tests::bundle_push_categorizes_correctly
+        PASS [   0.008s] (120/822) kintsu-events bundle::tests::bundle_serializable
+        PASS [   0.009s] (121/822) kintsu-events diagnostic::tests::diagnostic_serializable
+        PASS [   0.008s] (122/822) kintsu-events reporter::tests::collecting_reporter_collects
+        PASS [   0.009s] (123/822) kintsu-events reporter::tests::json_lines_reporter_formats
+        PASS [   0.009s] (124/822) kintsu-fs memory::test::test_extract_from_without_dot_slash_prefix
+        PASS [   0.010s] (125/822) kintsu-fs memory::test::test_extract_from_nested_path
+        PASS [   0.009s] (126/822) kintsu-fs memory::test::test_find_glob
+        PASS [   0.010s] (127/822) kintsu-fs memory::test::test_extract_from_with_dot_slash_prefix
+        PASS [   0.009s] (128/822) kintsu-fs memory::test::test_memory_fs_macro
+        PASS [   0.010s] (129/822) kintsu-fs memory::test::test_memory_fs_basic
+        PASS [   0.023s] (130/822) kintsu-events tests::bundle_separates_errors_and_warnings
+        PASS [   0.022s] (131/822) kintsu-events tests::emit_collects_diagnostic
+        PASS [   0.015s] (132/822) kintsu-manifests package::test::test_pkg_validate_err::invalid_name_with_underscore
+        PASS [   0.013s] (133/822) kintsu-manifests package::test::test_pkg_validate_err::name_too_long
+        PASS [   0.013s] (134/822) kintsu-manifests package::test::test_pkg_validate_err::name_too_short
+        PASS [   0.017s] (135/822) kintsu-manifests package::test::test_pkg_validate_err::invalid_homepage_url
+        PASS [   0.017s] (136/822) kintsu-manifests package::test::test_pkg_validate_err::invalid_character_in_name
+        PASS [   0.014s] (137/822) kintsu-manifests package::test::test_pkg_validate_err::keyword_prefixed_with_space
+        PASS [   0.021s] (138/822) kintsu-manifests package::test::test_pkg_validate_err::empty_keyword
+        PASS [   0.014s] (139/822) kintsu-manifests package::test::test_pkg_validate_err::keyword_with_space_inside
+        PASS [   0.014s] (140/822) kintsu-manifests package::test::test_pkg_validate_ok::simple_name
+        PASS [   0.019s] (141/822) kintsu-manifests package::test::test_pkg_validate_ok::valid_name_with_dash
+        PASS [   0.009s] (142/822) kintsu-manifests version::test::test_serde_roundtrip
+        PASS [   0.008s] (143/822) kintsu-manifests version::test::test_version_is_stable
+        PASS [   0.011s] (144/822) kintsu-manifests package::test::test_pkg_validate_ok::version_with_rc
+        PASS [   0.009s] (145/822) kintsu-manifests version::test::test_version_parse_errors::non_numeric
+        PASS [   0.009s] (146/822) kintsu-manifests version::test::test_version_parse_errors::legacy_format_rejected
+        PASS [   0.010s] (147/822) kintsu-manifests version::test::test_version_parse_errors::empty_string
+        PASS [   0.010s] (148/822) kintsu-manifests version::test::test_version_parse_errors::missing_patch
+        PASS [   0.010s] (149/822) kintsu-manifests version::test::test_version_parse_ok::beta_prerelease
+        PASS [   0.012s] (150/822) kintsu-manifests version::test::test_version_parse_ok::alpha_prerelease
+        PASS [   0.013s] (151/822) kintsu-manifests version::test::test_version_parse_errors::legacy_alpha_rejected
+        PASS [   0.011s] (152/822) kintsu-manifests version::test::test_version_parse_ok::build_metadata
+        PASS [   0.010s] (153/822) kintsu-manifests version::test::test_version_parse_ok::prerelease_with_build
+        PASS [   0.010s] (154/822) kintsu-manifests version::test::test_version_parse_ok::full_version
+        PASS [   0.009s] (155/822) kintsu-manifests version::test::test_version_parse_ok::stable_version
+        PASS [   0.010s] (156/822) kintsu-manifests version::test::test_version_parse_ok::rc_prerelease
+        PASS [   0.009s] (157/822) kintsu-manifests version::test::test_version_req_matches
+        PASS [   0.009s] (158/822) kintsu-manifests version::test::test_version_req_parse::caret_requirement
+        PASS [   0.009s] (159/822) kintsu-manifests version::test::test_version_req_parse::range_requirement
+        PASS [   0.010s] (160/822) kintsu-manifests version::test::test_version_req_parse::gte_requirement
+        PASS [   0.011s] (161/822) kintsu-manifests version::test::test_version_req_parse::tilde_requirement
+        PASS [   0.011s] (162/822) kintsu-manifests version::test::test_version_req_serde_roundtrip
+        PASS [   0.014s] (163/822) kintsu-manifests version::test::test_version_req_parse::exact_version_becomes_caret
+        PASS [   0.011s] (164/822) kintsu-parser ast::anonymous::test::rt_anon::basic_multi_field
+        PASS [   0.009s] (165/822) kintsu-parser ast::comment::test::test_comments_parse::parses_multiple_comment_stream_types
+        PASS [   0.009s] (166/822) kintsu-parser ast::comment::test::test_comments_parse::parses_empty
+        PASS [   0.011s] (167/822) kintsu-parser ast::anonymous::test::rt_anon::basic_one_field
+        PASS [   0.010s] (168/822) kintsu-parser ast::enm::tests::test_enum_variant_parse_str::parses_enum_variant_with_int_value
+        PASS [   0.012s] (169/822) kintsu-parser ast::anonymous::test::rt_anon::fields_with_comment
+        PASS [   0.009s] (170/822) kintsu-parser ast::enm::tests::test_enum_variant_parse_str::parses_int_enum_with_mixed_eq_and_default_values
+        PASS [   0.010s] (171/822) kintsu-parser ast::enm::tests::test_enum_variant_parse_str::parses_enum_variant_with_str_value
+        PASS [   0.013s] (172/822) kintsu-parser ast::comment::test::round_trip::comment_stream_round_trip
+        PASS [   0.009s] (173/822) kintsu-parser ast::enm::tests::test_enum_variant_parse_str::parses_str_enum
+        PASS [   0.009s] (174/822) kintsu-parser ast::import::test::resolved_use_paths::local_use_with_schema
+        PASS [   0.009s] (175/822) kintsu-parser ast::import::test::resolved_use_paths::simple_nested_use
+        PASS [   0.010s] (176/822) kintsu-parser ast::import::test::resolved_use_paths::use_corp_object
+        PASS [   0.009s] (177/822) kintsu-parser ast::import::test::resolved_use_paths::use_one_ident
+        PASS [   0.011s] (178/822) kintsu-parser ast::import::test::resolved_use_paths::use_one_object
+        PASS [   0.008s] (179/822) kintsu-parser ast::import::test::rt::use_one_ident
+        PASS [   0.010s] (180/822) kintsu-parser ast::import::test::rt::use_corp_object
+        PASS [   0.011s] (181/822) kintsu-parser ast::import::test::resolved_use_paths::use_one_path
+        PASS [   0.009s] (182/822) kintsu-parser ast::import::test::rt::use_one_path
+        PASS [   0.008s] (183/822) kintsu-parser ast::items::test::basic_smoke::parses_0_arg_operation_with_result_type
+        PASS [   0.010s] (184/822) kintsu-parser ast::import::test::rt::use_one_object
+        PASS [   0.010s] (185/822) kintsu-parser ast::import::test::rt::use_two_objects
+        PASS [   0.009s] (186/822) kintsu-parser ast::items::test::basic_smoke::parses_0_arg_operation_with_result_type_and_meta
+        PASS [   0.009s] (187/822) kintsu-parser ast::items::test::basic_smoke::parses_2_arg_operation_without_result_type
+        PASS [   0.010s] (188/822) kintsu-parser ast::items::test::basic_smoke::parses_enum_with_default
+        PASS [   0.010s] (189/822) kintsu-parser ast::items::test::basic_smoke::parses_int_enum
+        PASS [   0.009s] (190/822) kintsu-parser ast::items::test::basic_smoke::parses_named_error
+        PASS [   0.008s] (191/822) kintsu-parser ast::items::test::basic_smoke::parses_nested_namespace
+        PASS [   0.011s] (192/822) kintsu-parser ast::items::test::basic_smoke::parses_named_oneof
+        PASS [   0.008s] (193/822) kintsu-parser ast::items::test::basic_smoke::parses_use
+        PASS [   0.008s] (194/822) kintsu-parser ast::meta::test::test_err_parse::error_from_outer
+        PASS [   0.011s] (195/822) kintsu-parser ast::items::test::basic_smoke::parses_str_enum
+        PASS [   0.008s] (196/822) kintsu-parser ast::meta::test::test_item_parse::version_from_inner
+        PASS [   0.010s] (197/822) kintsu-parser ast::items::test::basic_smoke::parses_struct
+        PASS [   0.012s] (198/822) kintsu-parser ast::meta::test::test_err_parse::error_from_inner
+        PASS [   0.010s] (199/822) kintsu-parser ast::meta::test::test_item_parse::version_from_outer
+        PASS [   0.009s] (200/822) kintsu-parser ast::meta::test::test_meta_parse::int_value_with_bang
+        PASS [   0.010s] (201/822) kintsu-parser ast::meta::test::test_meta_parse::int_value
+        PASS [   0.010s] (202/822) kintsu-parser ast::meta::test::test_multiple_err_attrs
+        PASS [   0.010s] (203/822) kintsu-parser ast::meta::test::test_tag_adjacent_parse
+        PASS [   0.012s] (204/822) kintsu-parser ast::meta::test::test_meta_parse::string_value
+        PASS [   0.011s] (205/822) kintsu-parser ast::meta::test::test_meta_parse::string_value_with_bang
+        PASS [   0.010s] (206/822) kintsu-parser ast::meta::test::test_rename_parse
+        PASS [   0.010s] (207/822) kintsu-parser ast::meta::test::test_tag_internal_parse
+        PASS [   0.007s] (208/822) kintsu-parser ast::meta::test::test_tag_keyword_parse::explicit_type_hint
+        PASS [   0.014s] (209/822) kintsu-parser ast::meta::test::test_tag_index_with_name
+        PASS [   0.010s] (210/822) kintsu-parser ast::meta::test::test_tag_keyword_parse::external_tagging
+        PASS [   0.010s] (211/822) kintsu-parser ast::meta::test::test_tag_type_hint_false
+        PASS [   0.010s] (212/822) kintsu-parser ast::meta::test::test_tag_keyword_parse::index_tagging
+        PASS [   0.010s] (213/822) kintsu-parser ast::meta::test::test_tag_keyword_parse::untagged
+        PASS [   0.009s] (214/822) kintsu-parser ast::strct::test::test_parse_struct_args::single_optional_arg
+        PASS [   0.011s] (215/822) kintsu-parser ast::strct::test::test_parse_struct_args::single_required_arg
+        PASS [   0.011s] (216/822) kintsu-parser ast::test::round_trip::_samples_enum_ks_expects
+        PASS [   0.011s] (217/822) kintsu-parser ast::test::round_trip::_samples_array_ks_expects
+        PASS [   0.011s] (218/822) kintsu-parser ast::strct::test::test_parse_struct_args::multiple_args
+        PASS [   0.013s] (219/822) kintsu-parser ast::test::round_trip::_samples_complex_union_ks_expects
+        PASS [   0.012s] (220/822) kintsu-parser ast::test::round_trip::_samples_error_ks_expects
+        PASS [   0.011s] (221/822) kintsu-parser ast::test::round_trip::_samples_message_with_enum_ks_expects
+        PASS [   0.011s] (222/822) kintsu-parser ast::test::round_trip::_samples_op_ks_expects
+        PASS [   0.012s] (223/822) kintsu-parser ast::test::round_trip::_samples_explicit_oneof_ks_expects
+        PASS [   0.011s] (224/822) kintsu-parser ast::test::round_trip::_samples_ns_ks_expects
+        PASS [   0.012s] (225/822) kintsu-parser ast::test::round_trip::_samples_mod_ks_expects
+        PASS [   0.010s] (226/822) kintsu-parser ast::test::round_trip::_samples_some_import_ks_expects
+        PASS [   0.012s] (227/822) kintsu-parser ast::ty::test::round_trip::_f16_expects
+        PASS [   0.012s] (228/822) kintsu-parser ast::ty::test::round_trip::_bool_expects
+        PASS [   0.012s] (229/822) kintsu-parser ast::ty::test::round_trip::_base64_expects
+        PASS [   0.013s] (230/822) kintsu-parser ast::ty::test::round_trip::_f32_expects
+        PASS [   0.014s] (231/822) kintsu-parser ast::test::round_trip::_samples_test_message_ks_expects
+        PASS [   0.011s] (232/822) kintsu-parser ast::ty::test::round_trip::_i16_expects
+        PASS [   0.011s] (233/822) kintsu-parser ast::ty::test::round_trip::_i8_expects
+        PASS [   0.011s] (234/822) kintsu-parser ast::ty::test::round_trip::_i32_expects
+        PASS [   0.017s] (235/822) kintsu-parser ast::ty::test::round_trip::_f64_expects
+        PASS [   0.012s] (236/822) kintsu-parser ast::ty::test::round_trip::_str_expects
+        PASS [   0.013s] (237/822) kintsu-parser ast::ty::test::round_trip::_u16_expects
+        PASS [   0.015s] (238/822) kintsu-parser ast::ty::test::round_trip::_i64_expects
+        PASS [   0.009s] (239/822) kintsu-parser ast::ty::test::round_trip::_u32_expects
+        PASS [   0.012s] (240/822) kintsu-parser ast::ty::test::round_trip::_u64_expects
+        PASS [   0.012s] (241/822) kintsu-parser ast::ty::test::round_trip::_u8_expects
+        PASS [   0.011s] (242/822) kintsu-parser ast::ty::test::round_trip::basic_union_or
+        PASS [   0.010s] (243/822) kintsu-parser ast::ty::test::round_trip::chained_union_or_left_associative
+        PASS [   0.011s] (244/822) kintsu-parser ast::ty::test::round_trip::basic_union
+        PASS [   0.010s] (245/822) kintsu-parser ast::ty::test::round_trip::round_trip_binary
+        PASS [   0.011s] (246/822) kintsu-parser ast::ty::test::round_trip::builtin_result
+        PASS [   0.011s] (247/822) kintsu-parser ast::ty::test::round_trip::nested_union
+        PASS [   0.010s] (248/822) kintsu-parser ast::ty::test::round_trip::round_trip_datetime
+        PASS [   0.010s] (249/822) kintsu-parser ast::ty::test::round_trip::round_trip_double_unsized_array
+        PASS [   0.009s] (250/822) kintsu-parser ast::ty::test::round_trip::round_trip_mixed_sized_unsized_array
+        PASS [   0.010s] (251/822) kintsu-parser ast::ty::test::round_trip::round_trip_ident_and_never
+        PASS [   0.010s] (252/822) kintsu-parser ast::ty::test::round_trip::round_trip_nested_oneof
+        PASS [   0.011s] (253/822) kintsu-parser ast::ty::test::round_trip::round_trip_nested_oneof_array_with_paren
+        PASS [   0.010s] (254/822) kintsu-parser ast::ty::test::round_trip::round_trip_nested_oneof_array_with_paren_result
+        PASS [   0.010s] (255/822) kintsu-parser ast::ty::test::round_trip::round_trip_oneof_builtins
+        PASS [   0.010s] (256/822) kintsu-parser ast::ty::test::round_trip::round_trip_sized_array
+        PASS [   0.011s] (257/822) kintsu-parser ast::ty::test::round_trip::round_trip_never
+        PASS [   0.010s] (258/822) kintsu-parser ast::ty::test::round_trip::round_trip_sized_bool_array
+        PASS [   0.013s] (259/822) kintsu-parser ast::ty::test::round_trip::round_trip_oneof_arrays
+        PASS [   0.011s] (260/822) kintsu-parser ast::ty::test::round_trip::round_trip_triple_unsized_array
+        PASS [   0.011s] (261/822) kintsu-parser ast::ty::test::round_trip::round_trip_unsized_array
+        PASS [   0.011s] (262/822) kintsu-parser ast::ty::test::round_trip::union_or_explicit_right_grouping
+        PASS [   0.012s] (263/822) kintsu-parser ast::ty::test::round_trip::union_or_explicit_left_grouping
+        PASS [   0.010s] (264/822) kintsu-parser ast::ty::test::test_qualify::_mystruct_vec_foo_bar_mystruct_into_expects
+        PASS [   0.010s] (265/822) kintsu-parser ast::type_expr::test::array_item::simple
+        PASS [   0.009s] (266/822) kintsu-parser ast::type_expr::test::array_item::with_field_access
+        PASS [   0.008s] (267/822) kintsu-parser ast::type_expr::test::field_access::chained_fields
+        PASS [   0.009s] (268/822) kintsu-parser ast::type_expr::test::exclude::multiple_variants
+        PASS [   0.009s] (269/822) kintsu-parser ast::type_expr::test::extract::single_variant
+        PASS [   0.009s] (270/822) kintsu-parser ast::type_expr::test::field_access::single_field
+        PASS [   0.011s] (271/822) kintsu-parser ast::type_expr::test::exclude::single_variant
+        PASS [   0.010s] (272/822) kintsu-parser ast::type_expr::test::nested_ops::omit_then_required
+        PASS [   0.010s] (273/822) kintsu-parser ast::type_expr::test::nested_ops::pick_then_partial
+        PASS [   0.008s] (274/822) kintsu-parser ast::type_expr::test::partial::specific_fields
+        PASS [   0.009s] (275/822) kintsu-parser ast::type_expr::test::omit::single_field
+        PASS [   0.010s] (276/822) kintsu-parser ast::type_expr::test::partial::all_fields
+        PASS [   0.008s] (277/822) kintsu-parser ast::type_expr::test::pick::single_field
+        PASS [   0.009s] (278/822) kintsu-parser ast::type_expr::test::pick::multiple_fields
+        PASS [   0.008s] (279/822) kintsu-parser ast::type_expr::test::required::all_fields
+        PASS [   0.009s] (280/822) kintsu-parser ast::type_expr::test::required::specific_fields
+        PASS [   0.009s] (281/822) kintsu-parser ast::type_expr::test::type_ref::namespaced_path
+        PASS [   0.010s] (282/822) kintsu-parser ast::type_expr::test::type_ref::simple_ident
+        PASS [   0.010s] (283/822) kintsu-parser ast::union::test::round_trip::inner_parenthesized
+        PASS [   0.009s] (284/822) kintsu-parser ast::union::test::round_trip::no_paren_triplets
+        PASS [   0.009s] (285/822) kintsu-parser ast::union::test::round_trip::triplets_with_anonymous
+        PASS [   0.008s] (286/822) kintsu-parser ast::variadic::test::round_trip::local_struct_variant
+        PASS [   0.008s] (287/822) kintsu-parser ast::variadic::test::round_trip::local_struct_with_ml_comment_in_fields
+        PASS [   0.011s] (288/822) kintsu-parser ast::variadic::test::round_trip::local_struct_with_comment_before
+        PASS [   0.009s] (289/822) kintsu-parser ast::variadic::test::round_trip::unit_variant
+        PASS [   0.011s] (290/822) kintsu-parser ast::variadic::test::round_trip::local_struct_with_sl_comment_in_fields
+        PASS [   0.011s] (291/822) kintsu-parser ast::variadic::test::round_trip::tuple_variant
+        PASS [   0.010s] (292/822) kintsu-parser ast::variadic::test::round_trip::unit_variant_with_comment
+        PASS [   0.011s] (293/822) kintsu-parser ctx::compile::schema_compiler::tests::test_extract_imports_basic
+        PASS [   0.009s] (294/822) kintsu-parser ctx::graph::extract::tests::test_diamond_dependency
+        PASS [   0.010s] (295/822) kintsu-parser ctx::graph::extract::tests::test_array_dependency
+        PASS [   0.010s] (296/822) kintsu-parser ctx::graph::extract::tests::test_anonymous_struct_nested_paths
+        PASS [   0.009s] (297/822) kintsu-parser ctx::graph::extract::tests::test_mixed_edge_kinds
+        PASS [   0.009s] (298/822) kintsu-parser ctx::graph::extract::tests::test_extract_empty_graph
+        PASS [   0.010s] (299/822) kintsu-parser ctx::graph::extract::tests::test_disconnected_components
+        PASS [   0.010s] (300/822) kintsu-parser ctx::graph::extract::tests::test_oneof_variants_optional
+        PASS [   0.011s] (301/822) kintsu-parser ctx::graph::extract::tests::test_non_terminating_cycle
+        PASS [   0.011s] (302/822) kintsu-parser ctx::graph::extract::tests::test_mutual_recursion_optional
+        PASS [   0.012s] (303/822) kintsu-parser ctx::graph::extract::tests::test_nested_union_field_paths
+        PASS [   0.011s] (304/822) kintsu-parser ctx::graph::extract::tests::test_operation_param_and_return_paths
+        PASS [   0.011s] (305/822) kintsu-parser ctx::graph::extract::tests::test_optional_field_dependency
+        PASS [   0.010s] (306/822) kintsu-parser ctx::graph::extract::tests::test_result_type_makes_optional
+        PASS [   0.009s] (307/822) kintsu-parser ctx::graph::extract::tests::test_struct_with_type_reference
+        PASS [   0.009s] (308/822) kintsu-parser ctx::graph::schemas::tests::test_diamond_dependencies
+        PASS [   0.009s] (309/822) kintsu-parser ctx::graph::schemas::tests::test_circular_dependency_detection
+        PASS [   0.010s] (310/822) kintsu-parser ctx::graph::extract::tests::test_union_members_optional
+        PASS [   0.012s] (311/822) kintsu-parser ctx::graph::extract::tests::test_type_alias_chain
+        PASS [   0.009s] (312/822) kintsu-parser ctx::graph::schemas::tests::test_topological_groups_empty
+        PASS [   0.010s] (313/822) kintsu-parser ctx::graph::schemas::tests::test_linear_dependencies
+        PASS [   0.010s] (314/822) kintsu-parser ctx::graph::schemas::tests::test_topological_groups_linear_dependency
+        PASS [   0.008s] (315/822) kintsu-parser ctx::graph::schemas::tests::test_topological_groups_parallel_schemas
+        PASS [   0.011s] (316/822) kintsu-parser ctx::graph::schemas::tests::test_no_dependencies
+        PASS [   0.008s] (317/822) kintsu-parser ctx::graph::types::tests::test_non_terminating_cycle
+        PASS [   0.008s] (318/822) kintsu-parser ctx::graph::schemas::tests::test_topological_groups_single_schema
+        PASS [   0.009s] (319/822) kintsu-parser ctx::graph::types::tests::test_required_vs_all_successors
+        PASS [   0.009s] (320/822) kintsu-parser ctx::graph::types::tests::test_simple_dependency
+        PASS [   0.011s] (321/822) kintsu-parser ctx::registry::tests::test_registry_creation
+        PASS [   0.011s] (322/822) kintsu-parser ctx::graph::types::tests::test_terminating_cycle
+        PASS [   0.010s] (323/822) kintsu-parser ctx::registry::tests::test_registry_resolve
+        PASS [   0.011s] (324/822) kintsu-parser ctx::registry::tests::test_registry_thread_safety
+        PASS [   0.012s] (325/822) kintsu-parser ctx::resolve::phase_tests::test_circular_alias_detection
+        PASS [   0.010s] (326/822) kintsu-parser ctx::resolve::phase_tests::test_error_missing_for_fallible_operation
+        PASS [   0.013s] (327/822) kintsu-parser ctx::resolve::phase_tests::test_anonymous_operand_merge
+        PASS [   0.013s] (328/822) kintsu-parser ctx::resolve::phase_tests::test_alias_to_non_alias
+        PASS [   0.010s] (329/822) kintsu-parser ctx::resolve::phase_tests::test_complex_type_alias_array
+        PASS [   0.013s] (330/822) kintsu-parser ctx::resolve::phase_tests::test_array_type_reference
+        PASS [   0.012s] (331/822) kintsu-parser ctx::resolve::phase_tests::test_error_namespace_inheritance
+        PASS [   0.011s] (332/822) kintsu-parser ctx::resolve::phase_tests::test_error_operation_explicit
+        PASS [   0.013s] (333/822) kintsu-parser ctx::resolve::phase_tests::test_error_non_fallible_operation_no_error_needed
+        PASS [   0.011s] (334/822) kintsu-parser ctx::resolve::phase_tests::test_error_parenthesized_result_type
+        PASS [   0.010s] (335/822) kintsu-parser ctx::resolve::phase_tests::test_invalid_builtin_union
+        PASS [   0.013s] (336/822) kintsu-parser ctx::resolve::phase_tests::test_field_conflict_leftmost_wins
+        PASS [   0.012s] (337/822) kintsu-parser ctx::resolve::phase_tests::test_invalid_enum_union
+        PASS [   0.012s] (338/822) kintsu-parser ctx::resolve::phase_tests::test_invalid_mixed_union
+        PASS [   0.011s] (339/822) kintsu-parser ctx::resolve::phase_tests::test_nested_type_references
+        PASS [   0.012s] (340/822) kintsu-parser ctx::resolve::phase_tests::test_multiple_anonymous_operands
+        PASS [   0.012s] (341/822) kintsu-parser ctx::resolve::phase_tests::test_mixed_ref_and_anonymous
+        PASS [   0.012s] (342/822) kintsu-parser ctx::resolve::phase_tests::test_multiple_unions_in_struct
+        PASS [   0.010s] (343/822) kintsu-parser ctx::resolve::phase_tests::test_nested_union
+        PASS [   0.009s] (344/822) kintsu-parser ctx::resolve::phase_tests::test_nested_union_merge
+        PASS [   0.011s] (345/822) kintsu-parser ctx::resolve::phase_tests::test_simple_alias_chain
+        PASS [   0.012s] (346/822) kintsu-parser ctx::resolve::phase_tests::test_nested_union_validation
+        PASS [   0.011s] (347/822) kintsu-parser ctx::resolve::phase_tests::test_simple_field_union
+        PASS [   0.010s] (348/822) kintsu-parser ctx::resolve::phase_tests::test_simple_union_merge
+        PASS [   0.009s] (349/822) kintsu-parser ctx::resolve::phase_tests::test_undefined_operation_return_type
+        PASS [   0.009s] (350/822) kintsu-parser ctx::resolve::phase_tests::test_undefined_struct_reference
+        PASS [   0.009s] (351/822) kintsu-parser ctx::resolve::phase_tests::test_undefined_oneof_variant
+        PASS [   0.011s] (352/822) kintsu-parser ctx::resolve::phase_tests::test_union_in_oneof_variant
+        PASS [   0.013s] (353/822) kintsu-parser ctx::resolve::phase_tests::test_union_in_array
+        PASS [   0.009s] (354/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_conflict_creates_oneof
+        PASS [   0.012s] (355/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_chained_left_associative
+        PASS [   0.009s] (356/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_non_struct_operand_error
+        PASS [   0.009s] (357/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_simple_merge
+        PASS [   0.009s] (358/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_preserves_field_optionality
+        PASS [   0.010s] (359/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_with_anonymous_struct
+        PASS [   0.010s] (360/822) kintsu-parser ctx::resolve::phase_tests::test_union_or_with_duplicate_type_in_conflict
+        PASS [   0.010s] (361/822) kintsu-parser ctx::resolve::phase_tests::test_union_with_resolved_alias
+        PASS [   0.011s] (362/822) kintsu-parser ctx::resolve::phase_tests::test_union_type_alias
+        PASS [   0.009s] (363/822) kintsu-parser ctx::resolve::phase_tests::test_undefined_array_element_type
+        PASS [   0.010s] (364/822) kintsu-parser ctx::resolve::phase_tests::test_valid_oneof_reference
+        PASS [   0.012s] (365/822) kintsu-parser ctx::resolve::phase_tests::test_valid_struct_union
+        PASS [   0.009s] (366/822) kintsu-parser ctx::resolve::phase_tests::test_version_enum_and_oneof
+        PASS [   0.009s] (367/822) kintsu-parser ctx::resolve::tagging::tests::test_adjacent_same_fields_parses
+        PASS [   0.008s] (368/822) kintsu-parser ctx::resolve::tagging::tests::test_internal_tag_field_parses
+        PASS [   0.010s] (369/822) kintsu-parser ctx::resolve::phase_tests::test_version_item_override
+        PASS [   0.010s] (370/822) kintsu-parser ctx::resolve::tagging::tests::test_adjacent_same_field_names_error
+        PASS [   0.008s] (371/822) kintsu-parser ctx::resolve::tagging::tests::test_internal_tag_field_conflict_error
+        PASS [   0.011s] (372/822) kintsu-parser ctx::resolve::phase_tests::test_version_namespace_inheritance
+        PASS [   0.008s] (373/822) kintsu-parser ctx::resolve::tagging::tests::test_namespace_tag_inheritance
+        PASS [   0.011s] (374/822) kintsu-parser ctx::resolve::tagging::tests::test_internal_tuple_must_be_struct
+        PASS [   0.011s] (375/822) kintsu-parser ctx::resolve::tagging::tests::test_type_tag_overrides_namespace
+        PASS [   0.009s] (376/822) kintsu-parser ctx::resolve::tagging::tests::test_untagged_distinct_types_ok
+        PASS [   0.008s] (377/822) kintsu-parser ctx::resolve::type_expr::tests::nested_type_expr_parses
+        PASS [   0.011s] (378/822) kintsu-parser ctx::resolve::tagging::tests::test_untagged_indistinguishable_structs_error
+        PASS [   0.011s] (379/822) kintsu-parser ctx::resolve::tagging::tests::test_valid_internal_tagging_parses
+        PASS [   0.010s] (380/822) kintsu-parser ctx::resolve::type_expr::tests::pick_type_alias_parses
+        PASS [   0.010s] (381/822) kintsu-parser tokens::stream::parse_vs_token_contract
+        PASS [   0.010s] (382/822) kintsu-parser ctx::resolve::union_or::tests::test_contains_union_or
+        PASS [   0.014s] (383/822) kintsu-parser ctx::resolve::tagging::tests::test_untagged_duplicate_type_error
+        PASS [   0.009s] (384/822) kintsu-parser tokens::stream::test::test_paired::parses_braced
+        PASS [   0.012s] (385/822) kintsu-parser ctx::resolve::union_or::tests::test_flatten_single_operand
+        PASS [   0.008s] (386/822) kintsu-parser tokens::stream::test::test_paired::parses_braced_with_exact_inner
+        PASS [   0.009s] (387/822) kintsu-parser tokens::stream::test::test_paired::parses_bracketed
+        PASS [   0.010s] (388/822) kintsu-parser tokens::stream::test::test_paired::parses_parenthesized
+        PASS [   0.010s] (389/822) kintsu-parser tokens::tests::keyword_then_ident::parses_inner_meta
+        PASS [   0.009s] (390/822) kintsu-parser tokens::tests::keyword_then_ident::parses_simple_type_alias
+        PASS [   0.009s] (391/822) kintsu-parser tokens::tests::keyword_then_ident::parses_outer_meta
+        PASS [   0.009s] (392/822) kintsu-parser tokens::tests::keyword_then_ident::parses_struct
+        PASS [   0.010s] (393/822) kintsu-parser tokens::tests::keyword_then_ident::parses_single_line_comment
+        PASS [   0.010s] (394/822) kintsu-parser tokens::tests::keyword_then_ident::parses_oneof_type_alias
+        PASS [   0.010s] (395/822) kintsu-parser tokens::tests::keyword_then_ident::parses_multi_line_comment
+        PASS [   0.011s] (396/822) kintsu-parser tokens::tests::keyword_then_ident::parses_union_or_type_alias
+        PASS [   0.010s] (397/822) kintsu-parser tokens::tests::samples_lex_without_error_tokens
+        PASS [   0.013s] (398/822) kintsu-parser tokens::tests::keyword_then_ident::parses_namespace
+        PASS [   0.009s] (399/822) kintsu-parser tokens::tests::test_incremental_and_error_cases::expectation_error_namespace_followed_by_keyword
+        PASS [   0.009s] (400/822) kintsu-parser tokens::tests::test_increment_parse
+        PASS [   0.009s] (401/822) kintsu-parser tokens::tests::test_repeated::repeated_idents_with_new_lines
+        PASS [   0.008s] (402/822) kintsu-parser tokens::tests::test_to_vec::parses_single_line_comments_over_new_lines
+        PASS [   0.009s] (403/822) kintsu-parser tokens::tests::test_to_vec::parses_comments_over_new_lines
+        PASS [  14.667s] (404/822) kintsu-registry::apikey_tests create_personal_token_with_org_key_fails
+        PASS [  14.736s] (405/822) kintsu-registry::apikey_tests create_personal_token_without_permission_fails
+        PASS [  14.843s] (406/822) kintsu-registry::apikey_tests create_org_token_no_auth
+        PASS [  14.921s] (407/822) kintsu-registry::apikey_tests create_org_token_as_non_member
+        PASS [  14.982s] (408/822) kintsu-registry::apikey_tests create_personal_token_no_auth
+        PASS [  15.420s] (409/822) kintsu-registry::apikey_tests create_personal_token_invalid_body
+        PASS [  15.454s] (410/822) kintsu-registry::apikey_tests cross_user_token_access
+        PASS [  15.526s] (411/822) kintsu-registry::apikey_tests list_org_tokens_as_admin
+        PASS [  15.648s] (412/822) kintsu-registry::apikey_tests create_org_token_invalid_body
+        PASS [  15.716s] (413/822) kintsu-registry::apikey_tests create_org_token_as_admin
+        PASS [  15.815s] (414/822) kintsu-registry::apikey_tests create_personal_token_with_api_key
+        PASS [  15.916s] (415/822) kintsu-registry::apikey_tests create_org_token_as_member
+        PASS [   6.678s] (416/822) kintsu-registry::apikey_tests list_org_tokens_as_member
+        PASS [   7.064s] (417/822) kintsu-registry::apikey_tests list_org_tokens_as_non_member
+        PASS [   8.298s] (418/822) kintsu-registry::apikey_tests org_token_works_after_creation
+        PASS [   8.907s] (419/822) kintsu-registry::apikey_tests revoke_other_user_token
+        PASS [   9.755s] (420/822) kintsu-registry::apikey_tests revoke_own_token
+        PASS [   9.059s] (421/822) kintsu-registry::permission_tests grant_org_role_as_admin
+        PASS [   9.255s] (422/822) kintsu-registry::permission_tests api_key_missing_list_org_token_permission
+        PASS [   9.598s] (423/822) kintsu-registry::permission_tests api_key_missing_create_org_token_permission
+        PASS [   9.439s] (424/822) kintsu-registry::permission_tests api_key_missing_grant_schema_role_permission
+        PASS [   9.786s] (425/822) kintsu-registry::apikey_tests revoke_token_no_auth
+        PASS [   9.843s] (426/822) kintsu-registry::apikey_tests token_reuse_after_revoke
+        PASS [   9.717s] (427/822) kintsu-registry::permission_tests api_key_missing_grant_org_role_permission
+        PASS [   4.386s] (428/822) kintsu-registry::permission_tests grant_org_role_as_non_member_fails
+        PASS [   4.918s] (429/822) kintsu-registry::permission_tests grant_org_role_as_member_fails
+        PASS [   3.756s] (430/822) kintsu-registry::permission_tests grant_schema_role_as_admin
+        PASS [   3.389s] (431/822) kintsu-registry::permission_tests grant_schema_role_as_author_fails
+        PASS [   8.215s] (432/822) kintsu-registry::permission_tests grant_schema_role_as_non_admin_fails
+        PASS [   8.463s] (433/822) kintsu-registry::permission_tests org_admin_inherits_package_admin
+        PASS [   8.400s] (434/822) kintsu-registry::permission_tests revoke_org_role_as_admin
+        PASS [   8.721s] (435/822) kintsu-registry::permission_tests revoke_schema_role_as_admin
+        PASS [   9.314s] (436/822) kintsu-registry::permission_tests revoke_org_role_as_member_fails
+        PASS [   9.291s] (437/822) kintsu-registry::permission_tests revoke_schema_role_as_non_admin_fails
+        PASS [  12.134s] (438/822) kintsu-registry::principal_tests expired_token
+        PASS [  12.448s] (439/822) kintsu-registry::principal_tests auth_header_too_long
+        PASS [  11.771s] (440/822) kintsu-registry::principal_tests invalid_token_format
+        PASS [  11.172s] (441/822) kintsu-registry::principal_tests malformed_auth_empty_bearer
+        PASS [  11.926s] (442/822) kintsu-registry::principal_tests list_packages_without_auth
+        PASS [  11.033s] (443/822) kintsu-registry::principal_tests malformed_auth_no_bearer
+        PASS [   5.136s] (444/822) kintsu-registry::principal_tests no_auth_publish
+        PASS [   5.272s] (445/822) kintsu-registry::principal_tests no_auth_org_token
+        PASS [   7.005s] (446/822) kintsu-registry::principal_tests multiple_invalid_auth_methods_fail
+        PASS [   6.616s] (447/822) kintsu-registry::principal_tests no_auth_grant_role
+        PASS [   6.804s] (448/822) kintsu-registry::principal_tests no_auth_create_favourite
+        PASS [   6.706s] (449/822) kintsu-registry::principal_tests no_auth_my_orgs
+        PASS [   5.623s] (450/822) kintsu-registry::principal_tests no_auth_revoke_role
+        PASS [   6.672s] (451/822) kintsu-registry::principal_tests org_api_key_resolves_org
+        PASS [   7.274s] (452/822) kintsu-registry::principal_tests public_route_without_auth
+        PASS [   7.290s] (453/822) kintsu-registry::principal_tests revoked_token
+        PASS [   7.613s] (454/822) kintsu-registry::principal_tests scoped_token_authenticates
+        PASS [   7.901s] (455/822) kintsu-registry::principal_tests token_correct_format_but_nonexistent
+        PASS [   8.738s] (456/822) kintsu-registry::principal_tests user_api_key_resolves_user
+        PASS [   8.894s] (457/822) kintsu-registry::principal_tests token_wrong_length
+        PASS [   8.662s] (458/822) kintsu-registry::principal_tests wrong_token_prefix
+        PASS [   9.002s] (459/822) kintsu-registry::validation_tests create_favourite_requires_session
+        PASS [   8.590s] (460/822) kintsu-registry::validation_tests create_token_description_too_long
+        PASS [   9.035s] (461/822) kintsu-registry::validation_tests create_token_description_at_limit
+        PASS [   7.034s] (462/822) kintsu-registry::validation_tests create_token_empty_description
+        PASS [   6.687s] (463/822) kintsu-registry::validation_tests create_token_invalid_permission
+        PASS [   5.982s] (464/822) kintsu-registry::validation_tests create_token_malformed_json
+        PASS [   6.338s] (465/822) kintsu-registry::validation_tests create_token_negative_expiration
+        PASS [   6.005s] (466/822) kintsu-registry::validation_tests create_token_permissions_at_limit
+        PASS [   5.942s] (467/822) kintsu-registry::validation_tests create_token_scopes_at_limit
+        PASS [   6.959s] (468/822) kintsu-registry::validation_tests create_token_too_many_permissions
+        PASS [   6.974s] (469/822) kintsu-registry::validation_tests create_token_too_many_scopes
+        PASS [   7.317s] (470/822) kintsu-registry::validation_tests create_token_wrong_content_type
+        PASS [   7.609s] (471/822) kintsu-registry::validation_tests delete_favourite_requires_session
+        PASS [   7.981s] (472/822) kintsu-registry::validation_tests favourites_negative_page
+        PASS [   8.209s] (473/822) kintsu-registry::validation_tests favourites_excessive_page_size
+        PASS [   7.549s] (474/822) kintsu-registry::validation_tests favourites_zero_page_size
+        PASS [   7.658s] (475/822) kintsu-registry::validation_tests grant_org_role_empty_body
+        PASS [   7.652s] (476/822) kintsu-registry::validation_tests grant_org_role_invalid_role
+        PASS [   7.704s] (477/822) kintsu-registry::validation_tests grant_org_role_missing_org_id
+        PASS [   7.681s] (478/822) kintsu-registry::validation_tests grant_org_role_missing_user_id
+        PASS [  10.589s] (479/822) kintsu-registry::validation_tests grant_schema_role_both_targets
+        PASS [   9.284s] (480/822) kintsu-registry::validation_tests grant_schema_role_empty_body
+        PASS [   7.205s] (481/822) kintsu-registry::validation_tests org_exists_name_at_limit
+        PASS [   9.536s] (482/822) kintsu-registry::validation_tests grant_schema_role_empty_package_name
+        PASS [   7.913s] (483/822) kintsu-registry::validation_tests import_org_requires_session
+        PASS [   8.791s] (484/822) kintsu-registry::validation_tests grant_schema_role_no_target
+        PASS [   6.876s] (485/822) kintsu-registry::validation_tests org_exists_name_too_long
+        PASS [   8.436s] (486/822) kintsu-registry::validation_tests org_exists_empty_name
+        PASS [   9.953s] (487/822) kintsu-registry::validation_tests grant_schema_role_invalid_role
+        PASS [   0.030s] (488/822) kintsu-registry-db tokens::tests::test_generated_and_parse
+        PASS [   0.013s] (489/822) kintsu-registry-db tokens::tests::test_parse_not_our_token
+        PASS [   7.116s] (490/822) kintsu-registry::validation_tests org_token_invalid_org_id
+        PASS [   6.973s] (491/822) kintsu-registry::validation_tests package_download_invalid_version
+        PASS [   7.136s] (492/822) kintsu-registry::validation_tests org_token_negative_org_id
+        PASS [   4.912s] (493/822) kintsu-registry::validation_tests revoke_org_role_empty_body
+        PASS [   0.018s] (494/822) kintsu-registry-db::api_key_tests common::builders::tests::session_principal_from_user
+        PASS [   0.017s] (495/822) kintsu-registry-db::api_key_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   2.082s] (496/822) kintsu-registry-db tst::ctx
+        PASS [   2.265s] (497/822) kintsu-registry-db::api_key_tests check_permissions_both_valid
+        PASS [   2.211s] (498/822) kintsu-registry-db::api_key_tests check_permissions_scope_fail
+        PASS [   2.343s] (499/822) kintsu-registry-db::api_key_tests check_permissions_perm_fail
+        PASS [   1.937s] (500/822) kintsu-registry-db::api_key_tests create_org_key_not_admin
+        PASS [   2.133s] (501/822) kintsu-registry-db::api_key_tests create_org_key_org_not_found
+        PASS [   2.192s] (502/822) kintsu-registry-db::api_key_tests create_org_key_success
+        PASS [   2.917s] (503/822) kintsu-registry-db::api_key_tests create_personal_key_success
+        PASS [   2.932s] (504/822) kintsu-registry-db::api_key_tests create_personal_key_wrong_user
+        PASS [   8.738s] (505/822) kintsu-registry::validation_tests revoke_org_role_missing_org_id
+        PASS [   4.113s] (506/822) kintsu-registry-db::api_key_tests get_owner_org
+        PASS [   9.770s] (507/822) kintsu-registry::validation_tests revoke_org_role_missing_user_id
+        PASS [   9.801s] (508/822) kintsu-registry::validation_tests revoke_schema_role_empty_body
+        PASS [   5.026s] (509/822) kintsu-registry-db::api_key_tests get_owner_user
+        PASS [  10.120s] (510/822) kintsu-registry::validation_tests revoke_schema_role_invalid_id
+        PASS [   5.000s] (511/822) kintsu-registry-db::api_key_tests lookup_by_id_found
+        PASS [   4.052s] (512/822) kintsu-registry-db::api_key_tests lookup_by_id_not_found
+        PASS [  10.303s] (513/822) kintsu-registry::validation_tests revoke_token_invalid_id
+        PASS [   4.320s] (514/822) kintsu-registry-db::api_key_tests lookup_by_raw_token_expired
+        PASS [  10.726s] (515/822) kintsu-registry::validation_tests revoke_schema_role_negative_id
+        PASS [  10.648s] (516/822) kintsu-registry::validation_tests revoke_token_nonexistent
+        PASS [   3.612s] (517/822) kintsu-registry-db::api_key_tests lookup_by_raw_token_invalid_format
+        PASS [   3.672s] (518/822) kintsu-registry-db::api_key_tests lookup_by_raw_token_revoked
+        PASS [   3.760s] (519/822) kintsu-registry-db::api_key_tests lookup_by_raw_token_valid
+        PASS [   0.013s] (520/822) kintsu-registry-db::authorization_tests common::builders::tests::session_principal_from_user
+        PASS [   0.012s] (521/822) kintsu-registry-db::authorization_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   3.767s] (522/822) kintsu-registry-db::api_key_tests must_have_permission_failure
+        PASS [   3.535s] (523/822) kintsu-registry-db::api_key_tests must_have_permission_success
+        PASS [   3.615s] (524/822) kintsu-registry-db::api_key_tests revoke_org_token_not_admin
+        PASS [   3.650s] (525/822) kintsu-registry-db::api_key_tests revoke_org_token_success
+        PASS [   3.681s] (526/822) kintsu-registry-db::api_key_tests scope_match_exact
+        PASS [   3.857s] (527/822) kintsu-registry-db::api_key_tests revoke_personal_token_unauthorized
+        PASS [   4.275s] (528/822) kintsu-registry-db::api_key_tests revoke_personal_token_success
+        PASS [   3.959s] (529/822) kintsu-registry-db::api_key_tests scope_match_prefix
+        PASS [   3.844s] (530/822) kintsu-registry-db::api_key_tests scope_match_wildcard
+        PASS [   3.293s] (531/822) kintsu-registry-db::authorization_tests auth_result_require_failure
+        PASS [   3.544s] (532/822) kintsu-registry-db::authorization_tests auth_result_require_success
+        PASS [   2.699s] (533/822) kintsu-registry-db::authorization_tests create_personal_token_as_owner
+        PASS [   3.020s] (534/822) kintsu-registry-db::authorization_tests create_personal_token_wrong_user
+        PASS [   3.174s] (535/822) kintsu-registry-db::authorization_tests fluent_org_can_grant_role
+        PASS [   3.512s] (536/822) kintsu-registry-db::authorization_tests fluent_package_can_publish
+        PASS [   3.714s] (537/822) kintsu-registry-db::authorization_tests org_create_token_as_admin
+        PASS [   3.707s] (538/822) kintsu-registry-db::authorization_tests org_grant_role_as_admin
+        PASS [   4.637s] (539/822) kintsu-registry-db::authorization_tests org_grant_role_not_admin
+        PASS [   4.647s] (540/822) kintsu-registry-db::authorization_tests package_grant_role_as_admin
+        PASS [   5.018s] (541/822) kintsu-registry-db::authorization_tests package_grant_role_not_admin
+        PASS [   5.089s] (542/822) kintsu-registry-db::authorization_tests package_publish_first_time
+        PASS [   0.023s] (543/822) kintsu-registry-db::favourites_tests common::builders::tests::session_principal_from_user
+        PASS [   0.019s] (544/822) kintsu-registry-db::favourites_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   5.485s] (545/822) kintsu-registry-db::authorization_tests package_publish_as_admin
+        PASS [   4.668s] (546/822) kintsu-registry-db::authorization_tests package_publish_not_admin
+        PASS [   5.062s] (547/822) kintsu-registry-db::authorization_tests package_publish_no_permission
+        PASS [   4.477s] (548/822) kintsu-registry-db::authorization_tests package_publish_session_not_api_key
+        PASS [   4.851s] (549/822) kintsu-registry-db::authorization_tests package_publish_scope_mismatch
+        PASS [   4.386s] (550/822) kintsu-registry-db::authorization_tests package_yank_as_admin
+        PASS [   4.076s] (551/822) kintsu-registry-db::authorization_tests package_yank_not_admin
+        PASS [   4.577s] (552/822) kintsu-registry-db::authorization_tests revoke_personal_token_as_owner
+        PASS [   3.969s] (553/822) kintsu-registry-db::authorization_tests revoke_personal_token_not_owner
+        PASS [   4.465s] (554/822) kintsu-registry-db::authorization_tests schema_admin_revoked_role
+        PASS [   4.263s] (555/822) kintsu-registry-db::authorization_tests schema_admin_user_via_org
+        PASS [   4.522s] (556/822) kintsu-registry-db::favourites_tests create_favourite_duplicate
+        PASS [   4.352s] (557/822) kintsu-registry-db::favourites_tests create_favourite_org_success
+        PASS [   4.583s] (558/822) kintsu-registry-db::favourites_tests create_favourite_org_not_found
+        PASS [   5.160s] (559/822) kintsu-registry-db::favourites_tests create_favourite_package_not_found
+        PASS [   5.377s] (560/822) kintsu-registry-db::favourites_tests create_favourite_package_success
+        PASS [   0.028s] (561/822) kintsu-registry-db::fixtures_tests common::builders::tests::session_principal_from_user
+        PASS [   0.018s] (562/822) kintsu-registry-db::fixtures_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   5.539s] (563/822) kintsu-registry-db::favourites_tests delete_favourite_not_found
+        PASS [   6.073s] (564/822) kintsu-registry-db::favourites_tests delete_favourite_org_success
+        PASS [   4.729s] (565/822) kintsu-registry-db::favourites_tests list_favourites_empty
+        PASS [   6.365s] (566/822) kintsu-registry-db::favourites_tests delete_favourite_package_success
+        PASS [   5.374s] (567/822) kintsu-registry-db::favourites_tests delete_favourite_wrong_user
+        PASS [   4.460s] (568/822) kintsu-registry-db::favourites_tests list_favourites_empty_page
+        PASS [   4.361s] (569/822) kintsu-registry-db::favourites_tests list_favourites_mixed
+        PASS [   0.017s] (570/822) kintsu-registry-db::org_invite_tests common::builders::tests::session_principal_from_user
+        PASS [   0.021s] (571/822) kintsu-registry-db::org_invite_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   4.654s] (572/822) kintsu-registry-db::favourites_tests list_favourites_orgs
+        PASS [   4.532s] (573/822) kintsu-registry-db::favourites_tests list_favourites_pagination_first_page
+        PASS [   5.270s] (574/822) kintsu-registry-db::favourites_tests list_favourites_packages
+        PASS [   5.000s] (575/822) kintsu-registry-db::favourites_tests list_favourites_pagination_last_page
+        PASS [   4.792s] (576/822) kintsu-registry-db::fixtures_tests test_org_role_fixture_insert
+        PASS [   0.026s] (577/822) kintsu-registry-db::org_tests common::builders::tests::session_principal_from_user
+        PASS [   0.016s] (578/822) kintsu-registry-db::org_tests common::fixtures::tests::fixture_counters_increment
+        PASS [   5.207s] (579/822) kintsu-registry-db::fixtures_tests test_org_fixture_insert
+        PASS [   4.276s] (580/822) kintsu-registry-db::fixtures_tests test_package_fixture_insert
+        PASS [   4.476s] (581/822) kintsu-registry-db::fixtures_tests test_schema_role_fixture_insert
+        PASS [   4.786s] (582/822) kintsu-registry-db::fixtures_tests test_user_fixture_insert
+        PASS [   5.000s] (583/822) kintsu-registry-db::fixtures_tests test_version_fixture_insert
+        PASS [   5.807s] (584/822) kintsu-registry-db::org_invite_tests accept_invitation_success
+        PASS [   5.947s] (585/822) kintsu-registry-db::org_invite_tests decline_invitation_success
+        PASS [   5.403s] (586/822) kintsu-registry-db::org_invite_tests respond_invitation_already_accepted
+        PASS [   5.411s] (587/822) kintsu-registry-db::org_invite_tests respond_invitation_already_revoked
+        PASS [   5.259s] (588/822) kintsu-registry-db::org_invite_tests respond_invitation_not_found
+        PASS [   4.612s] (589/822) kintsu-registry-db::org_invite_tests respond_invitation_requires_session
+        PASS [   3.993s] (590/822) kintsu-registry-db::org_tests exists_false
+        PASS [   4.538s] (591/822) kintsu-registry-db::org_tests exists_true
+        PASS [   4.929s] (592/822) kintsu-registry-db::org_tests exists_bulk

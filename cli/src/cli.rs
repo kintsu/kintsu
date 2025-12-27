@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use kintsu_cli_core::WithProgressConfig;
 use kintsu_manifests::NewForConfig;
+use tracing::level_filters::LevelFilter;
 
 #[derive(Default, clap::ValueEnum, Clone, Debug)]
 pub enum LogLevel {
@@ -11,16 +12,19 @@ pub enum LogLevel {
     Info,
     Error,
     Warn,
+    /// Disable all logging output
+    Off,
 }
 
-impl From<LogLevel> for tracing::Level {
+impl From<LogLevel> for LevelFilter {
     fn from(val: LogLevel) -> Self {
         match val {
-            LogLevel::Debug => tracing::Level::DEBUG,
-            LogLevel::Trace => tracing::Level::TRACE,
-            LogLevel::Info => tracing::Level::INFO,
-            LogLevel::Error => tracing::Level::ERROR,
-            LogLevel::Warn => tracing::Level::WARN,
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Trace => LevelFilter::TRACE,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Error => LevelFilter::ERROR,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Off => LevelFilter::OFF,
         }
     }
 }
@@ -31,7 +35,7 @@ pub struct Cli {
     #[clap(
         long,
         global = true,
-        default_value = "error",
+        default_value = "off",
         env = "LOG_LEVEL",
         help = "the verbosity level to print logs at."
     )]

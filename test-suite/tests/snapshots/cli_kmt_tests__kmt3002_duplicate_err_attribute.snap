@@ -1,0 +1,15 @@
+---
+source: test-suite/tests/cli_kmt_tests.rs
+expression: result.stderr
+---
+KMT3002
+
+  × error attribute is declared multiple times in ./tmp/cli_test_kmt3002_duplicate_err_attribute/pkg/schema/lib.ks
+   ╭─[./tmp/cli_test_kmt3002_duplicate_err_attribute/pkg/schema/lib.ks:1:18]
+ 1 │ ╭─▶ #![err(ApiError)]
+ 2 │ ├─▶ #![err(OtherError)]
+   · ╰──── error attribute is declared multiple times in ./tmp/cli_test_kmt3002_duplicate_err_attribute/pkg/schema/lib.ks
+ 3 │     namespace pkg;
+ 4 │     use types;
+   ╰────
+  help: each metadata attribute type can only appear once

@@ -31,8 +31,7 @@ impl PathPackageResolver {
     ) -> crate::Result<ResolvedDependency> {
         let resolved_path = root_path.join(&dep.path);
 
-        let dep_manifest = PackageManifests::new(self.fs.as_ref(), &resolved_path)
-            .map_err(crate::Error::ManifestError)?;
+        let dep_manifest = PackageManifests::new(self.fs.as_ref(), &resolved_path)?;
 
         let version = parse_version(&dep_manifest.package().version.to_string())?;
 

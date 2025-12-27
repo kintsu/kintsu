@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_kns_tests.rs
+expression: result.stderr
+---
+KNS3002
+
+  × namespace ./tmp/cli_test_kns3001_multiple_namespaces/pkg/schema/types.ks is already declared for types, models cannot be declared
+   ╭─[./tmp/cli_test_kns3001_multiple_namespaces/pkg/schema/types.ks:2:11]
+ 1 │ namespace types;
+ 2 │ namespace models;
+   ·           ───┬──
+   ·              ╰── namespace ./tmp/cli_test_kns3001_multiple_namespaces/pkg/schema/types.ks is already declared for types, models cannot be declared
+ 3 │ 
+ 4 │ struct User {
+ 5 │     name: str
+ 6 │ };
+   ╰────
+  help: each namespace must correspond to exactly one directory

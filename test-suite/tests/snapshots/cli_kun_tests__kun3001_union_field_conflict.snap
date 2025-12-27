@@ -1,0 +1,24 @@
+---
+source: test-suite/tests/cli_kun_tests.rs
+expression: result.stderr
+---
+KUN3001
+
+  ⚠ union field conflict: field 'version' has conflicting types (using 'str', discarding 'i32')
+    ╭─[./tmp/cli_test_kun3001_union_field_conflict/pkg/schema/types.ks:8:18]
+  3 │     struct Base {
+  4 │         version: str,
+  5 │         name: str
+  6 │     };
+  7 │     
+  8 │ ╭─▶ struct Extended {
+  9 │ ├─▶     version: i32,
+    · ╰──── union field conflict: field 'version' has conflicting types (using 'str', discarding 'i32')
+ 10 │         count: u64
+ 11 │     };
+ 12 │     
+ 13 │     type Combined = Base & Extended;
+    ·                     ───────┬───────
+    ·                            ╰── in this union
+    ╰────
+  help: leftmost field definition takes precedence; rename to preserve both

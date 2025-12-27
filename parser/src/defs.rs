@@ -1,6 +1,7 @@
 use std::hash::Hash;
 
 use crate::{Peek, tokens::ToTokens};
+use kintsu_errors::HasSpan;
 
 pub use span::Span;
 
@@ -189,5 +190,12 @@ impl<T: std::fmt::Display> std::fmt::Display for Spanned<T> {
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
         self.value.fmt(f)
+    }
+}
+
+impl<T> HasSpan for Spanned<T> {
+    fn span(&self) -> kintsu_errors::Span {
+        let raw = self.span.span();
+        kintsu_errors::Span::new(raw.start, raw.end)
     }
 }

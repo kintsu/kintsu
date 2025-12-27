@@ -93,8 +93,14 @@ impl TypeDependencyGraph {
                             true
                         }
                     })
-                    .flat_map(|dep| dep.target_candidates.iter().cloned())
-                    .filter(|candidate| self.nodes.contains_key(candidate))
+                    .flat_map(|dep| dep.target_candidates.iter())
+                    // Map reference-site candidates to definition-site keys
+                    // This ensures consistent spans for cycle detection
+                    .filter_map(|candidate| {
+                        self.nodes
+                            .get_key_value(candidate)
+                            .map(|(def_key, _)| def_key.clone())
+                    })
                     .collect()
             })
             .unwrap_or_default()

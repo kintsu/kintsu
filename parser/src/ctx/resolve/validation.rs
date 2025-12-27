@@ -1,3 +1,5 @@
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
 use crate::{
     ast::{ty::Type, variadic::Variant},
     defs::Spanned,
@@ -13,30 +15,69 @@ impl TypeResolver {
         let ns = self.namespace.lock().await;
 
         for child in ns.children.values() {
+            let source_path = child.source.clone();
+            let source_content = ns.sources.get(&source_path).cloned();
+
             match &child.value {
                 super::super::NamespaceChild::Struct(struct_item) => {
+                    // Validate duplicate fields
+                    Self::validate_struct_duplicate_fields(
+                        struct_item,
+                        &source_path,
+                        &source_content,
+                    )?;
+
+                    // Validate type references
                     for field in &struct_item.def.value.args.values {
-                        Self::validate_type_reference(&field.value.typ, &ns)?;
+                        Self::validate_type_reference(
+                            &field.value.typ,
+                            &ns,
+                            &source_path,
+                            &source_content,
+                        )?;
                     }
                 },
                 super::super::NamespaceChild::Operation(op_item) => {
                     if let Some(params) = &op_item.def.value.args {
                         for param in &params.value.values {
-                            Self::validate_type_reference(&param.value.typ, &ns)?;
+                            Self::validate_type_reference(
+                                &param.value.typ,
+                                &ns,
+                                &source_path,
+                                &source_content,
+                            )?;
                         }
                     }
-                    Self::validate_type_reference(&op_item.def.value.return_type, &ns)?;
+                    Self::validate_type_reference(
+                        &op_item.def.value.return_type,
+                        &ns,
+                        &source_path,
+                        &source_content,
+                    )?;
                 },
                 super::super::NamespaceChild::OneOf(oneof_item) => {
                     for variant in &oneof_item.def.value.variants.values {
                         match &variant.value.value {
                             Variant::Tuple { inner, .. } => {
-                                Self::validate_type_reference(inner, &ns)?;
+                                Self::validate_type_reference(
+                                    inner,
+                                    &ns,
+                                    &source_path,
+                                    &source_content,
+                                )?;
                             },
                             Variant::LocalStruct { inner, .. } => {
                                 for field in &inner.value.fields.values {
-                                    Self::validate_type_reference(&field.value.typ, &ns)?;
+                                    Self::validate_type_reference(
+                                        &field.value.typ,
+                                        &ns,
+                                        &source_path,
+                                        &source_content,
+                                    )?;
                                 }
+                            },
+                            Variant::Unit { .. } => {
+                                // Unit variants have no type reference to validate
                             },
                         }
                     }
@@ -45,12 +86,25 @@ impl TypeResolver {
                     for variant in &error_item.def.value.variants.values {
                         match &variant.value.value {
                             Variant::Tuple { inner, .. } => {
-                                Self::validate_type_reference(inner, &ns)?;
+                                Self::validate_type_reference(
+                                    inner,
+                                    &ns,
+                                    &source_path,
+                                    &source_content,
+                                )?;
                             },
                             Variant::LocalStruct { inner, .. } => {
                                 for field in &inner.value.fields.values {
-                                    Self::validate_type_reference(&field.value.typ, &ns)?;
+                                    Self::validate_type_reference(
+                                        &field.value.typ,
+                                        &ns,
+                                        &source_path,
+                                        &source_content,
+                                    )?;
                                 }
+                            },
+                            Variant::Unit { .. } => {
+                                // Unit variants have no type reference to validate
                             },
                         }
                     }
@@ -63,9 +117,50 @@ impl TypeResolver {
         Ok(())
     }
 
+    /// Validates that a struct does not have duplicate field names.
+    /// Per ERR-0005: KTY3003 requires span on duplicate field.
+    fn validate_struct_duplicate_fields(
+        struct_item: &crate::ast::items::StructDef,
+        source_path: &PathBuf,
+        source_content: &Option<Arc<String>>,
+    ) -> crate::Result<()> {
+        let struct_name = struct_item.def.value.name.borrow_string();
+        let mut seen: HashMap<String, crate::Span> = HashMap::new();
+
+        for field in &struct_item.def.value.args.values {
+            let field_name = field.value.name.borrow_string().clone();
+            let field_span_raw = field.value.name.span();
+            let field_span = crate::Span::new(field_span_raw.start, field_span_raw.end);
+
+            if let Some(first_span) = seen.get(&field_name) {
+                // Build error with secondary label pointing to first declaration
+                let err = crate::TypeDefError::duplicate_field(
+                    &field_name,
+                    "struct",
+                    struct_name.clone(),
+                )
+                .at(field_span)
+                .build()
+                .with_secondary_label(*first_span, "first declaration here");
+
+                return if let Some(source) = source_content {
+                    Err(err
+                        .with_source_arc(source_path.clone(), Arc::clone(source))
+                        .into())
+                } else {
+                    Err(err.into())
+                };
+            }
+            seen.insert(field_name, field_span);
+        }
+        Ok(())
+    }
+
     fn validate_type_reference(
         ty: &Type,
         ns: &super::super::NamespaceCtx,
+        source_path: &PathBuf,
+        source_content: &Option<Arc<String>>,
     ) -> crate::Result<()> {
         match ty {
             Type::Ident { to } => {
@@ -78,19 +173,29 @@ impl TypeResolver {
                             <Spanned<_> as ToTokens>::display(path)
                         },
                     };
+                    let span = to.span();
 
                     tracing::error!("Undefined type reference: {}", type_name);
 
-                    return Err(crate::Error::UndefinedType { name: type_name });
+                    let err = crate::ResolutionError::undefined_type(type_name)
+                        .at(span)
+                        .build();
+                    return if let Some(source) = source_content {
+                        Err(err
+                            .with_source_arc(source_path.clone(), Arc::clone(source))
+                            .into())
+                    } else {
+                        Err(err.into())
+                    };
                 }
             },
             Type::Array { ty } => {
                 match &ty.value {
                     crate::ast::array::Array::Sized { ty: inner, .. } => {
-                        Self::validate_type_reference(inner, ns)?;
+                        Self::validate_type_reference(inner, ns, source_path, source_content)?;
                     },
                     crate::ast::array::Array::Unsized { ty: inner, .. } => {
-                        Self::validate_type_reference(inner, ns)?;
+                        Self::validate_type_reference(inner, ns, source_path, source_content)?;
                     },
                 }
             },
@@ -113,19 +218,35 @@ impl TypeResolver {
                                                 path.display()
                                             },
                                         };
+                                        let span = path_or_ident.span();
 
                                         tracing::error!(
                                             "Undefined type reference in union: {}",
                                             type_name
                                         );
-                                        return Err(crate::Error::UndefinedType {
-                                            name: type_name,
-                                        });
+                                        let err = crate::ResolutionError::undefined_type(type_name)
+                                            .at(span)
+                                            .build();
+                                        return if let Some(source) = source_content {
+                                            Err(err
+                                                .with_source_arc(
+                                                    source_path.clone(),
+                                                    Arc::clone(source),
+                                                )
+                                                .into())
+                                        } else {
+                                            Err(err.into())
+                                        };
                                     }
                                 },
                                 crate::ast::union::UnionDiscriminant::Anonymous(anon_struct) => {
                                     for field in &anon_struct.fields.values {
-                                        Self::validate_type_reference(&field.value.typ, ns)?;
+                                        Self::validate_type_reference(
+                                            &field.value.typ,
+                                            ns,
+                                            source_path,
+                                            source_content,
+                                        )?;
                                     }
                                 },
                             }
@@ -146,11 +267,23 @@ impl TypeResolver {
                                                     path.display()
                                                 },
                                             };
+                                            let span = nested_ref.span();
 
                                             tracing::error!("Undefined type: {}", type_name);
-                                            return Err(crate::Error::UndefinedType {
-                                                name: type_name,
-                                            });
+                                            let err =
+                                                crate::ResolutionError::undefined_type(type_name)
+                                                    .at(span)
+                                                    .build();
+                                            return if let Some(source) = source_content {
+                                                Err(err
+                                                    .with_source_arc(
+                                                        source_path.clone(),
+                                                        Arc::clone(source),
+                                                    )
+                                                    .into())
+                                            } else {
+                                                Err(err.into())
+                                            };
                                         }
                                     },
                                     crate::ast::union::IdentOrUnion::Union { .. } => {
@@ -163,29 +296,34 @@ impl TypeResolver {
                 }
             },
             Type::Paren { ty, .. } => {
-                Self::validate_type_reference(&ty.value, ns)?;
+                Self::validate_type_reference(&ty.value, ns, source_path, source_content)?;
             },
             Type::Result { ty, .. } => {
-                Self::validate_type_reference(&ty.value, ns)?;
+                Self::validate_type_reference(&ty.value, ns, source_path, source_content)?;
             },
             Type::Struct { ty } => {
                 for field in &ty.value.fields.values {
-                    Self::validate_type_reference(&field.value.typ, ns)?;
+                    Self::validate_type_reference(
+                        &field.value.typ,
+                        ns,
+                        source_path,
+                        source_content,
+                    )?;
                 }
             },
             Type::OneOf { ty } => {
                 for variant in &ty.value.variants.values {
-                    Self::validate_type_reference(&variant.value, ns)?;
+                    Self::validate_type_reference(&variant.value, ns, source_path, source_content)?;
                 }
             },
             Type::UnionOr { lhs, rhs, .. } => {
-                Self::validate_type_reference(&lhs.value, ns)?;
-                Self::validate_type_reference(&rhs.value, ns)?;
+                Self::validate_type_reference(&lhs.value, ns, source_path, source_content)?;
+                Self::validate_type_reference(&rhs.value, ns, source_path, source_content)?;
             },
             Type::TypeExpr { expr } => {
                 // Type expressions are validated during Phase 3.6 resolution
                 // Here we just validate references within the expression
-                Self::validate_type_expr_references(&expr.value, ns)?;
+                Self::validate_type_expr_references(&expr.value, ns, source_path, source_content)?;
             },
             Type::Builtin { .. } => {
                 // always valid
@@ -197,6 +335,8 @@ impl TypeResolver {
     fn validate_type_expr_references(
         expr: &crate::ast::type_expr::TypeExpr,
         ns: &super::super::NamespaceCtx,
+        source_path: &PathBuf,
+        source_content: &Option<Arc<String>>,
     ) -> crate::Result<()> {
         use crate::ast::type_expr::{TypeExpr, TypeExprOp};
         match expr {
@@ -210,11 +350,21 @@ impl TypeResolver {
                             <crate::defs::Spanned<_> as crate::ToTokens>::display(path)
                         },
                     };
-                    return Err(crate::Error::UndefinedType { name: type_name });
+                    let span = reference.span();
+                    let err = crate::ResolutionError::undefined_type(type_name)
+                        .at(span)
+                        .build();
+                    return if let Some(source) = source_content {
+                        Err(err
+                            .with_source_arc(source_path.clone(), Arc::clone(source))
+                            .into())
+                    } else {
+                        Err(err.into())
+                    };
                 }
             },
             TypeExpr::FieldAccess { base, .. } => {
-                Self::validate_type_expr_references(&base.value, ns)?;
+                Self::validate_type_expr_references(&base.value, ns, source_path, source_content)?;
             },
             TypeExpr::Op(op) => {
                 match &op.value {
@@ -225,7 +375,12 @@ impl TypeResolver {
                     | TypeExprOp::Exclude { target, .. }
                     | TypeExprOp::Extract { target, .. }
                     | TypeExprOp::ArrayItem { target } => {
-                        Self::validate_type_expr_references(target, ns)?;
+                        Self::validate_type_expr_references(
+                            target,
+                            ns,
+                            source_path,
+                            source_content,
+                        )?;
                     },
                 }
             },

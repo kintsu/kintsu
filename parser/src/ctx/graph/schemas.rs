@@ -193,7 +193,11 @@ impl SchemaDependencyGraph {
                 .map(|id| id.package_name.clone())
                 .collect();
 
-            return Err(crate::Error::SchemaCircularDependency { schemas: missing });
+            return Err(crate::Error::Compiler(
+                crate::ResolutionError::circular_dependency(missing)
+                    .unlocated()
+                    .build(),
+            ));
         }
 
         let max_level = level_map

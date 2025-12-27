@@ -1,8 +1,10 @@
-//! Type definition errors (KTY) - ERR-0005
+//! Type definition errors (KTY) - [ERR-0005](https://docs.kintsu.dev/specs/err/ERR-0005)
+//!
 //! Errors related to struct, enum, error, and oneof declarations.
 
 define_domain_errors! {
     /// Type definition errors (KTY domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0005
     pub enum TypeDefError {
         /// KTY2001: Missing error type for fallible operation
         MissingErrorType {
@@ -120,65 +122,69 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl TypeDefError {
-    pub fn missing_error_type(operation: impl Into<String>) -> Self {
-        Self::MissingErrorType {
+    pub fn missing_error_type(operation: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::MissingErrorType {
             operation: operation.into(),
             span: None,
-        }
+        })
     }
 
     pub fn union_operand_not_struct(
         found_type: impl Into<String>,
         operand_name: impl Into<String>,
-    ) -> Self {
-        Self::UnionOperandMustBeStruct {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnionOperandMustBeStruct {
             found_type: found_type.into(),
             operand_name: operand_name.into(),
             span: None,
-        }
+        })
     }
 
     pub fn ident_conflict(
         namespace: impl Into<String>,
         tag: impl Into<String>,
         ident: impl Into<String>,
-    ) -> Self {
-        Self::IdentConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::IdentConflict {
             namespace: namespace.into(),
             tag: tag.into(),
             ident: ident.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn duplicate_type(name: impl Into<String>) -> Self {
-        Self::DuplicateType {
+    pub fn duplicate_type(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DuplicateType {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
     pub fn duplicate_field(
         name: impl Into<String>,
         type_kind: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::DuplicateField {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DuplicateField {
             name: name.into(),
             type_kind: type_kind.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn circular_dependency(types: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn circular_dependency(
+        types: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let path = types
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::TypeCircularDependency { path, span: None }
+        ErrorBuilder::new(Self::TypeCircularDependency { path, span: None })
     }
 
     // Type Expression Error constructors (KTE) - RFC-0018, SPEC-0017, TSY-0014
@@ -187,75 +193,81 @@ impl TypeDefError {
         operator: impl Into<String>,
         expected: impl Into<String>,
         actual: impl Into<String>,
-    ) -> Self {
-        Self::TypeExprTargetMismatch {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprTargetMismatch {
             operator: operator.into(),
             expected: expected.into(),
             actual: actual.into(),
             span: None,
-        }
+        })
     }
 
     pub fn type_expr_field_not_found(
         operator: impl Into<String>,
         field: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::TypeExprFieldNotFound {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprFieldNotFound {
             operator: operator.into(),
             field: field.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
     pub fn type_expr_variant_not_found(
         operator: impl Into<String>,
         variant: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::TypeExprVariantNotFound {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprVariantNotFound {
             operator: operator.into(),
             variant: variant.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn type_expr_empty_selectors(operator: impl Into<String>) -> Self {
-        Self::TypeExprEmptySelectors {
+    pub fn type_expr_empty_selectors(operator: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprEmptySelectors {
             operator: operator.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn type_expr_no_fields_remain(operator: impl Into<String>) -> Self {
-        Self::TypeExprNoFieldsRemain {
+    pub fn type_expr_no_fields_remain(
+        operator: impl Into<String>
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprNoFieldsRemain {
             operator: operator.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn type_expr_no_variants_remain(operator: impl Into<String>) -> Self {
-        Self::TypeExprNoVariantsRemain {
+    pub fn type_expr_no_variants_remain(
+        operator: impl Into<String>
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprNoVariantsRemain {
             operator: operator.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn type_expr_cycle(types: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn type_expr_cycle(
+        types: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let path = types
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::TypeExprCycle { path, span: None }
+        ErrorBuilder::new(Self::TypeExprCycle { path, span: None })
     }
 
-    pub fn type_expr_unresolved(name: impl Into<String>) -> Self {
-        Self::TypeExprUnresolved {
+    pub fn type_expr_unresolved(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TypeExprUnresolved {
             name: name.into(),
             span: None,
-        }
+        })
     }
 }

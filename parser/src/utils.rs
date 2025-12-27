@@ -8,9 +8,21 @@ pub fn insert_unique_ident<V>(
     def: NamedItemContext,
     tag: &'static str,
     value: V,
+    span: Option<kintsu_errors::Span>,
 ) -> crate::Result<()> {
     match tbl.insert(def.clone(), value) {
-        Some(..) => Err(crate::Error::conflict(ns, def, tag)),
+        Some(..) => {
+            let builder = crate::TypeDefError::ident_conflict(
+                ns.borrow_string(),
+                def.name.borrow_string(),
+                tag,
+            );
+            let err = match span {
+                Some(s) => builder.at(s).build(),
+                None => builder.unlocated().build(),
+            };
+            Err(crate::Error::Compiler(err))
+        },
         None => Ok(()),
     }
 }

@@ -101,9 +101,12 @@ impl DependencyLoader {
         for task in initial_tasks {
             coord_state.increment_pending();
             if task_tx.send(task).is_err() {
-                return Err(crate::Error::InternalError {
-                    message: "Failed to send initial task: channel closed".into(),
-                });
+                return Err(crate::InternalError::internal(
+                    "Failed to send initial task: channel closed",
+                )
+                .unlocated()
+                .build()
+                .into());
             }
         }
 
@@ -155,9 +158,12 @@ impl DependencyLoader {
 
         if completion_rx.recv().await.is_none() {
             tracing::error!("Completion channel closed without signal");
-            return Err(crate::Error::InternalError {
-                message: "Completion channel closed without signal".into(),
-            });
+            return Err(
+                crate::InternalError::internal("Completion channel closed without signal")
+                    .unlocated()
+                    .build()
+                    .into(),
+            );
         }
 
         tracing::debug!("Completion signal received, waiting for workers");
@@ -165,9 +171,13 @@ impl DependencyLoader {
         for (i, handle) in worker_handles.into_iter().enumerate() {
             if let Err(e) = handle.await {
                 tracing::error!("Worker {} failed: {}", i, e);
-                return Err(crate::Error::InternalError {
-                    message: format!("Worker {} panicked: {}", i, e),
-                });
+                return Err(crate::InternalError::internal(format!(
+                    "Worker {} panicked: {}",
+                    i, e
+                ))
+                .unlocated()
+                .build()
+                .into());
             }
         }
 
@@ -175,9 +185,12 @@ impl DependencyLoader {
 
         if let Err(e) = coordinator_handle.await {
             tracing::error!("Coordinator failed: {}", e);
-            return Err(crate::Error::InternalError {
-                message: format!("Coordinator panicked: {}", e),
-            });
+            return Err(
+                crate::InternalError::internal(format!("Coordinator panicked: {}", e))
+                    .unlocated()
+                    .build()
+                    .into(),
+            );
         }
 
         tracing::info!("Dependency loading complete");
@@ -225,10 +238,14 @@ impl DependencyLoader {
         let dep = parent_manifest
             .dependencies()
             .get(&normalize_import_to_package_name(dep_name))
-            .ok_or_else(|| {
-                crate::Error::InternalError {
-                    message: format!("Dependency '{}' not found in parent manifest", dep_name),
-                }
+            .ok_or_else(|| -> crate::Error {
+                crate::InternalError::internal(format!(
+                    "Dependency '{}' not found in parent manifest",
+                    dep_name
+                ))
+                .unlocated()
+                .build()
+                .into()
             })?;
 
         let resolved = resolver.resolve(parent_path, dep_name, dep)?;
@@ -306,11 +323,14 @@ impl DependencyLoader {
 
         if let Some(existing_version) = state_read.loaded_versions.get(dep_name) {
             if !existing_version.is_compatible(&candidate_version) {
-                return Err(crate::Error::VersionIncompatibility {
-                    package: dep_name.to_string(),
-                    required: candidate_version.to_string(),
-                    found: existing_version.to_string(),
-                });
+                return Err(crate::MetadataError::version_incompatibility(
+                    dep_name.to_string(),
+                    candidate_version.to_string(),
+                    existing_version.to_string(),
+                )
+                .unlocated()
+                .build()
+                .into());
             }
             if existing_version > &candidate_version {
                 candidate_version = existing_version.clone();

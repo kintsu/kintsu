@@ -1,0 +1,21 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KTG3001
+
+  × attribute 'tag' specifies multiple tagging styles
+    ╭─[./tmp/cli_test_ktg3001_multiple_tag_styles/pkg/schema/types.ks:3:30]
+  1 │     namespace types;
+  2 │     
+  3 │ ╭─▶ struct Payload { data: str };
+  4 │ │   
+  5 │ │   #[tag(external)]
+  6 │ ├─▶ #[tag(name = "kind")]
+    · ╰──── attribute 'tag' specifies multiple tagging styles
+  7 │     oneof Result {
+  8 │         Success(Payload),
+  9 │         Failure(str)
+ 10 │     };
+    ╰────
+  help: choose one style: external, internal, adjacent, or untagged

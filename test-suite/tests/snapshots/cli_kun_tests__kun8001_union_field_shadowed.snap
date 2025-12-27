@@ -1,0 +1,24 @@
+---
+source: test-suite/tests/cli_kun_tests.rs
+expression: result.stderr
+---
+KUN8001
+
+  ⚠ field 'id' from 'Profile' is shadowed (using 'u64' from earlier operand)
+    ╭─[./tmp/cli_test_kun8001_union_field_shadowed/pkg/schema/types.ks:8:17]
+  3 │     struct User {
+  4 │         id: u64,
+  5 │         name: str
+  6 │     };
+  7 │     
+  8 │ ╭─▶ struct Profile {
+  9 │ ├─▶     id: u64,
+    · ╰──── field 'id' from 'Profile' is shadowed (using 'u64' from earlier operand)
+ 10 │         bio: str
+ 11 │     };
+ 12 │     
+ 13 │     type FullUser = User & Profile;
+    ·                     ───────┬──────
+    ·                            ╰── in this union
+    ╰────
+  help: this field will not appear in merged result; consider renaming

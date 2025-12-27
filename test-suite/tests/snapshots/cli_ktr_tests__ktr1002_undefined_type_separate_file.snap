@@ -1,0 +1,17 @@
+---
+source: test-suite/tests/cli_ktr_tests.rs
+expression: result.stderr
+---
+KTR1002
+
+  × undefined type: 'Usr'
+   ╭─[./tmp/cli_test_ktr1002_undefined_type_separate_file/pkg/schema/types.ks:4:11]
+ 1 │ namespace types;
+ 2 │ 
+ 3 │ struct Handler {
+ 4 │     user: Usr
+   ·           ─┬─
+   ·            ╰── undefined type: 'Usr'
+ 5 │ };
+   ╰────
+  help: check spelling or define the type

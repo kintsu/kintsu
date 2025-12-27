@@ -1,0 +1,15 @@
+---
+source: test-suite/tests/cli_kns_tests.rs
+expression: result.stderr
+---
+KNS1001
+
+  × namespace is not declared
+   ╭─[./tmp/cli_test_kns1001_no_namespace_declaration/pkg/schema/types.ks:1:1]
+ 1 │ ╭─▶ 
+ 2 │ │   struct User {
+ 3 │ │       name: str
+ 4 │ ├─▶ };
+   · ╰──── namespace is not declared
+   ╰────
+  help: add 'namespace <name>;' at the top of the file

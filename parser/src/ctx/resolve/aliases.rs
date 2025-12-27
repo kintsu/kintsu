@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 
 use crate::{
     ast::{
@@ -10,6 +10,34 @@ use crate::{
 };
 
 use super::{TypeResolver, helpers::AliasEntry};
+
+/// Normalize a cycle to start from lexicographically smallest element.
+/// This ensures deterministic error reporting regardless of detection order.
+fn normalize_cycle<T: Clone>(
+    chain: Vec<String>,
+    associated: Vec<T>,
+) -> (Vec<String>, Vec<T>) {
+    if chain.is_empty() {
+        return (chain, associated);
+    }
+
+    // Find the index of the lexicographically smallest element
+    let min_idx = chain
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.cmp(b))
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+
+    // Rotate both vectors to start from that index
+    let mut rotated_chain = chain[min_idx..].to_vec();
+    rotated_chain.extend_from_slice(&chain[..min_idx]);
+
+    let mut rotated_associated = associated[min_idx..].to_vec();
+    rotated_associated.extend_from_slice(&associated[..min_idx]);
+
+    (rotated_chain, rotated_associated)
+}
 
 struct AliasGraph {
     aliases: BTreeMap<String, AliasEntry>,
@@ -144,10 +172,17 @@ impl AliasGraph {
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
         let mut path = Vec::new();
+        let mut path_spans = Vec::new();
 
         for alias_name in self.aliases.keys() {
             if !visited.contains(alias_name) {
-                self.detect_cycles_dfs(alias_name, &mut visited, &mut rec_stack, &mut path)?;
+                self.detect_cycles_dfs(
+                    alias_name,
+                    &mut visited,
+                    &mut rec_stack,
+                    &mut path,
+                    &mut path_spans,
+                )?;
             }
         }
 
@@ -160,12 +195,18 @@ impl AliasGraph {
         visited: &mut std::collections::HashSet<String>,
         rec_stack: &mut std::collections::HashSet<String>,
         path: &mut Vec<String>,
+        path_spans: &mut Vec<(crate::Span, std::path::PathBuf)>,
     ) -> crate::Result<()> {
         visited.insert(current.to_string());
         rec_stack.insert(current.to_string());
         path.push(current.to_string());
 
         if let Some(entry) = self.aliases.get(current) {
+            // Track span for this alias
+            let raw_span = entry.target_type.span.span();
+            let span = crate::Span::new(raw_span.start, raw_span.end);
+            path_spans.push((span, entry.source.clone()));
+
             for dep in &entry.dependencies {
                 if !self.aliases.contains_key(dep) {
                     // external struct/enum/etc
@@ -173,13 +214,40 @@ impl AliasGraph {
                 }
 
                 if !visited.contains(dep) {
-                    self.detect_cycles_dfs(dep, visited, rec_stack, path)?;
+                    self.detect_cycles_dfs(dep, visited, rec_stack, path, path_spans)?;
                 } else if rec_stack.contains(dep) {
                     let cycle_start = path.iter().position(|n| n == dep).unwrap();
+                    let chain: Vec<String> = path[cycle_start..].to_vec();
+                    let spans: Vec<_> = path_spans[cycle_start..].to_vec();
 
-                    return Err(crate::Error::circular_alias(path[cycle_start..].to_vec()));
+                    // Normalize cycle to start from lexicographically smallest element
+                    // for deterministic error reporting
+                    let (normalized_chain, normalized_spans) = normalize_cycle(chain, spans);
+
+                    // Use the first alias's span in the normalized cycle
+                    let (first_span, first_source) = &normalized_spans[0];
+                    let source_content = std::fs::read_to_string(first_source)
+                        .ok()
+                        .map(std::sync::Arc::new);
+
+                    // Build error with secondary labels for each cycle element
+                    let mut err: kintsu_errors::CompilerError =
+                        crate::ResolutionError::circular_alias(normalized_chain.clone())
+                            .at(*first_span)
+                            .build();
+
+                    // Add secondary labels for the rest of the cycle elements
+                    for (i, (span, _source)) in normalized_spans.iter().enumerate().skip(1) {
+                        let label =
+                            format!("cycle element {} of {}", i + 1, normalized_chain.len());
+                        err = err.with_secondary_label(*span, label);
+                    }
+
+                    let err: crate::Error = err.into();
+                    return Err(err.with_source_arc_if(first_source.clone(), source_content));
                 }
             }
+            path_spans.pop();
         }
 
         rec_stack.remove(current);
@@ -189,8 +257,6 @@ impl AliasGraph {
     }
 
     fn topological_sort(&self) -> crate::Result<Vec<String>> {
-        use std::collections::VecDeque;
-
         let mut in_degree: BTreeMap<String, usize> = BTreeMap::new();
         let mut adj_list: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
@@ -234,9 +300,12 @@ impl AliasGraph {
         }
 
         if sorted.len() != self.aliases.len() {
-            return Err(crate::Error::circular_alias(vec![
-                "<uncaught error>".into(),
-            ]));
+            return Err(crate::ResolutionError::circular_alias(vec![
+                "<uncaught error>".to_string(),
+            ])
+            .unlocated()
+            .build()
+            .into());
         }
 
         Ok(sorted)
@@ -301,10 +370,11 @@ impl TypeResolver {
         let alias_entry = graph
             .aliases
             .get(alias_name)
-            .ok_or_else(|| {
-                crate::Error::UnresolvedType {
-                    name: alias_name.to_string(),
-                }
+            .ok_or_else(|| -> crate::Error {
+                crate::ResolutionError::undefined_type(alias_name.to_string())
+                    .unlocated()
+                    .build()
+                    .into()
             })?;
 
         let resolved = self

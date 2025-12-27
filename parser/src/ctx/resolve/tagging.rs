@@ -5,7 +5,7 @@
 //!
 //! **Spec references:** RFC-0017, SPEC-0016, TSY-0013
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     ast::{
@@ -37,26 +37,103 @@ impl TypeResolver {
         // Get namespace-level tag for inheritance
         let ns_tag = ns.tag.as_ref().map(|t| &t.value);
 
+        // Get source info for error reporting
+        let source_path = ns.namespace.source.clone();
+        let source_content = ns.sources.get(&source_path).cloned();
+
+        // Helper for returning errors with source context
+        let make_error = |err: crate::CompilerError| -> crate::Error {
+            if let Some(source) = &source_content {
+                err.with_source_arc(source_path.clone(), Arc::clone(source))
+                    .into()
+            } else {
+                err.into()
+            }
+        };
+
         // Collect tagging errors
-        for (_name, child) in &ns.children {
+        for child in ns.children.values() {
             match &child.value {
                 NamespaceChild::OneOf(oneof_def) => {
+                    // Check for multiple tag attributes - KTG3001
+                    let tag_spans = Self::get_all_tag_attribute_spans(&oneof_def.meta);
+                    if tag_spans.len() > 1 {
+                        let err = crate::TaggingError::multiple_styles()
+                            .at(tag_spans[1]) // Point to second (duplicate) tag
+                            .build();
+                        return Err(make_error(err));
+                    }
                     // Resolve tag attribute with namespace inheritance
                     let tag_attr = Self::resolve_tag_attribute(&oneof_def.meta, ns_tag);
-                    Self::validate_oneof_tag_constraints(&tag_attr, &oneof_def.def.value)?;
+                    let tag_span = Self::get_tag_attribute_span(&oneof_def.meta);
+                    Self::validate_oneof_tag_constraints(
+                        &tag_attr,
+                        &oneof_def.def.value,
+                        tag_span.as_ref(),
+                        &ns,
+                    )
+                    .map_err(|e| {
+                        e.with_source_arc_if(source_path.clone(), source_content.clone())
+                    })?;
                 },
                 NamespaceChild::Type(type_def) => {
                     // Check if it's a union type
                     if let Type::Union { .. } = &type_def.def.value.ty.value {
+                        // Check for multiple tag attributes - KTG3001
+                        let tag_spans = Self::get_all_tag_attribute_spans(&type_def.meta);
+                        if tag_spans.len() > 1 {
+                            let err = crate::TaggingError::multiple_styles()
+                                .at(tag_spans[1])
+                                .build();
+                            return Err(make_error(err));
+                        }
                         // Resolve tag attribute with namespace inheritance
                         let tag_attr = Self::resolve_tag_attribute(&type_def.meta, ns_tag);
-                        Self::validate_union_tag_constraints(&tag_attr)?;
+                        let tag_span = Self::get_tag_attribute_span(&type_def.meta);
+                        Self::validate_union_tag_constraints(&tag_attr, tag_span.as_ref())
+                            .map_err(|e| {
+                                e.with_source_arc_if(source_path.clone(), source_content.clone())
+                            })?;
                     }
                 },
                 NamespaceChild::Error(error_def) => {
+                    // Check for multiple tag attributes - KTG3001
+                    let tag_spans = Self::get_all_tag_attribute_spans(&error_def.meta);
+                    if tag_spans.len() > 1 {
+                        let err = crate::TaggingError::multiple_styles()
+                            .at(tag_spans[1])
+                            .build();
+                        return Err(make_error(err));
+                    }
                     // Error types also support tagging
                     let tag_attr = Self::resolve_tag_attribute(&error_def.meta, ns_tag);
-                    Self::validate_error_tag_constraints(&tag_attr, &error_def.def.value)?;
+                    let tag_span = Self::get_tag_attribute_span(&error_def.meta);
+                    Self::validate_error_tag_constraints(
+                        &tag_attr,
+                        &error_def.def.value,
+                        tag_span.as_ref(),
+                    )
+                    .map_err(|e| {
+                        e.with_source_arc_if(source_path.clone(), source_content.clone())
+                    })?;
+                },
+                NamespaceChild::Struct(struct_def) => {
+                    // Structs cannot have tag attributes - KTG2002
+                    if let Some(tag_span) = Self::get_tag_attribute_span(&struct_def.meta) {
+                        let err = crate::TaggingError::non_variant_type()
+                            .at(tag_span)
+                            .build();
+                        return Err(make_error(err));
+                    }
+                },
+                NamespaceChild::Enum(enum_def) => {
+                    // Enums cannot have tag attributes - KTG2002
+                    if let Some(tag_span) = Self::get_tag_attribute_span(&enum_def.meta) {
+                        let err = crate::TaggingError::non_variant_type()
+                            .at(tag_span)
+                            .build();
+                        return Err(make_error(err));
+                    }
                 },
                 _ => {},
             }
@@ -93,13 +170,44 @@ impl TypeResolver {
     /// Extract TagAttribute from CommentOrMeta vector (type-level only, no inheritance)
     fn extract_tag_attribute_from_meta(meta: &[Spanned<CommentOrMeta>]) -> Option<TagAttribute> {
         for item in meta {
+            if let CommentOrMeta::Meta(item_meta) = &item.value
+                && let Some(tag) = Self::extract_tag_from_item_meta(&item_meta.value)
+            {
+                return Some(tag);
+            }
+        }
+        None
+    }
+
+    /// Get the span of a tag attribute if present (for error reporting)
+    fn get_tag_attribute_span(meta: &[Spanned<CommentOrMeta>]) -> Option<crate::Span> {
+        for item in meta {
             if let CommentOrMeta::Meta(item_meta) = &item.value {
-                if let Some(tag) = Self::extract_tag_from_item_meta(&item_meta.value) {
-                    return Some(tag);
+                for meta_item in &item_meta.value.meta {
+                    if matches!(meta_item, ItemMetaItem::Tag(_)) {
+                        let raw = item.span.span();
+                        return Some(crate::Span::new(raw.start, raw.end));
+                    }
                 }
             }
         }
         None
+    }
+
+    /// Get all tag attribute spans (for detecting duplicates)
+    fn get_all_tag_attribute_spans(meta: &[Spanned<CommentOrMeta>]) -> Vec<crate::Span> {
+        let mut spans = Vec::new();
+        for item in meta {
+            if let CommentOrMeta::Meta(item_meta) = &item.value {
+                for meta_item in &item_meta.value.meta {
+                    if matches!(meta_item, ItemMetaItem::Tag(_)) {
+                        let raw = item.span.span();
+                        spans.push(crate::Span::new(raw.start, raw.end));
+                    }
+                }
+            }
+        }
+        spans
     }
 
     /// Extract TagAttribute from ItemMeta
@@ -116,14 +224,19 @@ impl TypeResolver {
     fn validate_oneof_tag_constraints(
         tag_attr: &TagAttribute,
         oneof_def: &OneOf,
+        tag_span: Option<&crate::Span>,
+        ns: &crate::ctx::namespace::NamespaceCtx,
     ) -> crate::Result<()> {
         match &tag_attr.style {
             TagStyle::Adjacent { name, content } => {
                 // Adjacent: name != content
                 if name == content {
-                    return Err(crate::Error::AdjacentTagConflict {
-                        name: name.clone(),
-                        content: content.clone(),
+                    let err =
+                        crate::UnionError::adjacent_tag_conflict(name.clone(), content.clone());
+                    return Err(if let Some(span) = tag_span {
+                        err.at(*span).build().into()
+                    } else {
+                        err.unlocated().build().into()
                     });
                 }
             },
@@ -133,6 +246,8 @@ impl TypeResolver {
                 for variant in &oneof_def.variants.values {
                     Self::check_internal_tag_field_conflict(name, &variant.value)?;
                     Self::check_internal_tuple_variant_constraint(&variant.value)?;
+                    // KTG3002: Check tuple variant referenced struct fields for conflict
+                    Self::check_internal_tuple_variant_field_conflict(name, &variant.value, ns)?;
                 }
             },
             TagStyle::Untagged => {
@@ -146,13 +261,19 @@ impl TypeResolver {
     }
 
     /// Validate tag constraints for union types (type X = oneof A | B)
-    fn validate_union_tag_constraints(tag_attr: &TagAttribute) -> crate::Result<()> {
+    fn validate_union_tag_constraints(
+        tag_attr: &TagAttribute,
+        tag_span: Option<&crate::Span>,
+    ) -> crate::Result<()> {
         match &tag_attr.style {
             TagStyle::Adjacent { name, content } => {
                 if name == content {
-                    return Err(crate::Error::AdjacentTagConflict {
-                        name: name.clone(),
-                        content: content.clone(),
+                    let err =
+                        crate::UnionError::adjacent_tag_conflict(name.clone(), content.clone());
+                    return Err(if let Some(span) = tag_span {
+                        err.at(*span).build().into()
+                    } else {
+                        err.unlocated().build().into()
                     });
                 }
             },
@@ -173,13 +294,17 @@ impl TypeResolver {
     fn validate_error_tag_constraints(
         tag_attr: &TagAttribute,
         error_def: &ErrorType,
+        tag_span: Option<&crate::Span>,
     ) -> crate::Result<()> {
         match &tag_attr.style {
             TagStyle::Adjacent { name, content } => {
                 if name == content {
-                    return Err(crate::Error::AdjacentTagConflict {
-                        name: name.clone(),
-                        content: content.clone(),
+                    let err =
+                        crate::UnionError::adjacent_tag_conflict(name.clone(), content.clone());
+                    return Err(if let Some(span) = tag_span {
+                        err.at(*span).build().into()
+                    } else {
+                        err.unlocated().build().into()
                     });
                 }
             },
@@ -206,16 +331,72 @@ impl TypeResolver {
                 for field in &inner.value.fields.values {
                     let field_name = field.value.name.borrow_string();
                     if field_name == tag_field {
-                        return Err(crate::Error::InternalTagFieldConflict {
-                            tag_field: tag_field.to_string(),
-                            variant: name.borrow_string().clone(),
-                        });
+                        let raw = field.value.name.span.span();
+                        return Err(crate::UnionError::internal_tag_field_conflict(
+                            tag_field.to_string(),
+                            name.borrow_string().clone(),
+                        )
+                        .at(crate::Span::new(raw.start, raw.end))
+                        .build()
+                        .into());
                     }
                 }
             },
             Variant::Tuple { .. } => {
-                // Tuple variants have no named fields - no conflict possible
+                // Tuple variants reference external types - checked by check_internal_tuple_variant_field_conflict
             },
+            Variant::Unit { .. } => {
+                // Unit variants have no fields - no conflict possible
+            },
+        }
+        Ok(())
+    }
+
+    /// Check tuple variant referenced struct for internal tag field conflicts (KTG3002)
+    ///
+    /// For tuple variants like `Success(Success)`, look up the referenced struct
+    /// and check if any of its fields conflict with the tag field name.
+    fn check_internal_tuple_variant_field_conflict(
+        tag_field: &str,
+        variant: &Variant,
+        ns: &crate::ctx::namespace::NamespaceCtx,
+    ) -> crate::Result<()> {
+        if let Variant::Tuple { inner, .. } = variant {
+            // Get the type name from the inner type
+            let type_name = match inner {
+                Type::Ident { to, .. } => to.to_string(),
+                _ => return Ok(()), // Only check ident references
+            };
+
+            // Look up the struct in the namespace
+            for (ctx, child) in &ns.children {
+                if *ctx.name.borrow_string() == type_name {
+                    if let NamespaceChild::Struct(struct_def) = &child.value {
+                        // Check each field in the struct for conflict
+                        for (idx, field) in struct_def
+                            .def
+                            .value
+                            .args
+                            .values
+                            .iter()
+                            .enumerate()
+                        {
+                            let field_name = field.value.name.borrow_string();
+                            if field_name == tag_field {
+                                let raw = field.value.name.span.span();
+                                return Err(crate::TaggingError::internal_field_conflict(
+                                    tag_field.to_string(),
+                                    idx,
+                                )
+                                .at(crate::Span::new(raw.start, raw.end))
+                                .build()
+                                .into());
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
         }
         Ok(())
     }
@@ -245,9 +426,11 @@ impl TypeResolver {
                 | Type::Paren { .. }
                 | Type::Result { .. }
                 | Type::TypeExpr { .. } => {
-                    return Err(crate::Error::InternalTagTupleNotStruct {
-                        variant: name.borrow_string().to_string(),
-                    });
+                    let raw = name.span.span();
+                    return Err(crate::TaggingError::internal_requires_struct()
+                        .at(crate::Span::new(raw.start, raw.end))
+                        .build()
+                        .into());
                 },
             }
         }
@@ -276,14 +459,17 @@ impl TypeResolver {
         // Check for duplicate types (Rule 1)
         for (type_name, indices) in &type_signatures {
             if indices.len() > 1 {
-                return Err(crate::Error::UntaggedDuplicateType {
-                    type_name: type_name.clone(),
-                    indices: indices
-                        .iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                });
+                // Point to the second occurrence
+                let second_idx = indices[1];
+                let variant = &variants[second_idx].value.value;
+                let span = Self::get_variant_span(variant);
+                return Err(crate::TaggingError::untagged_duplicate(
+                    type_name.clone(),
+                    indices.clone(),
+                )
+                .at(span)
+                .build()
+                .into());
             }
         }
 
@@ -299,19 +485,34 @@ impl TypeResolver {
             }
         }
 
-        for (_, indices) in &struct_field_sigs {
+        for indices in struct_field_sigs.values() {
             if indices.len() > 1 {
-                return Err(crate::Error::UntaggedIndistinguishable {
-                    indices: indices
-                        .iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                });
+                // Point to the second occurrence
+                let second_idx = indices[1];
+                let variant = &variants[second_idx].value.value;
+                let span = Self::get_variant_span(variant);
+                return Err(
+                    crate::TaggingError::untagged_indistinguishable(indices.clone())
+                        .at(span)
+                        .build()
+                        .into(),
+                );
             }
         }
 
         Ok(())
+    }
+
+    /// Get the span for a variant (for error reporting)
+    fn get_variant_span(variant: &Variant) -> crate::Span {
+        match variant {
+            Variant::LocalStruct { name, .. }
+            | Variant::Tuple { name, .. }
+            | Variant::Unit { name, .. } => {
+                let raw = name.span.span();
+                crate::Span::new(raw.start, raw.end)
+            },
+        }
     }
 
     /// Compute a type signature for duplicate detection.
@@ -325,6 +526,10 @@ impl TypeResolver {
             Variant::Tuple { inner, .. } => {
                 // Tuple variants use the inner type as signature
                 Self::type_to_signature(inner)
+            },
+            Variant::Unit { name, .. } => {
+                // Unit variants use their variant name as signature
+                format!("unit:{}", name.borrow_string())
             },
         }
     }
@@ -354,6 +559,10 @@ impl TypeResolver {
             },
             Variant::Tuple { .. } => {
                 // Tuple variants don't have named fields
+                None
+            },
+            Variant::Unit { .. } => {
+                // Unit variants don't have named fields
                 None
             },
         }
@@ -623,8 +832,8 @@ mod tests {
             Err(e) => {
                 let err_str = format!("{:?}", e);
                 assert!(
-                    err_str.contains("InternalTagTupleNotStruct") || err_str.contains("tuple"),
-                    "Error should mention tuple not struct: {}",
+                    err_str.contains("InternalTagRequiresStruct"),
+                    "Error should mention InternalTagRequiresStruct: {}",
                     err_str
                 );
             },

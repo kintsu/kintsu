@@ -1,0 +1,17 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KTG2002
+
+  × attribute 'tag' can only be applied to oneof or error types
+   ╭─[./tmp/cli_test_ktg2002_tag_on_struct/pkg/schema/types.ks:1:17]
+ 1 │ ╭─▶ namespace types;
+ 2 │ │   
+ 3 │ ├─▶ #[tag(external)]
+   · ╰──── attribute 'tag' can only be applied to oneof or error types
+ 4 │     struct User {
+ 5 │         name: str
+ 6 │     };
+   ╰────
+  help: tagging attributes are only valid on oneof and error types

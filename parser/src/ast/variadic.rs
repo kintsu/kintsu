@@ -7,12 +7,19 @@ use crate::{
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub enum Variant {
+    /// Unit variant with no payload - e.g., `Unknown`
+    Unit {
+        comments: CommentStream,
+        name: SpannedToken![ident],
+    },
+    /// Tuple variant with a type reference - e.g., `NotFound(ResourceId)`
     Tuple {
         comments: CommentStream,
         name: SpannedToken![ident],
         paren: Paren,
         inner: Type,
     },
+    /// Local struct variant with inline fields - e.g., `NotFound { message: str }`
     LocalStruct {
         comments: CommentStream,
         name: SpannedToken![ident],
@@ -22,7 +29,7 @@ pub enum Variant {
 
 impl ImplDiagnostic for Variant {
     fn fmt() -> &'static str {
-        "a(i32) | b { desc: str }"
+        "a(i32) | b { desc: str } | c"
     }
 }
 
@@ -31,15 +38,16 @@ impl Parse for Variant {
         let comments = CommentStream::parse(stream)?;
         let name = stream.parse()?;
 
-        let mut inner;
-
         Ok(if stream.peek::<toks::LBraceToken>() {
+            // { fields } - LocalStruct
             Self::LocalStruct {
                 comments,
                 name,
                 inner: stream.parse()?,
             }
-        } else {
+        } else if stream.peek::<toks::LParenToken>() {
+            // (Type) - Tuple
+            let mut inner;
             let paren = paren!(inner in stream);
             let inner = Type::parse(&mut inner)?;
             Self::Tuple {
@@ -48,6 +56,9 @@ impl Parse for Variant {
                 paren,
                 inner,
             }
+        } else {
+            // Nothing follows - Unit variant
+            Self::Unit { comments, name }
         })
     }
 }
@@ -64,6 +75,10 @@ impl ToTokens for Variant {
         tt: &mut crate::fmt::Printer,
     ) {
         match self {
+            Self::Unit { comments, name } => {
+                tt.write(comments);
+                tt.write(name);
+            },
             Self::LocalStruct {
                 comments,
                 name,
@@ -137,11 +152,13 @@ pub(crate) use variadic;
 
 #[cfg(test)]
 mod test {
-    #[test_case::test_case("a(i32)"; "type variant")]
-    #[test_case::test_case("b {\n\tdesc: str\n}"; "type anonymous struct")]
-    #[test_case::test_case("/* some comment */\nb {\n\tdesc: str\n}"; "type anonymous struct with comment before")]
-    #[test_case::test_case("b {\n\t// some comment\n\tdesc: str\n}"; "type anonymous struct with sl comment in fields")]
-    #[test_case::test_case("b {\n\t/*\n\t\tsome\n\t\tcomment\n\t*/\n\tdesc: str\n}"; "type anonymous struct with ml comment in fields")]
+    #[test_case::test_case("a(i32)"; "tuple variant")]
+    #[test_case::test_case("Unknown"; "unit variant")]
+    #[test_case::test_case("b {\n\tdesc: str\n}"; "local struct variant")]
+    #[test_case::test_case("/* some comment */\nb {\n\tdesc: str\n}"; "local struct with comment before")]
+    #[test_case::test_case("b {\n\t// some comment\n\tdesc: str\n}"; "local struct with sl comment in fields")]
+    #[test_case::test_case("b {\n\t/*\n\t\tsome\n\t\tcomment\n\t*/\n\tdesc: str\n}"; "local struct with ml comment in fields")]
+    #[test_case::test_case("/* unit with comment */\nUnknown"; "unit variant with comment")]
     fn round_trip(src: &str) {
         crate::tst::round_trip::<super::Variant>(src).unwrap();
     }

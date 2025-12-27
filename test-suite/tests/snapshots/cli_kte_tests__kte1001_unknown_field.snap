@@ -1,0 +1,19 @@
+---
+source: test-suite/tests/cli_kte_tests.rs
+expression: result.stderr
+---
+KTE1001
+
+  × unknown field 'nonexistent' in type 'User'
+   ╭─[./tmp/cli_test_kte1001_unknown_field/pkg/schema/types.ks:3:8]
+ 1 │     namespace types;
+ 2 │     
+ 3 │ ╭─▶ struct User {
+ 4 │ ├─▶     id: u64,
+   · ╰──── unknown field 'nonexistent' in type 'User'
+ 5 │         name: str
+ 6 │     };
+ 7 │     
+ 8 │     type PartialUser = Pick[User, id | nonexistent];
+   ╰────
+  help: check field name spelling

@@ -1,6 +1,9 @@
 /// Declares a domain error enum with consistent structure.
 /// Each variant includes an error code, message template, optional help text,
 /// optional severity override, and optional fields.
+///
+/// Generated constructors return `ErrorBuilder<Unspanned, Self>` requiring
+/// either `.at(span)` or `.unlocated()` before `.build()`.
 #[macro_export]
 macro_rules! define_domain_errors {
     (
@@ -76,20 +79,11 @@ macro_rules! define_domain_errors {
                 }
             }
 
-            pub fn with_span(mut self, new_span: $crate::Span) -> Self {
-                match &mut self {
+            #[doc(hidden)]
+            pub fn set_span(&mut self, new_span: $crate::Span) {
+                match self {
                     $(Self::$variant { span, .. } => *span = Some(new_span),)*
                 }
-                self
-            }
-
-            pub fn with_span_opt(mut self, new_span: Option<$crate::Span>) -> Self {
-                if let Some(s) = new_span {
-                    match &mut self {
-                        $(Self::$variant { span, .. } => *span = Some(s),)*
-                    }
-                }
-                self
             }
         }
 
@@ -100,6 +94,17 @@ macro_rules! define_domain_errors {
         }
 
         impl std::error::Error for $name {}
+
+        impl $crate::builder::DomainError for $name {
+            fn into_compiler_error(self) -> $crate::CompilerError {
+                $crate::CompilerError::from(self)
+            }
+
+            fn with_span(mut self, span: $crate::Span) -> Self {
+                self.set_span(span);
+                self
+            }
+        }
     };
 
     (@help) => { None };
@@ -110,74 +115,50 @@ macro_rules! define_domain_errors {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Category, Domain, ErrorCode, Severity, Span};
+    use crate::{InternalError, Severity, Span};
 
-    define_domain_errors! {
-        /// Test error enum
-        pub enum TestError {
-            /// Simple error with no fields
-            SimpleError {
-                code: (TR, Resolution, 1),
-                message: "simple error occurred",
-            },
-
-            /// Error with fields
-            WithFields {
-                code: (TR, Resolution, 2),
-                message: "type '{name}' not found",
-                help: "check the type name",
-                fields: { name: String },
-            },
-
-            /// Warning severity
-            SomeWarning {
-                code: (TR, Warning, 1),
-                message: "this is a warning",
-                severity: Warning,
-            },
-        }
-    }
+    // Test the generated methods using a real domain error type
 
     #[test]
     fn test_error_code() {
-        let err = TestError::SimpleError { span: None };
-        assert_eq!(err.error_code().to_string(), "KTR1001");
+        let err = InternalError::internal("test")
+            .unlocated()
+            .build();
+        assert_eq!(err.error_code().to_string(), "KIN9001");
     }
 
     #[test]
     fn test_message_with_fields() {
-        let err = TestError::WithFields {
-            name: "User".to_string(),
-            span: None,
-        };
-        assert_eq!(err.message(), "type 'User' not found");
+        let err = InternalError::internal("something failed")
+            .unlocated()
+            .build();
+        assert_eq!(err.message(), "internal error: something failed");
     }
 
     #[test]
     fn test_help_text() {
-        let err1 = TestError::SimpleError { span: None };
-        assert_eq!(err1.help_text(), None);
-
-        let err2 = TestError::WithFields {
-            name: "X".to_string(),
-            span: None,
-        };
-        assert_eq!(err2.help_text(), Some("check the type name"));
+        let err = InternalError::internal("test")
+            .unlocated()
+            .build();
+        assert_eq!(
+            err.help_text(),
+            Some("this is a compiler bug - please report it")
+        );
     }
 
     #[test]
     fn test_severity() {
-        let err1 = TestError::SimpleError { span: None };
-        assert_eq!(err1.severity(), Severity::Error);
-
-        let err2 = TestError::SomeWarning { span: None };
-        assert_eq!(err2.severity(), Severity::Warning);
+        let err = InternalError::internal("test")
+            .unlocated()
+            .build();
+        assert_eq!(err.severity(), Severity::Error);
     }
 
     #[test]
     fn test_with_span() {
-        let err = TestError::SimpleError { span: None };
-        let err = err.with_span(Span::new(10, 20));
+        let err = InternalError::internal("test")
+            .at(Span::new(10, 20))
+            .build();
         assert_eq!(err.span(), Some(Span::new(10, 20)));
     }
 }

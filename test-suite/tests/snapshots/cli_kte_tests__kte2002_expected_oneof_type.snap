@@ -1,0 +1,20 @@
+---
+source: test-suite/tests/cli_kte_tests.rs
+expression: result.stderr
+---
+KTE2002
+
+  × expected oneof type for <named variant lookup>, found struct
+   ╭─[./tmp/cli_test_kte2002_expected_oneof_type/pkg/schema/types.ks:3:8]
+ 1 │ namespace types;
+ 2 │ 
+ 3 │ struct User {
+   ·        ───┬──
+   ·           ╰── expected oneof type for <named variant lookup>, found struct
+ 4 │     id: u64,
+ 5 │     name: str
+ 6 │ };
+ 7 │ 
+ 8 │ type ExtractedUser = Extract[User, id];
+   ╰────
+  help: this operator only works on oneof types

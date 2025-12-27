@@ -1,0 +1,21 @@
+---
+source: test-suite/tests/cli_kty_tests.rs
+expression: result.stderr
+---
+KTY3001
+
+  × types has conflicts. Foo struct is declared multiple times
+    ╭─[./tmp/cli_test_kty3001_duplicate_type_nested/pkg/schema/lib.ks:8:12]
+  3 │ namespace types {
+  4 │     struct Foo {
+  5 │         value: str
+  6 │     };
+  7 │ 
+  8 │     struct Foo {
+    ·            ─┬─
+    ·             ╰── types has conflicts. Foo struct is declared multiple times
+  9 │         count: i32
+ 10 │     };
+ 11 │ };
+    ╰────
+  help: rename one of the conflicting declarations

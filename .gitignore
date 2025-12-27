@@ -11,6 +11,7 @@ test-suite/*.json
 
 /zzz
 
+/db*.json
 junit.xml
 
 timings.json

@@ -41,9 +41,10 @@ impl TypeRegistry {
             .lock()
             .map(|guard| f(&guard))
             .map_err(|_| {
-                crate::Error::InternalError {
-                    message: "TypeRegistry lock poisoned".into(),
-                }
+                crate::InternalError::internal("TypeRegistry lock poisoned")
+                    .unlocated()
+                    .build()
+                    .into()
             })
     }
 
@@ -59,9 +60,10 @@ impl TypeRegistry {
             .lock()
             .map(|mut guard| f(&mut guard))
             .map_err(|_| {
-                crate::Error::InternalError {
-                    message: "TypeRegistry lock poisoned".into(),
-                }
+                crate::InternalError::internal("TypeRegistry lock poisoned")
+                    .unlocated()
+                    .build()
+                    .into()
             })
     }
 
@@ -78,11 +80,16 @@ impl TypeRegistry {
 
             let path = context.item(name.clone());
 
-            if inner.contains_key(&path) {
-                return Err(crate::Error::DuplicateType {
-                    name: path.display(),
-                }
-                .with_span(span.start, span.end));
+            if let Some(existing) = inner.get(&path) {
+                // Extract the first declaration's span for secondary label
+                let first_span = existing.value.span.span();
+                let first_span = crate::Span::new(first_span.start, first_span.end);
+
+                return Err(crate::TypeDefError::duplicate_type(path.display())
+                    .at(crate::Span::new(span.start, span.end))
+                    .build()
+                    .with_secondary_label(first_span, "first declaration here")
+                    .into());
             }
             inner.insert(
                 path.clone(),
@@ -152,7 +159,10 @@ impl TypeRegistry {
                     PathOrIdent::Ident(name) => name.borrow_string().clone(),
                     PathOrIdent::Path(path) => path.display(),
                 };
-                crate::Error::UndefinedType { name: type_name }
+                crate::ResolutionError::undefined_type(type_name)
+                    .unlocated()
+                    .build()
+                    .into()
             })
     }
 

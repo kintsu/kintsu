@@ -1,0 +1,19 @@
+---
+source: test-suite/tests/cli_ktr_tests.rs
+expression: result.stderr
+---
+KTR1002
+
+  × undefined type: 'UndefinedType'
+   ╭─[./tmp/cli_test_ktr1002_undefined_type/pkg/schema/lib.ks:5:14]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     struct Foo {
+ 5 │         bar: UndefinedType
+   ·              ──────┬──────
+   ·                    ╰── undefined type: 'UndefinedType'
+ 6 │     };
+ 7 │ };
+   ╰────
+  help: check spelling or define the type

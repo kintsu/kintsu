@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_klx_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: unknown lexing error
+   ╭─[./tmp/cli_test_klx0005_unterminated_string/pkg/schema/lib.ks:4:13]
+ 1 │     namespace pkg;
+ 2 │     
+ 3 │     namespace types {
+ 4 │ ╭─▶     #[doc = "This is unterminated
+ 5 │ │       struct User {
+ 6 │ │           name: str
+ 7 │ │       };
+ 8 │ ├─▶ };
+   · ╰──── unknown lexing error: unknown lexing error
+   ╰────

@@ -1,8 +1,9 @@
-//! Metadata errors (KMT) - ERR-0008
+//! Metadata errors (KMT) - [ERR-0008](https://docs.kintsu.dev/specs/err/ERR-0008)
 //! Errors related to version attributes, error attributes, and other metadata.
 
 define_domain_errors! {
     /// Metadata errors (KMT domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0008
     pub enum MetadataError {
         /// KMT2001: Invalid version value
         InvalidVersionValue {
@@ -46,54 +47,58 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl MetadataError {
-    pub fn invalid_version(value: impl Into<String>) -> Self {
-        Self::InvalidVersionValue {
+    pub fn invalid_version(value: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidVersionValue {
             value: value.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn invalid_error_attr(reason: impl Into<String>) -> Self {
-        Self::InvalidErrorAttribute {
+    pub fn invalid_error_attr(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidErrorAttribute {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn version_conflict(values: impl IntoIterator<Item = usize>) -> Self {
+    pub fn version_conflict(
+        values: impl IntoIterator<Item = usize>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let values = values
             .into_iter()
             .map(|v| v.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        Self::VersionConflict {
+        ErrorBuilder::new(Self::VersionConflict {
             values: format!("[{values}]"),
             span: None,
-        }
+        })
     }
 
     pub fn duplicate_attribute(
         attribute: impl Into<String>,
         path: impl Into<String>,
-    ) -> Self {
-        Self::DuplicateMetaAttribute {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DuplicateMetaAttribute {
             attribute: attribute.into(),
             path: path.into(),
             span: None,
-        }
+        })
     }
 
     pub fn version_incompatibility(
         package: impl Into<String>,
         required: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::VersionIncompatibility {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::VersionIncompatibility {
             package: package.into(),
             required: required.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 }

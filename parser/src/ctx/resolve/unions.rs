@@ -142,6 +142,9 @@ fn identify_from_oneof(
             Variant::LocalStruct { .. } => {
                 // TODO: Handle anonymous struct variants
             },
+            Variant::Unit { .. } => {
+                // Unit variants have no type to extract unions from
+            },
         }
     }
 
@@ -249,30 +252,40 @@ fn identify_from_array(
 #[tracing::instrument(
     target = "type-validation",
     level = "debug",
-    skip(union_record, ns, resolved_aliases),
+    skip(union_record, ns, resolved_aliases, source_path, source_content),
     fields(
         record = union_record.context_stack.join("."),
         discriminant = union_record.variant_index.unwrap_or(0),
         ns = ns.ctx.display(),
+        source = %source_path.display()
     )
 )]
 pub(super) async fn validate_union_record(
     union_record: &UnionRecord,
     ns: &super::super::NamespaceCtx,
     resolved_aliases: &std::collections::BTreeMap<String, Spanned<Type>>,
+    source_path: &std::path::Path,
+    source_content: Option<&std::sync::Arc<String>>,
 ) -> crate::Result<()> {
     tracing::debug!(
         "validate_union_record: checking union '{}'",
         union_record.generate_name()
     );
 
-    validate_union_operands(&union_record.union_ref.value.types, ns, resolved_aliases).await
+    validate_union_operands(
+        &union_record.union_ref.value.types,
+        ns,
+        resolved_aliases,
+        source_path,
+        source_content,
+    )
+    .await
 }
 
 #[tracing::instrument(
     target = "type-validation",
     level = "debug",
-    skip(types, ns, resolved_aliases),
+    skip(types, ns, resolved_aliases, source_path, source_content),
     fields(
         ns = ns.ctx.display(),
     )
@@ -281,10 +294,19 @@ fn validate_union_operands<'a>(
     types: &'a crate::tokens::Repeated<IdentOrUnion, crate::tokens::AmpToken>,
     ns: &'a super::super::NamespaceCtx,
     resolved_aliases: &'a std::collections::BTreeMap<String, Spanned<Type>>,
+    source_path: &'a std::path::Path,
+    source_content: Option<&'a std::sync::Arc<String>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::Result<()>> + 'a>> {
     Box::pin(async move {
         for type_item in &types.values {
-            validate_union_operand(&type_item.value.value, ns, resolved_aliases).await?;
+            validate_union_operand(
+                &type_item.value.value,
+                ns,
+                resolved_aliases,
+                source_path,
+                source_content,
+            )
+            .await?;
         }
         Ok(())
     })
@@ -294,15 +316,23 @@ fn validate_union_operand<'a>(
     operand: &'a IdentOrUnion,
     ns: &'a super::super::NamespaceCtx,
     resolved_aliases: &'a std::collections::BTreeMap<String, Spanned<Type>>,
+    source_path: &'a std::path::Path,
+    source_content: Option<&'a std::sync::Arc<String>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::Result<()>> + 'a>> {
     Box::pin(async move {
         match operand {
             IdentOrUnion::Ident(discriminant) => {
-                let ident_name = match discriminant {
+                let (ident_name, ident_span) = match discriminant {
                     UnionDiscriminant::Anonymous(..) => return Ok(()),
                     UnionDiscriminant::Ref(ty) => {
                         match ty {
-                            PathOrIdent::Ident(ident) => ident.borrow_string().clone(),
+                            PathOrIdent::Ident(ident) => {
+                                let sp = ident.span.span();
+                                (
+                                    ident.borrow_string().clone(),
+                                    crate::Span::new(sp.start, sp.end),
+                                )
+                            },
                             PathOrIdent::Path(_) => {
                                 // Paths are validated in Phase 8
                                 return Ok(());
@@ -316,8 +346,11 @@ fn validate_union_operand<'a>(
                     return validate_resolved_type(
                         &resolved.value,
                         &ident_name,
+                        &ident_span,
                         ns,
                         resolved_aliases,
+                        source_path,
+                        source_content,
                     )
                     .await;
                 }
@@ -341,51 +374,98 @@ fn validate_union_operand<'a>(
                             Ok(())
                         },
                         NamespaceChild::Enum(_) => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: "enum".to_string(),
-                                operand_name: ident_name,
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                ident_name,
+                                "enum".to_string(),
+                            )
+                            .at(ident_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                         NamespaceChild::OneOf(_) => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: "oneof".to_string(),
-                                operand_name: ident_name,
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                ident_name,
+                                "oneof".to_string(),
+                            )
+                            .at(ident_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                         NamespaceChild::Type(_) => {
-                            Err(crate::Error::InternalError {
-                                message: format!(
-                                    "Type alias '{}' should have been resolved in Phase 3",
-                                    ident_name
-                                ),
-                            })
+                            Err(crate::InternalError::internal(format!(
+                                "Type alias '{}' should have been resolved in Phase 3",
+                                ident_name
+                            ))
+                            .unlocated()
+                            .build()
+                            .into())
                         },
                         NamespaceChild::Error(_) => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: "error".to_string(),
-                                operand_name: ident_name,
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                ident_name,
+                                "error".to_string(),
+                            )
+                            .at(ident_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                         NamespaceChild::Operation(_) => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: "operation".to_string(),
-                                operand_name: ident_name,
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                ident_name,
+                                "operation".to_string(),
+                            )
+                            .at(ident_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                         NamespaceChild::Namespace(_) => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: "namespace".to_string(),
-                                operand_name: ident_name,
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                ident_name,
+                                "namespace".to_string(),
+                            )
+                            .at(ident_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                     }
                 } else {
-                    Err(crate::Error::UndefinedType { name: ident_name })
+                    let err: crate::Error = crate::ResolutionError::undefined_type(ident_name)
+                        .at(ident_span)
+                        .build()
+                        .into();
+                    Err(err.with_source_arc_if(source_path.to_path_buf(), source_content.cloned()))
                 }
             },
             IdentOrUnion::Union { inner, .. } => {
                 // Recursively validate nested union
-                validate_union_operands(&inner.value.types, ns, resolved_aliases).await
+                validate_union_operands(
+                    &inner.value.types,
+                    ns,
+                    resolved_aliases,
+                    source_path,
+                    source_content,
+                )
+                .await
             },
         }
     })
@@ -395,8 +475,11 @@ fn validate_union_operand<'a>(
 fn validate_resolved_type<'a>(
     resolved_type: &'a Type,
     type_name: &'a str,
+    type_span: &'a crate::Span,
     ns: &'a super::super::NamespaceCtx,
     resolved_aliases: &'a std::collections::BTreeMap<String, Spanned<Type>>,
+    source_path: &'a std::path::Path,
+    source_content: Option<&'a std::sync::Arc<String>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::Result<()>> + 'a>> {
     Box::pin(async move {
         match resolved_type {
@@ -406,6 +489,7 @@ fn validate_resolved_type<'a>(
                     crate::ast::ty::PathOrIdent::Ident(ident) => ident.borrow_string().clone(),
                     crate::ast::ty::PathOrIdent::Path(_) => return Ok(()), // Paths assumed valid
                 };
+                let inner_span = to.span();
                 if let Some(child) = ns
                     .children
                     .get(
@@ -418,24 +502,46 @@ fn validate_resolved_type<'a>(
                     match &child.value {
                         NamespaceChild::Struct(_) => Ok(()),
                         ty => {
-                            Err(crate::Error::UnionOperandMustBeStruct {
-                                found_type: ty.type_name(),
-                                operand_name: type_name.to_string(),
-                            })
+                            let err: crate::Error = crate::UnionError::non_struct_operand(
+                                type_name.to_string(),
+                                ty.type_name(),
+                            )
+                            .at(*type_span)
+                            .build()
+                            .into();
+                            Err(err.with_source_arc_if(
+                                source_path.to_path_buf(),
+                                source_content.cloned(),
+                            ))
                         },
                     }
                 } else {
-                    Err(crate::Error::UndefinedType { name: ident_str })
+                    let err: crate::Error = crate::ResolutionError::undefined_type(ident_str)
+                        .at(inner_span)
+                        .build()
+                        .into();
+                    Err(err.with_source_arc_if(source_path.to_path_buf(), source_content.cloned()))
                 }
             },
             Type::Paren { ty, .. } => {
-                validate_resolved_type(&ty.value, type_name, ns, resolved_aliases).await
+                validate_resolved_type(
+                    &ty.value,
+                    type_name,
+                    type_span,
+                    ns,
+                    resolved_aliases,
+                    source_path,
+                    source_content,
+                )
+                .await
             },
             ty => {
-                Err(crate::Error::UnionOperandMustBeStruct {
-                    found_type: ty.type_name(),
-                    operand_name: type_name.to_string(),
-                })
+                let err: crate::Error =
+                    crate::UnionError::non_struct_operand(type_name.to_string(), ty.type_name())
+                        .at(*type_span)
+                        .build()
+                        .into();
+                Err(err.with_source_arc_if(source_path.to_path_buf(), source_content.cloned()))
             },
         }
     })
@@ -444,20 +550,35 @@ fn validate_resolved_type<'a>(
 pub(super) async fn merge_union(
     union_record: &UnionRecord,
     ns: &super::super::NamespaceCtx,
+    source_path: &std::path::Path,
 ) -> crate::Result<FromNamedSource<StructDef>> {
     tracing::debug!(
         "merge_union: processing union '{}'",
         union_record.generate_name()
     );
 
+    let source_content = ns.sources.get(source_path).cloned();
     let mut working_set = UnionWorkingSet::new();
 
+    // Extract union span for secondary labels in warnings
+    let union_span = Some(crate::Span::new(
+        union_record.union_ref.span().start,
+        union_record.union_ref.span().end,
+    ));
+
     for operand in &union_record.union_ref.value.types.values {
-        merge_operand(&operand.value.value, ns, &mut working_set).await?;
+        merge_operand(
+            &operand.value.value,
+            ns,
+            source_content.as_ref(),
+            &mut working_set,
+            union_span,
+        )
+        .await?;
     }
 
     let generated_name = union_record.generate_name();
-    let source = std::path::PathBuf::new(); // TODO: Get source from union context
+    let source = source_path.to_path_buf();
 
     let merged_struct =
         working_set.into_struct_def(generated_name.clone(), source, Brace::call_site());
@@ -470,7 +591,9 @@ pub(super) async fn merge_union(
 fn merge_operand<'a>(
     operand: &'a IdentOrUnion,
     ns: &'a super::super::NamespaceCtx,
+    source_content: Option<&'a std::sync::Arc<String>>,
     working_set: &'a mut UnionWorkingSet,
+    union_span: Option<crate::Span>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::Result<()>> + 'a>> {
     Box::pin(async move {
         match operand {
@@ -490,7 +613,13 @@ fn merge_operand<'a>(
                             })
                             .collect();
 
-                        working_set.merge_struct(std::path::PathBuf::new(), fields);
+                        working_set.merge_struct_with_warnings(
+                            std::path::PathBuf::new(),
+                            source_content,
+                            "<anonymous>",
+                            fields,
+                            union_span,
+                        );
                     },
                     UnionDiscriminant::Ref(path_or_ident) => {
                         let ident_name = match path_or_ident {
@@ -522,14 +651,27 @@ fn merge_operand<'a>(
                                 })
                                 .collect();
 
-                            working_set.merge_struct(child.source.clone(), fields);
+                            working_set.merge_struct_with_warnings(
+                                child.source.clone(),
+                                source_content,
+                                &ident_name,
+                                fields,
+                                union_span,
+                            );
                         }
                     },
                 }
             },
             IdentOrUnion::Union { inner, .. } => {
                 for nested_operand in &inner.value.types.values {
-                    merge_operand(&nested_operand.value.value, ns, working_set).await?;
+                    merge_operand(
+                        &nested_operand.value.value,
+                        ns,
+                        source_content,
+                        working_set,
+                        union_span,
+                    )
+                    .await?;
                 }
             },
         }

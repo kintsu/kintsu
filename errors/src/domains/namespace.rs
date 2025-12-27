@@ -1,8 +1,9 @@
-//! Namespace errors (KNS) - ERR-0004
+//! Namespace errors (KNS) - [ERR-0004](https://docs.kintsu.dev/specs/err/ERR-0004)
 //! Errors related to namespace declaration and organization.
 
 define_domain_errors! {
     /// Namespace errors (KNS domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0004
     pub enum NamespaceError {
         /// KNS1001: Namespace not declared
         NsNotDeclared {
@@ -60,57 +61,59 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl NamespaceError {
-    pub fn not_declared() -> Self {
-        Self::NsNotDeclared { span: None }
+    pub fn not_declared() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NsNotDeclared { span: None })
     }
 
-    pub fn conflict() -> Self {
-        Self::NsConflict { span: None }
+    pub fn conflict() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NsConflict { span: None })
     }
 
     pub fn dir_conflict(
         namespace: impl Into<String>,
         parent: impl Into<String>,
         attempted: impl Into<String>,
-    ) -> Self {
-        Self::NsDirConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NsDirConflict {
             namespace: namespace.into(),
             parent: parent.into(),
             attempted: attempted.into(),
             span: None,
-        }
+        })
     }
 
     pub fn mismatch(
         expected: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::NamespaceMismatch {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NamespaceMismatch {
             expected: expected.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn duplicate(name: impl Into<String>) -> Self {
-        Self::DuplicateNamespace {
+    pub fn duplicate(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DuplicateNamespace {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn unresolved_dep(name: impl Into<String>) -> Self {
-        Self::UnresolvedDependency {
+    pub fn unresolved_dep(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnresolvedDependency {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn use_not_found(name: impl Into<String>) -> Self {
-        Self::UsePathNotFound {
+    pub fn use_not_found(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UsePathNotFound {
             name: name.into(),
             span: None,
-        }
+        })
     }
 }

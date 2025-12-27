@@ -104,8 +104,8 @@ type Combined = Base & Extended;
     let result = CliErrorTest::new("kun3001_union_field_conflict")
         .name("Union Field Conflict")
         .purpose("Verify KUN3001 warning for field appearing with different types")
-        .expect_error("KUN3001") // Warning code per ERR-0007
-        .requires_span(true) // Per ERR-0007: span required on conflicting field
+        .expect_warning("KUN3001")
+        .requires_span(true)
         .with_fs(fs)
         .root("pkg")
         .run_and_assert();
@@ -129,12 +129,12 @@ struct User {
     name: str
 };
 
-struct Permissions {
-    id: str,
-    role: str
+struct Profile {
+    id: u64,
+    bio: str
 };
 
-type Admin = User & Permissions;
+type FullUser = User & Profile;
 "#,
     };
 
@@ -142,8 +142,8 @@ type Admin = User & Permissions;
     let result = CliErrorTest::new("kun8001_union_field_shadowed")
         .name("Union Field Shadowed")
         .purpose("Verify KUN8001 warning for field shadowed by earlier operand")
-        .expect_error("KUN8001") // Warning code per ERR-0007
-        .requires_span(true) // Per ERR-0007: span required on shadowed field
+        .expect_warning("KUN8001")
+        .requires_span(true)
         .with_fs(fs)
         .root("pkg")
         .run_and_assert();

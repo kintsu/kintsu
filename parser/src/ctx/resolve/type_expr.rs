@@ -56,14 +56,14 @@ impl TypeResolver {
             .children
             .iter()
             .filter_map(|(ctx, child)| {
-                if let NamespaceChild::Type(type_def) = &child.value {
-                    if contains_type_expr(&type_def.def.value.ty.value) {
-                        return Some((
-                            ctx.name.borrow_string().clone(),
-                            type_def.def.value.ty.clone(),
-                            child.source.clone(),
-                        ));
-                    }
+                if let NamespaceChild::Type(type_def) = &child.value
+                    && contains_type_expr(&type_def.def.value.ty.value)
+                {
+                    return Some((
+                        ctx.name.borrow_string().clone(),
+                        type_def.def.value.ty.clone(),
+                        child.source.clone(),
+                    ));
                 }
                 None
             })
@@ -74,7 +74,7 @@ impl TypeResolver {
         // Track which aliases we're currently resolving (for cycle detection)
         let mut resolving: HashSet<String> = HashSet::new();
 
-        for (alias_name, type_spanned, _source) in type_expr_aliases {
+        for (alias_name, type_spanned, source_path) in type_expr_aliases {
             tracing::debug!(
                 "resolve_type_expressions: processing alias '{}'",
                 alias_name
@@ -82,19 +82,30 @@ impl TypeResolver {
 
             // Check for cycles
             if resolving.contains(&alias_name) {
-                return Err(crate::Error::TypeExprCycle {
-                    chain: vec![alias_name],
-                });
+                return Err(crate::TypeExprError::cyclic(vec![alias_name])
+                    .unlocated()
+                    .build()
+                    .into());
             }
             resolving.insert(alias_name.clone());
 
             // Acquire namespace lock for resolution
             let ns = self.namespace.lock().await;
 
-            // Resolve the type expression
+            // Get source content for error context
+            let source_content = ns.sources.get(&source_path).cloned();
+
+            // Resolve the type expression with source context for errors
             let resolved_type = self
                 .resolve_type_expr_in_type(&type_spanned.value, &ns)
-                .await?;
+                .await
+                .map_err(|e| {
+                    if let Some(source) = &source_content {
+                        e.with_source(source_path.clone(), source.clone())
+                    } else {
+                        e
+                    }
+                })?;
 
             drop(ns);
 
@@ -184,12 +195,18 @@ impl TypeResolver {
                 })
             },
             TypeExpr::FieldAccess { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Field access in type expressions not yet supported".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Field access in type expressions not yet supported",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
             TypeExpr::Op(spanned_op) => {
-                self.resolve_type_expr_op(&spanned_op.value, ns)
+                // Extract span from the operator for error reporting
+                let raw_span = spanned_op.span.span();
+                let expr_span = crate::Span::new(raw_span.start, raw_span.end);
+                self.resolve_type_expr_op(&spanned_op.value, ns, expr_span)
                     .await
             },
         }
@@ -200,27 +217,37 @@ impl TypeResolver {
         &self,
         op: &TypeExprOp,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
         match op {
-            TypeExprOp::Pick { target, fields } => self.resolve_pick(target, fields, ns).await,
-            TypeExprOp::Omit { target, fields } => self.resolve_omit(target, fields, ns).await,
+            TypeExprOp::Pick { target, fields } => {
+                self.resolve_pick(target, fields, ns, expr_span)
+                    .await
+            },
+            TypeExprOp::Omit { target, fields } => {
+                self.resolve_omit(target, fields, ns, expr_span)
+                    .await
+            },
             TypeExprOp::Partial { target, fields } => {
-                self.resolve_partial(target, fields.as_ref(), ns)
+                self.resolve_partial(target, fields.as_ref(), ns, expr_span)
                     .await
             },
             TypeExprOp::Required { target, fields } => {
-                self.resolve_required(target, fields.as_ref(), ns)
+                self.resolve_required(target, fields.as_ref(), ns, expr_span)
                     .await
             },
             TypeExprOp::Exclude { target, variants } => {
-                self.resolve_exclude(target, variants, ns)
+                self.resolve_exclude(target, variants, ns, expr_span)
                     .await
             },
             TypeExprOp::Extract { target, variants } => {
-                self.resolve_extract(target, variants, ns)
+                self.resolve_extract(target, variants, ns, expr_span)
                     .await
             },
-            TypeExprOp::ArrayItem { target } => self.resolve_array_item(target, ns).await,
+            TypeExprOp::ArrayItem { target } => {
+                self.resolve_array_item(target, ns, expr_span)
+                    .await
+            },
         }
     }
 
@@ -230,8 +257,11 @@ impl TypeResolver {
         target: &TypeExpr,
         fields: &SelectorList,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let struct_fields = self.get_struct_fields(target, ns).await?;
+        let struct_fields = self
+            .get_struct_fields(target, ns, expr_span)
+            .await?;
         let selected: HashSet<_> = selector_list_to_strings(fields)
             .into_iter()
             .collect();
@@ -240,11 +270,12 @@ impl TypeResolver {
         // Validate all selectors exist
         for field_name in &selected {
             if !struct_fields.contains_key(field_name) {
-                return Err(crate::Error::TypeExprFieldNotFound {
-                    operator: "Pick".into(),
-                    field: field_name.clone(),
-                    type_name: target_name,
-                });
+                return Err(
+                    crate::TypeExprError::unknown_field(field_name.clone(), target_name)
+                        .at(expr_span)
+                        .build()
+                        .into(),
+                );
             }
         }
 
@@ -256,9 +287,10 @@ impl TypeResolver {
             .collect();
 
         if picked.is_empty() {
-            return Err(crate::Error::TypeExprNoFieldsRemain {
-                operator: "Pick".into(),
-            });
+            return Err(crate::TypeExprError::no_fields_remain("Pick", "")
+                .at(expr_span)
+                .build()
+                .into());
         }
 
         Ok(build_struct_type(picked))
@@ -270,8 +302,11 @@ impl TypeResolver {
         target: &TypeExpr,
         fields: &SelectorList,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let struct_fields = self.get_struct_fields(target, ns).await?;
+        let struct_fields = self
+            .get_struct_fields(target, ns, expr_span)
+            .await?;
         let omitted: HashSet<_> = selector_list_to_strings(fields)
             .into_iter()
             .collect();
@@ -280,11 +315,12 @@ impl TypeResolver {
         // Validate all selectors exist
         for field_name in &omitted {
             if !struct_fields.contains_key(field_name) {
-                return Err(crate::Error::TypeExprFieldNotFound {
-                    operator: "Omit".into(),
-                    field: field_name.clone(),
-                    type_name: target_name,
-                });
+                return Err(
+                    crate::TypeExprError::unknown_field(field_name.clone(), target_name)
+                        .at(expr_span)
+                        .build()
+                        .into(),
+                );
             }
         }
 
@@ -296,9 +332,10 @@ impl TypeResolver {
             .collect();
 
         if remaining.is_empty() {
-            return Err(crate::Error::TypeExprNoFieldsRemain {
-                operator: "Omit".into(),
-            });
+            return Err(crate::TypeExprError::no_fields_remain("Omit", "")
+                .at(expr_span)
+                .build()
+                .into());
         }
 
         Ok(build_struct_type(remaining))
@@ -310,8 +347,11 @@ impl TypeResolver {
         target: &TypeExpr,
         fields: Option<&SelectorList>,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let struct_fields = self.get_struct_fields(target, ns).await?;
+        let struct_fields = self
+            .get_struct_fields(target, ns, expr_span)
+            .await?;
         let target_name = type_expr_name(target);
 
         let selected: Option<HashSet<_>> = fields.map(|f| {
@@ -324,11 +364,13 @@ impl TypeResolver {
         if let Some(ref sel) = selected {
             for field_name in sel {
                 if !struct_fields.contains_key(field_name) {
-                    return Err(crate::Error::TypeExprFieldNotFound {
-                        operator: "Partial".into(),
-                        field: field_name.clone(),
-                        type_name: target_name,
-                    });
+                    return Err(crate::TypeExprError::unknown_field(
+                        field_name.clone(),
+                        target_name,
+                    )
+                    .at(expr_span)
+                    .build()
+                    .into());
                 }
             }
         }
@@ -339,7 +381,7 @@ impl TypeResolver {
             .map(|(name, (arg, sep))| {
                 let make_optional = selected
                     .as_ref()
-                    .map_or(true, |s| s.contains(&name));
+                    .is_none_or(|s| s.contains(&name));
                 let new_sep = if make_optional {
                     Spanned::call_site(Sep::Optional {
                         q: Spanned::call_site(<Token![?]>::new()),
@@ -370,8 +412,11 @@ impl TypeResolver {
         target: &TypeExpr,
         fields: Option<&SelectorList>,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let struct_fields = self.get_struct_fields(target, ns).await?;
+        let struct_fields = self
+            .get_struct_fields(target, ns, expr_span)
+            .await?;
         let target_name = type_expr_name(target);
 
         let selected: Option<HashSet<_>> = fields.map(|f| {
@@ -384,11 +429,13 @@ impl TypeResolver {
         if let Some(ref sel) = selected {
             for field_name in sel {
                 if !struct_fields.contains_key(field_name) {
-                    return Err(crate::Error::TypeExprFieldNotFound {
-                        operator: "Required".into(),
-                        field: field_name.clone(),
-                        type_name: target_name,
-                    });
+                    return Err(crate::TypeExprError::unknown_field(
+                        field_name.clone(),
+                        target_name,
+                    )
+                    .at(expr_span)
+                    .build()
+                    .into());
                 }
             }
         }
@@ -399,7 +446,7 @@ impl TypeResolver {
             .map(|(name, (arg, sep))| {
                 let make_required = selected
                     .as_ref()
-                    .map_or(true, |s| s.contains(&name));
+                    .is_none_or(|s| s.contains(&name));
                 let new_sep = if make_required {
                     Spanned::call_site(Sep::Required {
                         sep: Spanned::call_site(<Token![:]>::new()),
@@ -429,8 +476,11 @@ impl TypeResolver {
         target: &TypeExpr,
         variants: &VariantList,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let oneof_variants = self.get_oneof_variants(target, ns).await?;
+        let oneof_variants = self
+            .get_oneof_variants(target, ns, expr_span)
+            .await?;
         let excluded: HashSet<_> = variant_list_to_strings(variants)
             .into_iter()
             .collect();
@@ -444,9 +494,10 @@ impl TypeResolver {
             .collect();
 
         if remaining.is_empty() {
-            return Err(crate::Error::TypeExprNoVariantsRemain {
-                operator: "Exclude".into(),
-            });
+            return Err(crate::TypeExprError::no_variants_remain("Exclude")
+                .at(expr_span)
+                .build()
+                .into());
         }
 
         Ok(build_oneof_type(remaining))
@@ -458,8 +509,11 @@ impl TypeResolver {
         target: &TypeExpr,
         variants: &VariantList,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let oneof_variants = self.get_oneof_variants(target, ns).await?;
+        let oneof_variants = self
+            .get_oneof_variants(target, ns, expr_span)
+            .await?;
         let selected: HashSet<_> = variant_list_to_strings(variants)
             .into_iter()
             .collect();
@@ -473,9 +527,10 @@ impl TypeResolver {
             .collect();
 
         if extracted.is_empty() {
-            return Err(crate::Error::TypeExprNoVariantsRemain {
-                operator: "Extract".into(),
-            });
+            return Err(crate::TypeExprError::no_variants_remain("Extract")
+                .at(expr_span)
+                .build()
+                .into());
         }
 
         Ok(build_oneof_type(extracted))
@@ -486,8 +541,11 @@ impl TypeResolver {
         &self,
         target: &TypeExpr,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
-        let target_type = self.resolve_type_ref(target, ns).await?;
+        let target_type = self
+            .resolve_type_ref(target, ns, expr_span)
+            .await?;
 
         match &target_type {
             Type::Array { ty } => {
@@ -497,11 +555,12 @@ impl TypeResolver {
                 }
             },
             _ => {
-                Err(crate::Error::TypeExprTargetKindMismatch {
-                    operator: "ArrayItem".into(),
-                    expected: "array".into(),
-                    actual: target_type.type_name(),
-                })
+                Err(
+                    crate::TypeExprError::expected_array(target_type.type_name())
+                        .at(expr_span)
+                        .build()
+                        .into(),
+                )
             },
         }
     }
@@ -511,9 +570,18 @@ impl TypeResolver {
         &self,
         expr: &TypeExpr,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<BTreeMap<String, (Spanned<Arg>, Option<Spanned<Token![,]>>)>> {
-        let target_type = self.resolve_type_ref(expr, ns).await?;
-        extract_struct_fields(&target_type, ns, &self.resolution.resolved_aliases).await
+        let target_type = self
+            .resolve_type_ref(expr, ns, expr_span)
+            .await?;
+        extract_struct_fields(
+            &target_type,
+            ns,
+            &self.resolution.resolved_aliases,
+            expr_span,
+        )
+        .await
     }
 
     /// Get named oneof variants from a type expression target (for Exclude/Extract)
@@ -522,6 +590,7 @@ impl TypeResolver {
         &self,
         expr: &TypeExpr,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Vec<(String, RepeatedItem<Type, Token![|]>)>> {
         // For named types, go directly to lookup_named_variants to preserve variant names
         match expr {
@@ -538,18 +607,35 @@ impl TypeResolver {
                     },
                 };
                 // Go directly to lookup_named_variants to preserve variant names
-                lookup_named_variants(&ident_name, ns, &self.resolution.resolved_aliases).await
+                lookup_named_variants(
+                    &ident_name,
+                    ns,
+                    &self.resolution.resolved_aliases,
+                    expr_span,
+                )
+                .await
             },
             TypeExpr::Op(op) => {
                 // Nested type expression - resolve then extract
-                let typ = Box::pin(self.resolve_type_expr_op(&op.value, ns)).await?;
-                extract_oneof_variants(&typ, ns, &self.resolution.resolved_aliases, "anonymous")
-                    .await
+                let raw_span = op.span.span();
+                let inner_span = crate::Span::new(raw_span.start, raw_span.end);
+                let typ = Box::pin(self.resolve_type_expr_op(&op.value, ns, inner_span)).await?;
+                extract_oneof_variants(
+                    &typ,
+                    ns,
+                    &self.resolution.resolved_aliases,
+                    "anonymous",
+                    expr_span,
+                )
+                .await
             },
             TypeExpr::FieldAccess { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Field access in type expressions not yet supported".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Field access in type expressions not yet supported",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
         }
     }
@@ -559,6 +645,7 @@ impl TypeResolver {
         &self,
         expr: &TypeExpr,
         ns: &NamespaceCtx,
+        expr_span: crate::Span,
     ) -> crate::Result<Type> {
         match expr {
             TypeExpr::TypeRef { reference } => {
@@ -585,16 +672,27 @@ impl TypeResolver {
                 }
 
                 // Look up in namespace
-                lookup_type(&ident_name, ns, &self.resolution.resolved_aliases).await
+                lookup_type(
+                    &ident_name,
+                    ns,
+                    &self.resolution.resolved_aliases,
+                    expr_span,
+                )
+                .await
             },
             TypeExpr::Op(op) => {
                 // Nested type expression - resolve recursively
-                Box::pin(self.resolve_type_expr_op(&op.value, ns)).await
+                let raw_span = op.span.span();
+                let expr_span = crate::Span::new(raw_span.start, raw_span.end);
+                Box::pin(self.resolve_type_expr_op(&op.value, ns, expr_span)).await
             },
             TypeExpr::FieldAccess { .. } => {
-                Err(crate::Error::InternalError {
-                    message: "Field access in type expressions not yet supported".into(),
-                })
+                Err(crate::InternalError::internal(
+                    "Field access in type expressions not yet supported",
+                )
+                .unlocated()
+                .build()
+                .into())
             },
         }
     }
@@ -673,6 +771,7 @@ async fn lookup_type(
     name: &str,
     ns: &NamespaceCtx,
     resolved_aliases: &BTreeMap<String, Spanned<Type>>,
+    expr_span: crate::Span,
 ) -> crate::Result<Type> {
     let child_ctx = ns
         .ctx
@@ -715,6 +814,18 @@ async fn lookup_type(
                                     ))),
                                 }
                             },
+                            crate::ast::variadic::Variant::Unit {
+                                name: variant_name, ..
+                            } => {
+                                // Unit variants become unit struct references
+                                let struct_name =
+                                    format!("{}{}", name, variant_name.borrow_string());
+                                Type::Ident {
+                                    to: PathOrIdent::Ident(Spanned::call_site(IdentToken::new(
+                                        struct_name,
+                                    ))),
+                                }
+                            },
                         };
                         RepeatedItem {
                             value: Spanned::call_site(typ),
@@ -744,17 +855,19 @@ async fn lookup_type(
                 Ok(type_def.def.value.ty.value.clone())
             },
             _ => {
-                Err(crate::Error::TypeExprTargetKindMismatch {
-                    operator: "<lookup>".into(),
-                    expected: "struct or oneof".into(),
-                    actual: child.value.type_name(),
-                })
+                Err(
+                    crate::TypeExprError::expected_struct("<lookup>", child.value.type_name())
+                        .at(expr_span)
+                        .build()
+                        .into(),
+                )
             },
         }
     } else {
-        Err(crate::Error::UndefinedType {
-            name: name.to_string(),
-        })
+        Err(crate::ResolutionError::undefined_type(name.to_string())
+            .at(expr_span)
+            .build()
+            .into())
     }
 }
 
@@ -763,6 +876,7 @@ async fn extract_struct_fields(
     typ: &Type,
     ns: &NamespaceCtx,
     resolved_aliases: &BTreeMap<String, Spanned<Type>>,
+    expr_span: crate::Span,
 ) -> crate::Result<BTreeMap<String, (Spanned<Arg>, Option<Spanned<Token![,]>>)>> {
     match typ {
         Type::Struct { ty } => {
@@ -784,33 +898,53 @@ async fn extract_struct_fields(
             let ident_name = match to {
                 PathOrIdent::Ident(ident) => ident.borrow_string().clone(),
                 PathOrIdent::Path(_) => {
-                    return Err(crate::Error::TypeExprTargetKindMismatch {
-                        operator: "<struct extraction>".into(),
-                        expected: "struct".into(),
-                        actual: "path reference".into(),
-                    });
+                    return Err(crate::TypeExprError::expected_struct(
+                        "<struct extraction>",
+                        "path reference",
+                    )
+                    .at(expr_span)
+                    .build()
+                    .into());
                 },
             };
 
             // Check resolved aliases
             if let Some(resolved) = resolved_aliases.get(&ident_name) {
-                return Box::pin(extract_struct_fields(&resolved.value, ns, resolved_aliases))
-                    .await;
+                return Box::pin(extract_struct_fields(
+                    &resolved.value,
+                    ns,
+                    resolved_aliases,
+                    expr_span,
+                ))
+                .await;
             }
 
             // Look up and extract
-            let resolved = lookup_type(&ident_name, ns, resolved_aliases).await?;
-            Box::pin(extract_struct_fields(&resolved, ns, resolved_aliases)).await
+            let resolved = lookup_type(&ident_name, ns, resolved_aliases, expr_span).await?;
+            Box::pin(extract_struct_fields(
+                &resolved,
+                ns,
+                resolved_aliases,
+                expr_span,
+            ))
+            .await
         },
         Type::Paren { ty, .. } => {
-            Box::pin(extract_struct_fields(&ty.value, ns, resolved_aliases)).await
+            Box::pin(extract_struct_fields(
+                &ty.value,
+                ns,
+                resolved_aliases,
+                expr_span,
+            ))
+            .await
         },
         _ => {
-            Err(crate::Error::TypeExprTargetKindMismatch {
-                operator: "<struct extraction>".into(),
-                expected: "struct".into(),
-                actual: typ.type_name(),
-            })
+            Err(
+                crate::TypeExprError::expected_struct("<struct extraction>", typ.type_name())
+                    .at(expr_span)
+                    .build()
+                    .into(),
+            )
         },
     }
 }
@@ -822,6 +956,7 @@ async fn extract_oneof_variants(
     ns: &NamespaceCtx,
     resolved_aliases: &BTreeMap<String, Spanned<Type>>,
     oneof_name: &str,
+    expr_span: crate::Span,
 ) -> crate::Result<Vec<(String, RepeatedItem<Type, Token![|]>)>> {
     match typ {
         Type::OneOf { ty } => {
@@ -839,11 +974,13 @@ async fn extract_oneof_variants(
             let ident_name = match to {
                 PathOrIdent::Ident(ident) => ident.borrow_string().clone(),
                 PathOrIdent::Path(_) => {
-                    return Err(crate::Error::TypeExprTargetKindMismatch {
-                        operator: "<oneof variant extraction>".into(),
-                        expected: "oneof".into(),
-                        actual: "path reference".into(),
-                    });
+                    return Err(crate::TypeExprError::expected_oneof(
+                        "<oneof variant extraction>",
+                        "path reference",
+                    )
+                    .at(expr_span)
+                    .build()
+                    .into());
                 },
             };
 
@@ -854,12 +991,13 @@ async fn extract_oneof_variants(
                     ns,
                     resolved_aliases,
                     &ident_name,
+                    expr_span,
                 ))
                 .await;
             }
 
             // Look up in namespace to get named variants directly
-            lookup_named_variants(&ident_name, ns, resolved_aliases).await
+            lookup_named_variants(&ident_name, ns, resolved_aliases, expr_span).await
         },
         Type::Paren { ty, .. } => {
             Box::pin(extract_oneof_variants(
@@ -867,15 +1005,17 @@ async fn extract_oneof_variants(
                 ns,
                 resolved_aliases,
                 oneof_name,
+                expr_span,
             ))
             .await
         },
         _ => {
-            Err(crate::Error::TypeExprTargetKindMismatch {
-                operator: "<oneof variant extraction>".into(),
-                expected: "oneof".into(),
-                actual: typ.type_name(),
-            })
+            Err(
+                crate::TypeExprError::expected_oneof("<oneof variant extraction>", typ.type_name())
+                    .at(expr_span)
+                    .build()
+                    .into(),
+            )
         },
     }
 }
@@ -885,6 +1025,7 @@ async fn lookup_named_variants(
     name: &str,
     ns: &NamespaceCtx,
     resolved_aliases: &BTreeMap<String, Spanned<Type>>,
+    expr_span: crate::Span,
 ) -> crate::Result<Vec<(String, RepeatedItem<Type, Token![|]>)>> {
     let child_ctx = ns
         .ctx
@@ -910,6 +1051,9 @@ async fn lookup_named_variants(
                             crate::ast::variadic::Variant::LocalStruct { name, .. } => {
                                 name.borrow_string().clone()
                             },
+                            crate::ast::variadic::Variant::Unit { name, .. } => {
+                                name.borrow_string().clone()
+                            },
                         };
                         let typ = match &item.value.value {
                             crate::ast::variadic::Variant::Tuple { inner, .. } => inner.clone(),
@@ -918,6 +1062,19 @@ async fn lookup_named_variants(
                                 ..
                             } => {
                                 // Reference the extracted named struct (e.g., StatusPending)
+                                let struct_name =
+                                    format!("{}{}", name, variant_name_tok.borrow_string());
+                                Type::Ident {
+                                    to: PathOrIdent::Ident(Spanned::call_site(IdentToken::new(
+                                        struct_name,
+                                    ))),
+                                }
+                            },
+                            crate::ast::variadic::Variant::Unit {
+                                name: variant_name_tok,
+                                ..
+                            } => {
+                                // Unit variants become unit struct references
                                 let struct_name =
                                     format!("{}{}", name, variant_name_tok.borrow_string());
                                 Type::Ident {
@@ -948,6 +1105,7 @@ async fn lookup_named_variants(
                         ns,
                         resolved_aliases,
                         name,
+                        expr_span,
                     ))
                     .await;
                 }
@@ -956,27 +1114,30 @@ async fn lookup_named_variants(
                     ns,
                     resolved_aliases,
                     name,
+                    expr_span,
                 ))
                 .await
             },
             _ => {
-                Err(crate::Error::TypeExprTargetKindMismatch {
-                    operator: "<named variant lookup>".into(),
-                    expected: "oneof".into(),
-                    actual: child.value.type_name(),
-                })
+                Err(crate::TypeExprError::expected_oneof(
+                    "<named variant lookup>",
+                    child.value.type_name(),
+                )
+                .at(expr_span)
+                .build()
+                .into())
             },
         }
     } else {
-        Err(crate::Error::UndefinedType {
-            name: name.to_string(),
-        })
+        Err(crate::ResolutionError::undefined_type(name.to_string())
+            .at(expr_span)
+            .build()
+            .into())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::tokens::tokenize;
 
     #[test]

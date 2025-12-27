@@ -127,7 +127,7 @@ fn peek_type_expr_op(stream: &TokenStream) -> bool {
     let mut fork = stream.fork();
     if let Ok(ident) = <SpannedToken![ident]>::parse(&mut fork) {
         let name = ident.borrow_string();
-        is_type_expr_op(&name) && fork.peek::<crate::tokens::LBracketToken>()
+        is_type_expr_op(name) && fork.peek::<crate::tokens::LBracketToken>()
     } else {
         false
     }

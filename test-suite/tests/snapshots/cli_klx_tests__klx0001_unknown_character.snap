@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_klx_tests.rs
+expression: result.stderr
+---
+KLX9001
+
+  × unknown lexing error: unknown lexing error
+   ╭─[./tmp/cli_test_klx0001_unknown_character/pkg/schema/lib.ks:5:13]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     struct User {
+ 5 │         name§: str
+   ·             ┬
+   ·             ╰── unknown lexing error: unknown lexing error
+ 6 │     };
+ 7 │ };
+   ╰────

@@ -116,6 +116,21 @@ pub enum PathOrIdent {
     Ident(SpannedToken![ident]),
 }
 
+impl PathOrIdent {
+    pub fn span(&self) -> kintsu_errors::Span {
+        match self {
+            Self::Path(p) => {
+                let sp = p.span.span();
+                kintsu_errors::Span::new(sp.start, sp.end)
+            },
+            Self::Ident(i) => {
+                let sp = i.span.span();
+                kintsu_errors::Span::new(sp.start, sp.end)
+            },
+        }
+    }
+}
+
 impl std::fmt::Display for PathOrIdent {
     fn fmt(
         &self,

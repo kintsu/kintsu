@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_kty_tests.rs
+expression: result.stderr
+---
+KTY2001
+
+  × operation 'create_user' returns a fallible type but has no error type defined
+   ╭─[./tmp/cli_test_kty2001_missing_error_type/pkg/schema/types.ks:7:11]
+ 2 │ 
+ 3 │ struct User {
+ 4 │     name: str
+ 5 │ };
+ 6 │ 
+ 7 │ operation create_user(input: str) -> User!;
+   ·           ─────┬─────
+   ·                ╰── operation 'create_user' returns a fallible type but has no error type defined
+   ╰────
+  help: add an error type to the operation or remove the '!' from the return type

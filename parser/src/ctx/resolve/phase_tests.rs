@@ -282,7 +282,7 @@ async fn test_simple_field_union() {
         "Expected 1 union to be identified"
     );
 
-    let union_record = &result.identified_unions[0].value;
+    let union_record = &result.identified_unions[0].0.value;
 
     // Check context stack: should be ["Request", "auth"]
     assert_eq!(
@@ -328,7 +328,7 @@ async fn test_nested_union() {
         "Expected 1 union (outer union includes nested)"
     );
 
-    let union_record = &result.identified_unions[0].value;
+    let union_record = &result.identified_unions[0].0.value;
     assert_eq!(union_record.generate_name(), "DataCombined");
 }
 
@@ -364,7 +364,7 @@ async fn test_multiple_unions_in_struct() {
     let names: Vec<String> = result
         .identified_unions
         .iter()
-        .map(|u| u.value.generate_name())
+        .map(|u| u.0.value.generate_name())
         .collect();
 
     assert!(names.contains(&"ConfigAuth".to_string()));
@@ -397,7 +397,7 @@ async fn test_union_in_array() {
         "Expected 1 union (inside array)"
     );
 
-    let union_record = &result.identified_unions[0].value;
+    let union_record = &result.identified_unions[0].0.value;
     assert_eq!(union_record.generate_name(), "ContainerItems");
 }
 
@@ -430,7 +430,7 @@ async fn test_union_in_oneof_variant() {
     let names: Vec<String> = result
         .identified_unions
         .iter()
-        .map(|u| u.value.generate_name())
+        .map(|u| u.0.value.generate_name())
         .collect();
 
     // Should have numeric suffixes
@@ -439,9 +439,12 @@ async fn test_union_in_oneof_variant() {
 
     // Check in_oneof flags
     for union_record in &result.identified_unions {
-        assert!(union_record.value.in_oneof, "Should be marked as in_oneof");
         assert!(
-            union_record.value.variant_index.is_some(),
+            union_record.0.value.in_oneof,
+            "Should be marked as in_oneof"
+        );
+        assert!(
+            union_record.0.value.variant_index.is_some(),
             "Should have variant index"
         );
     }
@@ -600,12 +603,14 @@ async fn test_invalid_builtin_union() {
 
     assert!(result.is_err(), "Builtin union should fail validation");
     match result {
-        Err(crate::Error::UnionOperandMustBeStruct { found_type, .. }) => {
+        Err(crate::Error::Compiler(crate::CompilerError::Union(
+            crate::UnionError::UnionOperandNotStruct { found_type, .. },
+        ))) => {
             assert_eq!(found_type, "i32");
         },
         other => {
             panic!(
-                "Expected UnionOperandMustBeStruct error, got {}",
+                "Expected UnionOperandNotStruct error, got {}",
                 match other {
                     Err(e) => format!("{:?}", e),
                     Ok(..) => "a valid namespace".into(),
@@ -631,12 +636,14 @@ async fn test_invalid_mixed_union() {
         "Mixed struct/builtin union should fail validation"
     );
     match result {
-        Err(crate::Error::UnionOperandMustBeStruct { found_type, .. }) => {
+        Err(crate::Error::Compiler(crate::CompilerError::Union(
+            crate::UnionError::UnionOperandNotStruct { found_type, .. },
+        ))) => {
             assert_eq!(found_type, "i64");
         },
         other => {
             panic!(
-                "Expected UnionOperandMustBeStruct error, got {}",
+                "Expected UnionOperandNotStruct error, got {}",
                 match other {
                     Err(e) => format!("{:?}", e),
                     Ok(..) => "a valid namespace".into(),
@@ -659,12 +666,14 @@ async fn test_invalid_enum_union() {
 
     assert!(result.is_err(), "Enum union should fail validation");
     match result {
-        Err(crate::Error::UnionOperandMustBeStruct { found_type, .. }) => {
+        Err(crate::Error::Compiler(crate::CompilerError::Union(
+            crate::UnionError::UnionOperandNotStruct { found_type, .. },
+        ))) => {
             assert_eq!(found_type, "enum");
         },
         other => {
             panic!(
-                "Expected UnionOperandMustBeStruct error, got {}",
+                "Expected UnionOperandNotStruct error, got {}",
                 match other {
                     Err(e) => format!("{:?}", e),
                     Ok(..) => "a valid namespace".into(),
@@ -1615,10 +1624,13 @@ async fn test_union_or_non_struct_operand_error() {
 
     assert!(result.is_err(), "Union Or with enum operand should fail");
 
-    if let Err(crate::Error::UnionOperandMustBeStruct { found_type, .. }) = result {
+    if let Err(crate::Error::Compiler(crate::CompilerError::Union(
+        crate::UnionError::UnionOperandNotStruct { found_type, .. },
+    ))) = result
+    {
         assert_eq!(found_type, "enum");
     } else {
-        panic!("Expected UnionOperandMustBeStruct error");
+        panic!("Expected UnionOperandNotStruct error");
     }
 }
 

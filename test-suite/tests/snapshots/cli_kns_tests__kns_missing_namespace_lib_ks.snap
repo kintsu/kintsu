@@ -1,0 +1,15 @@
+---
+source: test-suite/tests/cli_kns_tests.rs
+expression: result.stderr
+---
+KPR2008
+
+  × lib.ks should only contain namespace declaration and use statements
+   ╭─[./tmp/cli_test_kns_missing_namespace_lib_ks/pkg/schema/lib.ks:1:1]
+ 1 │ ╭─▶ 
+ 2 │ │   struct Foo {
+ 3 │ │       value: str
+ 4 │ ├─▶ };
+   · ╰──── lib.ks should only contain namespace declaration and use statements
+   ╰────
+  help: move type definitions to other files

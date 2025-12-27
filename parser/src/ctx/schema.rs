@@ -8,11 +8,14 @@ use std::{
 use convert_case::{Case, Casing};
 use tokio::sync::Mutex;
 
+use crate::{FilesystemError, MetadataError, NamespaceError, ParsingError};
+
 use crate::{
     SpannedToken,
     ast::{
         AstStream,
         items::{Items, NamespaceDef},
+        meta::ItemMetaItem,
         namespace::Namespace,
     },
     ctx::{WithSource, registry::TypeRegistry},
@@ -49,7 +52,13 @@ impl SchemaCtx {
             .map_err(|e| {
                 // If file doesn't exist, convert to MissingLibError
                 match e {
-                    kintsu_fs::Error::IoError(_) => crate::Error::MissingLibError,
+                    kintsu_fs::Error::IoError(_) => {
+                        crate::Error::Compiler(
+                            FilesystemError::missing_lib_ks()
+                                .unlocated()
+                                .build(),
+                        )
+                    },
                     _ => crate::Error::from(e),
                 }
             })?;
@@ -64,24 +73,96 @@ impl SchemaCtx {
 
         let lib_ast = AstStream::from_tokens_with(&lib_path, &mut tt)?;
 
+        // Validate module_meta from lib.ks for duplicate attributes (KMT3002)
+        // and extract error attribute for later validation (KMT2002)
+        let mut found_version = false;
+        let mut found_error: Option<&crate::ast::meta::ErrorMeta> = None;
+        let mut found_tag = false;
+        for meta_item in &lib_ast.module_meta.meta {
+            match meta_item {
+                ItemMetaItem::Version(v) => {
+                    if found_version {
+                        let dup_span = v.span();
+                        let span = crate::Span::new(dup_span.start, dup_span.end);
+                        return Err(crate::Error::Compiler(
+                            MetadataError::duplicate_attribute(
+                                "version",
+                                lib_path.display().to_string(),
+                            )
+                            .at(span)
+                            .build()
+                            .with_source_arc(lib_path, lib_source),
+                        ));
+                    }
+                    found_version = true;
+                },
+                ItemMetaItem::Error(e) => {
+                    if found_error.is_some() {
+                        let dup_span = e.span();
+                        let span = crate::Span::new(dup_span.start, dup_span.end);
+                        return Err(crate::Error::Compiler(
+                            MetadataError::duplicate_attribute(
+                                "error",
+                                lib_path.display().to_string(),
+                            )
+                            .at(span)
+                            .build()
+                            .with_source_arc(lib_path, lib_source),
+                        ));
+                    }
+                    found_error = Some(e);
+                },
+                ItemMetaItem::Tag(t) => {
+                    if found_tag {
+                        let dup_span = t.span();
+                        let span = crate::Span::new(dup_span.start, dup_span.end);
+                        return Err(crate::Error::Compiler(
+                            MetadataError::duplicate_attribute(
+                                "tag",
+                                lib_path.display().to_string(),
+                            )
+                            .at(span)
+                            .build()
+                            .with_source_arc(lib_path, lib_source),
+                        ));
+                    }
+                    found_tag = true;
+                },
+                ItemMetaItem::Rename(_) => {
+                    // Rename is only valid on variants, not at module level - skip
+                },
+            }
+        }
+
         let mut lib_namespace: Option<SpannedToken![ident]> = None;
-        let mut use_statements: Vec<_> = Vec::new();
+        let mut use_statements: Vec<(String, crate::Span)> = Vec::new();
 
         let mut namespaces = BTreeMap::new();
 
         for item in lib_ast.nodes {
+            let item_span = {
+                let raw = item.span.span();
+                crate::Span::new(raw.start, raw.end)
+            };
             match item.value {
                 Items::Namespace(ns) => {
                     if lib_namespace.is_some() {
                         let def_span = ns.def.span();
-                        return Err(crate::Error::NsConflict
-                            .with_span(def_span.start, def_span.end)
-                            .with_source(lib_path, lib_source.clone()));
+                        return Err(crate::Error::Compiler(
+                            NamespaceError::conflict()
+                                .at(crate::Span::new(def_span.start, def_span.end))
+                                .build()
+                                .with_source_arc(lib_path, lib_source.clone()),
+                        ));
                     }
                     lib_namespace = Some(ns.def.name.clone());
                 },
                 Items::Use(use_def) => {
-                    use_statements.push(use_def.def.root_ident().to_string());
+                    let def_span = use_def.def.span();
+                    use_statements.push((
+                        use_def.def.root_ident().to_string(),
+                        crate::Span::new(def_span.start, def_span.end),
+                    ));
                 },
                 Items::SpannedNamespace(spanned_ns) => {
                     let ns_name = spanned_ns
@@ -127,26 +208,30 @@ impl SchemaCtx {
                         .map_err(|e| e.with_source(lib_path.clone(), Arc::clone(&lib_source)))?;
 
                     if namespaces.contains_key(&ns_name) {
-                        return Err(crate::Error::DuplicateNamespace {
-                            name: ns_name.clone(),
-                        }
-                        .with_span(name_span.start, name_span.end)
-                        .with_source(lib_path, lib_source.clone()));
+                        return Err(crate::Error::Compiler(
+                            NamespaceError::duplicate(&ns_name)
+                                .at(crate::Span::new(name_span.start, name_span.end))
+                                .build()
+                                .with_source_arc(lib_path, lib_source.clone()),
+                        ));
                     }
 
                     namespaces.insert(ns_name, Arc::new(Mutex::new(ns_ctx)));
                 },
                 _ => {
-                    return Err(
-                        crate::Error::LibPldInvalidItem.with_source(lib_path, lib_source.clone())
-                    );
+                    return Err(crate::Error::Compiler(
+                        ParsingError::lib_invalid_item()
+                            .at(item_span)
+                            .build()
+                            .with_source_arc(lib_path, lib_source.clone()),
+                    ));
                 },
             }
         }
 
         let schema_dir = root_path.join("schema");
 
-        for use_name in use_statements {
+        for (use_name, use_span) in use_statements {
             let ctx = root_ctx.enter(&use_name);
             let single_file = schema_dir.join(format!("{}.ks", use_name));
             let dir_path = schema_dir.join(&use_name);
@@ -161,10 +246,12 @@ impl SchemaCtx {
             };
 
             if files_to_load.is_empty() {
-                return Err(crate::Error::UsePathNotFound {
-                    name: use_name.clone(),
-                }
-                .with_source(lib_path.clone(), Arc::clone(&lib_source)));
+                return Err(crate::Error::Compiler(
+                    NamespaceError::use_not_found(&use_name)
+                        .at(use_span)
+                        .build()
+                        .with_source_arc(lib_path.clone(), Arc::clone(&lib_source)),
+                ));
             }
 
             let ns_ctx = NamespaceCtx::load_files(ctx, fs, &files_to_load, None, registry.clone())
@@ -179,14 +266,51 @@ impl SchemaCtx {
                 .borrow_string()
                 .to_string();
             if ns_name != use_name {
-                return Err(crate::Error::NamespaceMismatch {
-                    expected: use_name.clone(),
-                    found: ns_name,
-                }
-                .with_source(lib_path.clone(), Arc::clone(&lib_source)));
+                return Err(crate::Error::Compiler(
+                    NamespaceError::mismatch(&use_name, &ns_name)
+                        .at(use_span)
+                        .build()
+                        .with_source_arc(lib_path.clone(), Arc::clone(&lib_source)),
+                ));
             }
 
             namespaces.insert(use_name, Arc::new(Mutex::new(ns_ctx)));
+        }
+
+        // KMT2002: Validate that #![err(ErrorType)] references an existing error type
+        if let Some(err_meta) = found_error {
+            let error_name = err_meta.error_name().to_string();
+            let mut error_type_found = false;
+
+            // Check all loaded namespaces for the error type
+            for ns_lock in namespaces.values() {
+                let ns = ns_lock.lock().await;
+                for (item_ctx, child) in &ns.children {
+                    if *item_ctx.name.borrow_string() == error_name
+                        && matches!(child.value, crate::ctx::common::NamespaceChild::Error(_))
+                    {
+                        error_type_found = true;
+                        break;
+                    }
+                }
+                if error_type_found {
+                    break;
+                }
+            }
+
+            if !error_type_found {
+                let err_span = err_meta.span();
+                let span = crate::Span::new(err_span.start, err_span.end);
+                return Err(crate::Error::Compiler(
+                    MetadataError::invalid_error_attr(format!(
+                        "'{}' is not a defined error type",
+                        error_name
+                    ))
+                    .at(span)
+                    .build()
+                    .with_source_arc(lib_path, lib_source),
+                ));
+            }
         }
 
         Ok(Self {

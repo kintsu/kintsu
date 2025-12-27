@@ -1,8 +1,9 @@
-//! Package errors (KPK) - ERR-0011
+//! Package errors (KPK) - [ERR-0011](https://docs.kintsu.dev/specs/err/ERR-0011)
 //! Errors related to package manifests, lockfiles, and dependencies.
 
 define_domain_errors! {
     /// Package errors (KPK domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0011
     pub enum PackageError {
         /// KPK0001: Manifest parse error
         ManifestParseError {
@@ -60,30 +61,32 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl PackageError {
-    pub fn parse_error(reason: impl Into<String>) -> Self {
-        Self::ManifestParseError {
+    pub fn parse_error(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ManifestParseError {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn duplicate_dep(name: impl Into<String>) -> Self {
-        Self::DuplicateDependency {
+    pub fn duplicate_dep(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DuplicateDependency {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn manifest_not_found(directory: impl Into<String>) -> Self {
-        Self::ManifestNotFound {
+    pub fn manifest_not_found(directory: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ManifestNotFound {
             directory: directory.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn lockfile_not_found() -> Self {
-        Self::LockfileNotFound { span: None }
+    pub fn lockfile_not_found() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::LockfileNotFound { span: None })
     }
 
     pub fn version_mismatch(
@@ -91,29 +94,29 @@ impl PackageError {
         required: impl Into<String>,
         other: impl Into<String>,
         other_required: impl Into<String>,
-    ) -> Self {
-        Self::DependencyVersionMismatch {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::DependencyVersionMismatch {
             package: package.into(),
             required: required.into(),
             other: other.into(),
             other_required: other_required.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn lockfile_outdated() -> Self {
-        Self::LockfileOutOfDate { span: None }
+    pub fn lockfile_outdated() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::LockfileOutOfDate { span: None })
     }
 
-    pub fn manifest_error(reason: impl Into<String>) -> Self {
-        Self::ManifestError {
+    pub fn manifest_error(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ManifestError {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
     /// Alias for manifest_error, used for version-related errors.
-    pub fn version_error(reason: impl Into<String>) -> Self {
+    pub fn version_error(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
         Self::manifest_error(reason)
     }
 }

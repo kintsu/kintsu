@@ -1,8 +1,10 @@
-//! Type expression errors (KTE) - ERR-0010
+//! Type expression errors (KTE) - [ERR-0010](https://docs.kintsu.dev/specs/err/ERR-0010)
+//!
 //! Errors related to type expression operators (Pick, Omit, Partial, etc.)
 
 define_domain_errors! {
     /// Type expression errors (KTE domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0010
     pub enum TypeExprError {
         /// KTE0001: Missing open bracket
         MissingOpenBracket {
@@ -141,98 +143,110 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl TypeExprError {
-    pub fn missing_bracket() -> Self {
-        Self::MissingOpenBracket { span: None }
+    pub fn missing_bracket() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::MissingOpenBracket { span: None })
     }
 
-    pub fn unclosed_bracket() -> Self {
-        Self::UnclosedBracket { span: None }
+    pub fn unclosed_bracket() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnclosedBracket { span: None })
     }
 
-    pub fn invalid_selector() -> Self {
-        Self::InvalidSelector { span: None }
+    pub fn invalid_selector() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidSelector { span: None })
     }
 
-    pub fn missing_separator() -> Self {
-        Self::MissingSeparator { span: None }
+    pub fn missing_separator() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::MissingSeparator { span: None })
     }
 
     pub fn unknown_field(
         field: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::UnknownField {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnknownField {
             field: field.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
     pub fn unknown_variant(
         variant: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::UnknownVariant {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnknownVariant {
             variant: variant.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
     pub fn expected_struct(
         operator: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::ExpectedStructType {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ExpectedStructType {
             operator: operator.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 
     pub fn expected_oneof(
         operator: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::ExpectedOneofType {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ExpectedOneofType {
             operator: operator.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn expected_array(found: impl Into<String>) -> Self {
-        Self::ExpectedArrayType {
+    pub fn expected_array(found: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ExpectedArrayType {
             found: found.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn empty_selector(operator: impl Into<String>) -> Self {
-        Self::EmptySelectorList {
+    pub fn empty_selector(operator: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::EmptySelectorList {
             operator: operator.into(),
             span: None,
-        }
+        })
     }
 
     pub fn no_fields_remain(
         operator: impl Into<String>,
         type_name: impl Into<String>,
-    ) -> Self {
-        Self::NoFieldsRemain {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NoFieldsRemain {
             operator: operator.into(),
             type_name: type_name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn cyclic(chain: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn no_variants_remain(operator: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::NoVariantsRemain {
+            operator: operator.into(),
+            type_name: String::new(), // Type name determined at call site
+            span: None,
+        })
+    }
+
+    pub fn cyclic(
+        chain: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let chain = chain
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::CyclicTypeExpression { chain, span: None }
+        ErrorBuilder::new(Self::CyclicTypeExpression { chain, span: None })
     }
 }

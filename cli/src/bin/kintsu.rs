@@ -9,7 +9,6 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<ExitCode, ()> {
-    // Setup miette for fancy error display
     miette::set_hook(Box::new(|_| {
         Box::new(
             GraphicalReportHandler::new()
@@ -29,7 +28,7 @@ fn main() -> Result<ExitCode, ()> {
 
     let cli = Cli::parse();
 
-    let log_level: tracing::Level = cli.log_level.clone().into();
+    let log_level: LevelFilter = cli.log_level.clone().into();
 
     let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
 
@@ -53,25 +52,34 @@ fn main() -> Result<ExitCode, ()> {
             layer
         })
         .with(indicatif_layer)
-        .with(LevelFilter::from_level(log_level));
+        .with(log_level);
 
     layer
         .try_init()
         .expect("Unable to initialize logging layer");
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("runtime");
+    let system = actix::System::with_tokio_rt(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    });
 
-    Ok(match rt.block_on(cli.run()) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            // Convert to CompilerError for structured error codes
-            let compiler_error: kintsu_errors::CompilerError = e.into();
-            let report = compiler_error.to_report();
-            eprintln!("{report:?}");
-            ExitCode::FAILURE
-        },
-    })
+    Ok(system.block_on(async {
+        kintsu_events::init(vec![Box::new(kintsu_events::StderrReporter)]);
+
+        let result = cli.run().await;
+        let bundle = kintsu_events::shutdown().await;
+
+        match result {
+            Ok(()) if bundle.has_errors() => ExitCode::FAILURE,
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                let compiler_error: kintsu_errors::CompilerError = e.into();
+                let report = compiler_error.to_report();
+                eprintln!("{report:?}");
+                ExitCode::FAILURE
+            },
+        }
+    }))
 }

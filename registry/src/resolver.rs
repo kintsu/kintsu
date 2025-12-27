@@ -64,11 +64,14 @@ impl PackageResolver for InternalPackageResolver {
     ) -> kintsu_parser::Result<ResolvedDependency> {
         let dep_name = dep_name.to_case(Case::Kebab);
 
-        let version_req = dependency.version().ok_or_else(|| {
-            kintsu_parser::Error::UnresolvedDependency {
-                name: dep_name.to_string(),
-            }
-        })?;
+        let version_req = dependency
+            .version()
+            .ok_or_else(|| -> kintsu_parser::Error {
+                kintsu_parser::NamespaceError::unresolved_dep(&dep_name)
+                    .unlocated()
+                    .build()
+                    .into()
+            })?;
 
         // Find a matching version from pre-computed sources
         let (found_version, found_fs) = self
@@ -76,10 +79,11 @@ impl PackageResolver for InternalPackageResolver {
             .iter()
             .find(|((name, ver), _)| name == &dep_name && version_req.matches(&ver.0))
             .map(|((_, ver), fs)| (ver.clone(), fs.clone()))
-            .ok_or_else(|| {
-                kintsu_parser::Error::UnresolvedDependency {
-                    name: dep_name.to_string(),
-                }
+            .ok_or_else(|| -> kintsu_parser::Error {
+                kintsu_parser::NamespaceError::unresolved_dep(&dep_name)
+                    .unlocated()
+                    .build()
+                    .into()
             })?;
 
         Ok(ResolvedDependency {

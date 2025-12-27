@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_kun_tests.rs
+expression: result.stderr
+---
+KUN2001
+
+  × union operand must be struct type: found enum 'Status'
+    ╭─[./tmp/cli_test_kun2001_union_operand_not_struct_enum/pkg/schema/types.ks:13:24]
+  8 │ enum Status {
+  9 │     Active = 1,
+ 10 │     Inactive = 2
+ 11 │ };
+ 12 │ 
+ 13 │ type Combined = User & Status;
+    ·                        ───┬──
+    ·                           ╰── union operand must be struct type: found enum 'Status'
+    ╰────
+  help: union operations require struct types

@@ -5,4 +5,9 @@ expression: result.stderr
 KNS4001
 
   × use statement 'missing_dep' does not correspond to a .ks file or directory
+   ╭─[./tmp/cli_test_kns_missing_dependency/pkg/schema/lib.ks:1:16]
+ 1 │ namespace pkg; use missing_dep;
+   ·                ───────┬───────
+   ·                       ╰── use statement 'missing_dep' does not correspond to a .ks file or directory
+   ╰────
   help: check the path exists or define the namespace

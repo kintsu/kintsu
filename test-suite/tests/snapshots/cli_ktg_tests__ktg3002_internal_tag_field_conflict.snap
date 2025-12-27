@@ -1,0 +1,20 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KTG3002
+
+  × internal tag field 'tag_type' conflicts with variant field at index 0
+   ╭─[./tmp/cli_test_ktg3002_internal_tag_field_conflict/pkg/schema/types.ks:3:17]
+ 1 │     namespace types;
+ 2 │     
+ 3 │ ╭─▶ struct Success {
+ 4 │ ├─▶     tag_type: str,
+   · ╰──── internal tag field 'tag_type' conflicts with variant field at index 0
+ 5 │         data: str
+ 6 │     };
+ 7 │     
+ 8 │     struct Failure {
+ 9 │         message: str
+   ╰────
+  help: rename the tag field or the variant field

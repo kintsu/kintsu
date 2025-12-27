@@ -1,0 +1,20 @@
+---
+source: test-suite/tests/cli_kty_tests.rs
+expression: result.stderr
+---
+KTY3001
+
+  × types has conflicts. User struct is declared multiple times
+   ╭─[./tmp/cli_test_kty3001_duplicate_type_ident/pkg/schema/types.ks:7:8]
+ 2 │ 
+ 3 │ struct User {
+ 4 │     name: str
+ 5 │ };
+ 6 │ 
+ 7 │ struct User {
+   ·        ──┬─
+   ·          ╰── types has conflicts. User struct is declared multiple times
+ 8 │     id: u64
+ 9 │ };
+   ╰────
+  help: rename one of the conflicting declarations

@@ -113,7 +113,7 @@ use types;
         "pkg/schema/types.ks" => r#"namespace types;
 
 struct Success {
-    type: str,
+    tag_type: str,
     data: str
 };
 
@@ -121,7 +121,7 @@ struct Failure {
     message: str
 };
 
-#[tag(name = "type")]
+#[tag(name = "tag_type")]
 oneof Result {
     Success(Success),
     Failure(Failure)

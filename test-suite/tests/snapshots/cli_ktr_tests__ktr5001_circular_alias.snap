@@ -1,0 +1,19 @@
+---
+source: test-suite/tests/cli_ktr_tests.rs
+expression: result.stderr
+---
+KTR5001
+
+  × circular dependency detected: test_ktr_5001::types::A -> test_ktr_5001::types::B -> test_ktr_5001::types::C
+   ╭─[./tmp/cli_test_ktr5001_circular_alias/pkg/schema/lib.ks:4:10]
+ 1 │ namespace pkg;
+ 2 │ 
+ 3 │ namespace types {
+ 4 │     type A = B;
+   ·          ┬
+   ·          ╰── circular dependency detected: test_ktr_5001::types::A -> test_ktr_5001::types::B -> test_ktr_5001::types::C
+ 5 │     type B = C;
+ 6 │     type C = A;
+ 7 │ };
+   ╰────
+  help: restructure to break the circular import

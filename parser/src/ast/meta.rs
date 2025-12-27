@@ -707,4 +707,32 @@ mod test {
         };
         assert_eq!(rename.value.name, "custom_name");
     }
+
+    #[test]
+    fn test_multiple_err_attrs() {
+        let source = r#"#![err(ApiError)]
+#![err(OtherError)]
+"#;
+        let mut tt = tokenize(source).expect("Should parse");
+        let meta: Spanned<ItemMeta> = tt.parse().unwrap();
+        // Should have 2 err attributes in the vec
+        assert_eq!(
+            meta.meta.len(),
+            2,
+            "Expected 2 meta items, got {}",
+            meta.meta.len()
+        );
+        match &meta.meta[0] {
+            ItemMetaItem::Error(e) => {
+                assert_eq!(e.value.value.value.to_string(), "ApiError");
+            },
+            _ => panic!("Expected Error meta item"),
+        }
+        match &meta.meta[1] {
+            ItemMetaItem::Error(e) => {
+                assert_eq!(e.value.value.value.to_string(), "OtherError");
+            },
+            _ => panic!("Expected Error meta item"),
+        }
+    }
 }

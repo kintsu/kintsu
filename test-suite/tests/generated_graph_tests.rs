@@ -47,7 +47,7 @@ async fn compile_linear_100_dependency_chain() {
     )
     .with_root(g.root_package());
 
-    let ctx = harness.compile_pass().await;
+    let _ = harness.compile_pass().await;
     harness.assert_lockfile_written();
 }
 

@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KTG2003
+
+  × internal tagging requires all variants to be struct types
+   ╭─[./tmp/cli_test_ktg2003_internal_tag_requires_struct/pkg/schema/types.ks:4:15]
+ 1 │     namespace types;
+ 2 │     
+ 3 │     #[tag(name = "type")]
+ 4 │ ╭─▶ oneof Result {
+ 5 │ ├─▶     Success(str),
+   · ╰──── internal tagging requires all variants to be struct types
+ 6 │         Failure(i32)
+ 7 │     };
+   ╰────
+  help: use external or adjacent tagging for non-struct variants

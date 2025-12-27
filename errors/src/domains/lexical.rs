@@ -1,8 +1,9 @@
-//! Lexical errors (KLX) - ERR-0002
+//! Lexical errors (KLX) - [ERR-0002](https://docs.kintsu.dev/specs/err/ERR-0002)
 //! Errors during tokenization of source text.
 
 define_domain_errors! {
     /// Lexical analysis errors (KLX domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0002
     pub enum LexicalError {
         /// KLX0001: Invalid character in source
         UnknownCharacter {
@@ -66,34 +67,36 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl LexicalError {
-    pub fn unknown_char(ch: char) -> Self {
-        Self::UnknownCharacter { ch, span: None }
+    pub fn unknown_char(ch: char) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnknownCharacter { ch, span: None })
     }
 
-    pub fn parse_int(reason: impl Into<String>) -> Self {
-        Self::InvalidIntegerLiteral {
+    pub fn parse_int(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidIntegerLiteral {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn parse_float(reason: impl Into<String>) -> Self {
-        Self::InvalidFloatLiteral {
+    pub fn parse_float(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidFloatLiteral {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn unknown(reason: impl Into<String>) -> Self {
-        Self::UnknownLexingError {
+    pub fn unknown(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnknownLexingError {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
     /// Alias for unknown - wraps a lexing error from the tokenizer.
-    pub fn lexer_error(reason: impl Into<String>) -> Self {
+    pub fn lexer_error(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
         Self::unknown(reason)
     }
 }

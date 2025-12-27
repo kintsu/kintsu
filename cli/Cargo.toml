@@ -20,9 +20,11 @@ kintsu-cli-core = { path = "../cli-core" }
 kintsu-core = { path = "../core", features = ["generate", "chrono", "time"] }
 kintsu-env-client = { path = "../env-client" }
 kintsu-errors = { path = "../errors" }
+kintsu-events = { path = "../events" }
 kintsu-fs = { path = "../fs" }
 kintsu-manifests = { path = "../manifests" }
 kintsu-parser = { path = "../parser" }
+actix = { workspace = true}
 clap = { features = ["derive", "env"], workspace = true }
 clap-markdown = { optional = true, workspace = true }
 human-panic = { features = [], workspace = true }

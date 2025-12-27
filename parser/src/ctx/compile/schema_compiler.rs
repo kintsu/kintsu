@@ -79,9 +79,10 @@ impl SchemaCompiler {
                         .collect();
 
                     tracing::error!(cycle = ?cycle_names, "Circular schema dependency detected");
-                    return Err(crate::Error::SchemaCircularDependency {
-                        schemas: cycle_names,
-                    });
+                    return Err(crate::ResolutionError::circular_dependency(cycle_names)
+                        .unlocated()
+                        .build()
+                        .into());
                 }
             }
             tracing::trace!("No circular dependencies found");
@@ -249,10 +250,14 @@ impl SchemaCompiler {
             );
             ctx.get_dependency(&target)
                 .await
-                .ok_or_else(|| {
-                    crate::Error::InternalError {
-                        message: format!("Schema not found: {}", schema_id.package_name),
-                    }
+                .ok_or_else(|| -> crate::Error {
+                    crate::InternalError::internal(format!(
+                        "Schema not found: {}",
+                        schema_id.package_name
+                    ))
+                    .unlocated()
+                    .build()
+                    .into()
                 })?
         };
 
@@ -322,10 +327,14 @@ impl SchemaCompiler {
         } else {
             ctx.get_dependency(&target)
                 .await
-                .ok_or_else(|| {
-                    crate::Error::InternalError {
-                        message: format!("Schema not found: {}", schema_id.package_name),
-                    }
+                .ok_or_else(|| -> crate::Error {
+                    crate::InternalError::internal(format!(
+                        "Schema not found: {}",
+                        schema_id.package_name
+                    ))
+                    .unlocated()
+                    .build()
+                    .into()
                 })?
         };
 
@@ -379,10 +388,11 @@ impl SchemaCompiler {
 
         let ns = schema
             .get_namespace(ns_name)
-            .ok_or_else(|| {
-                crate::Error::InternalError {
-                    message: format!("Namespace not found: {}", ns_name),
-                }
+            .ok_or_else(|| -> crate::Error {
+                crate::InternalError::internal(format!("Namespace not found: {}", ns_name))
+                    .unlocated()
+                    .build()
+                    .into()
             })?;
 
         let resolver = TypeResolver::new(ns.clone());
@@ -526,10 +536,14 @@ impl SchemaCompiler {
         let ns_ctx = schema
             .namespaces
             .get(ns_name)
-            .ok_or_else(|| {
-                crate::Error::InternalError {
-                    message: format!("Namespace not found at depth {}: {}", depth, ns_name),
-                }
+            .ok_or_else(|| -> crate::Error {
+                crate::InternalError::internal(format!(
+                    "Namespace not found at depth {}: {}",
+                    depth, ns_name
+                ))
+                .unlocated()
+                .build()
+                .into()
             })?;
 
         Self::extract_anonymous_structs(ns_ctx).await?;
@@ -541,6 +555,9 @@ impl SchemaCompiler {
 
         let ns = ns_ctx.lock().await;
         let type_graph = TypeExtractor::extract_from_namespace(&ns, &ns.ctx);
+
+        // Keep namespace sources available for error reporting
+        let ns_sources = ns.sources.clone();
         drop(ns);
 
         tracing::trace!(
@@ -564,13 +581,69 @@ impl SchemaCompiler {
                 if component.len() > 1 {
                     if !type_graph.has_terminating_edge(component) {
                         // Non-terminating cycle - error
-                        let cycle_str: Vec<String> = component
+                        // Build cycle in deterministic dependency order starting from
+                        // lexicographically smallest node
+                        let cycle_set: std::collections::HashSet<_> =
+                            component.iter().cloned().collect();
+
+                        // Find the lexicographically smallest node to start from
+                        let start_node = component
+                            .iter()
+                            .min_by(|a, b| a.display().cmp(&b.display()))
+                            .unwrap()
+                            .clone();
+
+                        // Traverse dependencies in order to build deterministic cycle path
+                        // Successors now return definition-site nodes for consistent spans
+                        let mut ordered_cycle = vec![start_node.clone()];
+                        let mut current = start_node;
+                        let mut visited: std::collections::HashSet<String> =
+                            std::collections::HashSet::new();
+                        visited.insert(current.display());
+
+                        while ordered_cycle.len() < component.len() {
+                            // Get successors in the cycle, sorted for determinism
+                            let mut successors: Vec<_> = type_graph
+                                .required_successors(&current)
+                                .into_iter()
+                                .filter(|s| {
+                                    cycle_set.contains(s) && !visited.contains(&s.display())
+                                })
+                                .collect();
+                            successors.sort_by_key(|a| a.display());
+
+                            if let Some(next) = successors.into_iter().next() {
+                                visited.insert(next.display());
+                                ordered_cycle.push(next.clone());
+                                current = next;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let cycle_str: Vec<String> = ordered_cycle
                             .iter()
                             .map(|ctx| ctx.display())
                             .collect();
 
+                        // Get span from first type in normalized cycle
+                        let first_ctx = &ordered_cycle[0];
+                        let raw_span = first_ctx.name.span.span();
+                        let span = crate::Span::new(raw_span.start, raw_span.end);
+
+                        // Use first available source for error context
+                        let (source_path, source_content) = ns_sources
+                            .iter()
+                            .next()
+                            .map(|(path, src)| (path.clone(), Some(src.clone())))
+                            .unwrap_or((std::path::PathBuf::new(), None));
+
                         tracing::error!(cycle = ?cycle_str, "Non-terminating type cycle detected");
-                        return Err(crate::Error::TypeCircularDependency { types: cycle_str });
+                        let err: crate::Error = crate::ResolutionError::type_cycle(cycle_str)
+                            .at(span)
+                            .build()
+                            .into();
+                        return Err(err.with_source_arc_if(source_path, source_content));
                     }
                     // Terminating cycle - allowed (e.g., A has optional B, B has required A)
                     tracing::trace!(
@@ -591,9 +664,13 @@ impl SchemaCompiler {
                     // This shouldn't happen - we already validated cycles
                     // But handle gracefully just in case
                     tracing::error!(?cycle, "Topological sort failed unexpectedly");
-                    return Err(crate::Error::TypeCircularDependency {
-                        types: vec![format!("<topological sort failed: {:?}>", cycle)],
-                    });
+                    return Err(crate::ResolutionError::type_cycle(vec![format!(
+                        "<topological sort failed: {:?}>",
+                        cycle
+                    )])
+                    .unlocated()
+                    .build()
+                    .into());
                 },
             };
 
@@ -671,13 +748,14 @@ impl SchemaCompiler {
         let ns_ctx = schema
             .namespaces
             .get(ns_name)
-            .ok_or_else(|| {
-                crate::Error::InternalError {
-                    message: format!(
-                        "Namespace disappeared during type registration: {}",
-                        ns_name
-                    ),
-                }
+            .ok_or_else(|| -> crate::Error {
+                crate::InternalError::internal(format!(
+                    "Namespace disappeared during type registration: {}",
+                    ns_name
+                ))
+                .unlocated()
+                .build()
+                .into()
             })?;
 
         let ns = ns_ctx.lock().await;
@@ -685,12 +763,13 @@ impl SchemaCompiler {
             Some(child) => child,
             None => {
                 // Type not found - this is an internal error
-                return Err(crate::Error::InternalError {
-                    message: format!(
-                        "Type not found in namespace during registration: {}",
-                        type_ctx.display()
-                    ),
-                });
+                return Err(crate::InternalError::internal(format!(
+                    "Type not found in namespace during registration: {}",
+                    type_ctx.display()
+                ))
+                .unlocated()
+                .build()
+                .into());
             },
         };
 
@@ -759,9 +838,11 @@ impl SchemaCompiler {
 
     /// Extract anonymous structs from type definitions before type registration.
     /// This includes:
+    ///
     /// - LocalStruct variants from oneofs/errors: {ParentName}{VariantName} per RFC-0008
     /// - Anonymous structs in struct fields: {StructName}{FieldName} in PascalCase
-    /// This must happen BEFORE type graph extraction so the structs are visible during type registration.
+    ///
+    /// This must happen BEFORE type registration so the structs are visible during type registration.
     async fn extract_anonymous_structs(
         ns_ctx: &tokio::sync::Mutex<crate::ctx::NamespaceCtx>
     ) -> crate::Result<()> {

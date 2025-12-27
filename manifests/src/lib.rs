@@ -79,14 +79,46 @@ impl From<Error> for kintsu_errors::CompilerError {
         match err {
             Error::Fs(e) => kintsu_errors::CompilerError::from(e),
             Error::WithSource { err, .. } => (*err).into(),
-            Error::ConfigError(e) => PackageError::parse_error(e.to_string()).into(),
-            Error::ValidationError(e) => PackageError::manifest_error(e.to_string()).into(),
-            Error::ValidationErrors(e) => PackageError::manifest_error(e.to_string()).into(),
-            Error::IoError(e) => kintsu_errors::FilesystemError::io_error(e.to_string()).into(),
-            Error::VersionError(e) => PackageError::version_error(e.to_string()).into(),
-            Error::SerError(e) => PackageError::parse_error(e.to_string()).into(),
-            Error::DeError(e) => PackageError::parse_error(e.to_string()).into(),
-            Error::ManifestError(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::ConfigError(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::ValidationError(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::ValidationErrors(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::IoError(e) => {
+                kintsu_errors::FilesystemError::io_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::VersionError(e) => {
+                PackageError::version_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::SerError(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::DeError(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::ManifestError(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
         }
     }
 }

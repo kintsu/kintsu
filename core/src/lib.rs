@@ -151,29 +151,75 @@ impl From<Error> for kintsu_errors::CompilerError {
     fn from(err: Error) -> Self {
         use kintsu_errors::{FilesystemError, InternalError, PackageError, TypeDefError};
         match err {
-            Error::Io(e) => FilesystemError::io_error(e.to_string()).into(),
-            Error::TomlDe(e) => PackageError::parse_error(e.to_string()).into(),
-            Error::TomlSer(e) => PackageError::parse_error(e.to_string()).into(),
-            Error::Json(e) => PackageError::manifest_error(e.to_string()).into(),
-            Error::Yaml(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::Io(e) => {
+                FilesystemError::io_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::TomlDe(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::TomlSer(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::Json(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::Yaml(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
             Error::NamespaceConflict { name, tag, ns } => {
-                TypeDefError::ident_conflict(ns.to_string(), tag, name.to_string()).into()
+                TypeDefError::ident_conflict(ns.to_string(), tag, name.to_string())
+                    .unlocated()
+                    .build()
             },
             Error::NameNotFound { name, ns } => {
-                kintsu_errors::ResolutionError::undefined_type(format!("{ns}::{name}")).into()
+                kintsu_errors::ResolutionError::undefined_type(format!("{ns}::{name}"))
+                    .unlocated()
+                    .build()
             },
-            Error::Config(e) => PackageError::parse_error(e.to_string()).into(),
+            Error::Config(e) => {
+                PackageError::parse_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
             Error::SourceFile { error, .. } => (*error).into(),
             Error::ContiguousError { ident, desc } => {
-                InternalError::internal(format!("'{ident}' is not contiguous with {desc}")).into()
+                InternalError::internal(format!("'{ident}' is not contiguous with {desc}"))
+                    .unlocated()
+                    .build()
             },
-            Error::Validation(e) => PackageError::manifest_error(e.to_string()).into(),
-            Error::Validations(e) => PackageError::manifest_error(e.to_string()).into(),
+            Error::Validation(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::Validations(e) => {
+                PackageError::manifest_error(e.to_string())
+                    .unlocated()
+                    .build()
+            },
             Error::Manifests(e) => e.into(),
             Error::Fs(e) => e.into(),
             Error::Parsing(e) => e.into(),
-            Error::Miette(e) => InternalError::internal(e.to_string()).into(),
-            Error::Client(e) => InternalError::internal(e.to_string()).into(),
+            Error::Miette(e) => {
+                InternalError::internal(e.to_string())
+                    .unlocated()
+                    .build()
+            },
+            Error::Client(e) => {
+                InternalError::internal(e.to_string())
+                    .unlocated()
+                    .build()
+            },
         }
     }
 }

@@ -15,6 +15,8 @@ pub struct SpanDiagnostic {
     span: Option<SourceSpan>,
     label: Option<String>,
     help: Option<String>,
+    /// Additional labeled spans for multi-location highlighting
+    secondary_labels: Vec<(SourceSpan, String)>,
 }
 
 impl SpanDiagnostic {
@@ -31,6 +33,7 @@ impl SpanDiagnostic {
             span: None,
             label: None,
             help: None,
+            secondary_labels: Vec::new(),
         }
     }
 
@@ -87,6 +90,17 @@ impl SpanDiagnostic {
         self.help = help.map(Into::into);
         self
     }
+
+    /// Add a secondary labeled span for multi-location highlighting
+    pub fn with_secondary_label(
+        mut self,
+        span: Span,
+        label: impl Into<String>,
+    ) -> Self {
+        self.secondary_labels
+            .push(((span.start, span.len()).into(), label.into()));
+        self
+    }
 }
 
 impl std::fmt::Display for SpanDiagnostic {
@@ -126,14 +140,29 @@ impl Diagnostic for SpanDiagnostic {
     }
 
     fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-        let span = self.span?;
-        let label = self
-            .label
-            .clone()
-            .unwrap_or_else(|| self.message.clone());
-        Some(Box::new(std::iter::once(
-            miette::LabeledSpan::new_with_span(Some(label), span),
-        )))
+        // Collect all labels: primary span first, then secondary labels
+        let mut labels = Vec::new();
+
+        if let Some(span) = self.span {
+            let label = self
+                .label
+                .clone()
+                .unwrap_or_else(|| self.message.clone());
+            labels.push(miette::LabeledSpan::new_with_span(Some(label), span));
+        }
+
+        for (span, label) in &self.secondary_labels {
+            labels.push(miette::LabeledSpan::new_with_span(
+                Some(label.clone()),
+                *span,
+            ));
+        }
+
+        if labels.is_empty() {
+            None
+        } else {
+            Some(Box::new(labels.into_iter()))
+        }
     }
 }
 
@@ -146,6 +175,7 @@ pub struct DiagnosticBuilder {
     span: Option<Span>,
     path: Option<std::path::PathBuf>,
     source: Option<String>,
+    secondary_labels: Vec<(Span, String)>,
 }
 
 impl DiagnosticBuilder {
@@ -162,6 +192,7 @@ impl DiagnosticBuilder {
             span: None,
             path: None,
             source: None,
+            secondary_labels: Vec::new(),
         }
     }
 
@@ -207,6 +238,26 @@ impl DiagnosticBuilder {
         self
     }
 
+    /// Add a secondary labeled span for multi-location highlighting
+    pub fn secondary_label(
+        mut self,
+        span: Span,
+        label: impl Into<String>,
+    ) -> Self {
+        self.secondary_labels
+            .push((span, label.into()));
+        self
+    }
+
+    /// Add multiple secondary labeled spans
+    pub fn secondary_labels(
+        mut self,
+        labels: impl IntoIterator<Item = (Span, String)>,
+    ) -> Self {
+        self.secondary_labels.extend(labels);
+        self
+    }
+
     pub fn build(self) -> SpanDiagnostic {
         let mut diag = SpanDiagnostic::new(self.code, self.message, self.severity);
 
@@ -220,6 +271,10 @@ impl DiagnosticBuilder {
 
         if let Some(help) = self.help {
             diag = diag.with_help(help);
+        }
+
+        for (span, label) in self.secondary_labels {
+            diag = diag.with_secondary_label(span, label);
         }
 
         diag

@@ -1,0 +1,15 @@
+---
+source: test-suite/tests/cli_kmt_tests.rs
+expression: result.stderr
+---
+KMT2002
+
+  × invalid error attribute: 'NonExistentError' is not a defined error type
+   ╭─[./tmp/cli_test_kmt2002_invalid_error_attribute/pkg/schema/lib.ks:1:1]
+ 1 │ #![err(NonExistentError)]
+   · ────────────┬────────────
+   ·             ╰── invalid error attribute: 'NonExistentError' is not a defined error type
+ 2 │ namespace pkg;
+ 3 │ use types;
+   ╰────
+  help: error attribute must reference a valid error type

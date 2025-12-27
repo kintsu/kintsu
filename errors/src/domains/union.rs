@@ -1,8 +1,10 @@
-//! Union errors (KUN) - ERR-0007
+//! Union errors (KUN) - [ERR-0007](https://docs.kintsu.dev/specs/err/ERR-0007)
+//!
 //! Errors related to union type operations, field merging, and tagging validation.
 
 define_domain_errors! {
     /// Union errors (KUN domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0007
     pub enum UnionError {
         /// KUN2001: Union operand must be struct
         UnionOperandNotStruct {
@@ -15,19 +17,19 @@ define_domain_errors! {
         /// KUN3001: Union field conflict
         UnionFieldConflict {
             code: (UN, Conflict, 1),
-            message: "union field conflict: field '{field_name}' appears in multiple operands with different types",
+            message: "union field conflict: field '{field_name}' has conflicting types (using '{chosen_type}', discarding '{discarded_type}')",
             help: "leftmost field definition takes precedence; rename to preserve both",
             severity: Warning,
-            fields: { field_name: String },
+            fields: { field_name: String, chosen_type: String, discarded_type: String },
         },
 
         /// KUN8001: Union field shadowed
         UnionFieldShadowed {
             code: (UN, Warning, 1),
-            message: "field '{field_name}' from '{operand_name}' is shadowed by earlier operand",
+            message: "field '{field_name}' from '{operand_name}' is shadowed (using '{chosen_type}' from earlier operand)",
             help: "this field will not appear in merged result; consider renaming",
             severity: Warning,
-            fields: { field_name: String, operand_name: String },
+            fields: { field_name: String, operand_name: String, chosen_type: String },
         },
 
         /// KUN2002: Adjacent tagging conflict - name and content fields must differ
@@ -48,63 +50,73 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl UnionError {
     pub fn operand_not_struct(
         found_type: impl Into<String>,
         operand_name: impl Into<String>,
-    ) -> Self {
-        Self::UnionOperandNotStruct {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnionOperandNotStruct {
             found_type: found_type.into(),
             operand_name: operand_name.into(),
             span: None,
-        }
+        })
     }
 
     /// Alias for `operand_not_struct` with parameters in reverse order.
     pub fn non_struct_operand(
         operand_name: impl Into<String>,
         found_type: impl Into<String>,
-    ) -> Self {
+    ) -> ErrorBuilder<Unspanned, Self> {
         Self::operand_not_struct(found_type, operand_name)
     }
 
-    pub fn field_conflict(field_name: impl Into<String>) -> Self {
-        Self::UnionFieldConflict {
+    pub fn field_conflict(
+        field_name: impl Into<String>,
+        chosen_type: impl Into<String>,
+        discarded_type: impl Into<String>,
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnionFieldConflict {
             field_name: field_name.into(),
+            chosen_type: chosen_type.into(),
+            discarded_type: discarded_type.into(),
             span: None,
-        }
+        })
     }
 
     pub fn field_shadowed(
         field_name: impl Into<String>,
         operand_name: impl Into<String>,
-    ) -> Self {
-        Self::UnionFieldShadowed {
+        chosen_type: impl Into<String>,
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnionFieldShadowed {
             field_name: field_name.into(),
             operand_name: operand_name.into(),
+            chosen_type: chosen_type.into(),
             span: None,
-        }
+        })
     }
 
     pub fn adjacent_tag_conflict(
         name: impl Into<String>,
         content: impl Into<String>,
-    ) -> Self {
-        Self::AdjacentTagConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::AdjacentTagConflict {
             name: name.into(),
             content: content.into(),
             span: None,
-        }
+        })
     }
 
     pub fn internal_tag_field_conflict(
         tag_field: impl Into<String>,
         variant: impl Into<String>,
-    ) -> Self {
-        Self::InternalTagFieldConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InternalTagFieldConflict {
             tag_field: tag_field.into(),
             variant: variant.into(),
             span: None,
-        }
+        })
     }
 }

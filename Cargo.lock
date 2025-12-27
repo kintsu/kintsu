@@ -3745,6 +3745,7 @@ dependencies = [
 name = "kintsu-cli"
 version = "0.1.0"
 dependencies = [
+ "actix",
  "clap 4.5.53",
  "clap-markdown",
  "human-panic",
@@ -3752,6 +3753,7 @@ dependencies = [
  "kintsu-core",
  "kintsu-env-client",
  "kintsu-errors",
+ "kintsu-events",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-parser",
@@ -3871,6 +3873,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kintsu-events"
+version = "0.1.0"
+dependencies = [
+ "actix",
+ "kintsu-errors",
+ "miette",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "kintsu-fs"
 version = "0.1.0"
 dependencies = [
@@ -3923,6 +3939,7 @@ dependencies = [
  "inventory",
  "kintsu-cli-core",
  "kintsu-errors",
+ "kintsu-events",
  "kintsu-fs",
  "kintsu-manifests",
  "kintsu-testing",

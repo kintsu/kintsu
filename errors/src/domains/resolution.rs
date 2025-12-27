@@ -1,10 +1,9 @@
-//! Type resolution errors (KTR) - ERR-0006
+//! Type resolution errors (KTR) - [ERR-0006](https://docs.kintsu.dev/specs/err/ERR-0006)
 //! Errors during type reference resolution.
-
-use std::collections::HashSet;
 
 define_domain_errors! {
     /// Type resolution errors (KTR domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0006
     pub enum ResolutionError {
         /// KTR1001: Resolution error (generic)
         ResolutionError {
@@ -56,74 +55,83 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+use std::collections::HashSet;
+
 impl ResolutionError {
-    pub fn resolution(path: impl Into<String>) -> Self {
-        Self::ResolutionError {
+    pub fn resolution(path: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ResolutionError {
             path: path.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn undefined_type(name: impl Into<String>) -> Self {
-        Self::UndefinedType {
+    pub fn undefined_type(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UndefinedType {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn unresolved_type(name: impl Into<String>) -> Self {
-        Self::UnresolvedType {
+    pub fn unresolved_type(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnresolvedType {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn circular_dependency(deps: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn circular_dependency(
+        deps: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let chain = deps
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::CircularDependency { chain, span: None }
+        ErrorBuilder::new(Self::CircularDependency { chain, span: None })
     }
 
-    pub fn schema_circular(schemas: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn schema_circular(
+        schemas: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let schemas = schemas
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::SchemaCircularDependency {
+        ErrorBuilder::new(Self::SchemaCircularDependency {
             schemas,
             span: None,
-        }
+        })
     }
 
-    pub fn circular_alias(chain: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+    pub fn circular_alias(
+        chain: impl IntoIterator<Item = impl AsRef<str>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let chain = chain
             .into_iter()
             .map(|s| s.as_ref().to_string())
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::CircularAlias { chain, span: None }
+        ErrorBuilder::new(Self::CircularAlias { chain, span: None })
     }
 
-    pub fn circular_alias_from_set(chain: HashSet<String>) -> Self {
+    pub fn circular_alias_from_set(chain: HashSet<String>) -> ErrorBuilder<Unspanned, Self> {
         let chain = chain
             .into_iter()
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::CircularAlias { chain, span: None }
+        ErrorBuilder::new(Self::CircularAlias { chain, span: None })
     }
 
-    /// Creates a type circular dependency error - same as circular_dependency.
-    /// This exists for compatibility with the parser which has separate TypeCircularDependency.
-    pub fn type_cycle(types: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn type_cycle(
+        types: impl IntoIterator<Item = impl Into<String>>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let chain = types
             .into_iter()
             .map(Into::into)
             .collect::<Vec<_>>()
             .join(" -> ");
-        Self::CircularDependency { chain, span: None }
+        ErrorBuilder::new(Self::CircularDependency { chain, span: None })
     }
 }

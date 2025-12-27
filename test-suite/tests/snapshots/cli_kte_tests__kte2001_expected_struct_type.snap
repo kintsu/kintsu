@@ -1,0 +1,20 @@
+---
+source: test-suite/tests/cli_kte_tests.rs
+expression: result.stderr
+---
+KTE2001
+
+  × expected struct type for <lookup>, found enum
+   ╭─[./tmp/cli_test_kte2001_expected_struct_type/pkg/schema/types.ks:3:8]
+ 1 │ namespace types;
+ 2 │ 
+ 3 │ enum Status {
+   ·        ───┬──
+   ·           ╰── expected struct type for <lookup>, found enum
+ 4 │     Active = 1,
+ 5 │     Inactive = 2
+ 6 │ };
+ 7 │ 
+ 8 │ type PartialStatus = Pick[Status, Active];
+   ╰────
+  help: this operator only works on struct types

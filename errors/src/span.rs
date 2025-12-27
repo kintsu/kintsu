@@ -5,6 +5,21 @@ pub struct Span {
     pub end: usize,
 }
 
+/// Trait for types that have an associated span.
+///
+/// Implement this for any AST node or token type that carries location information.
+/// Used by error builders to automatically extract spans from nodes.
+pub trait HasSpan {
+    /// Returns the span for this item.
+    fn span(&self) -> Span;
+}
+
+impl HasSpan for Span {
+    fn span(&self) -> Span {
+        *self
+    }
+}
+
 impl Span {
     pub const fn new(
         start: usize,

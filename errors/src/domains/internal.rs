@@ -1,8 +1,9 @@
-//! Internal errors (KIN) - ERR-0014
+//! Internal errors (KIN) - [ERR-0014](https://docs.kintsu.dev/specs/err/ERR-0014)
 //! Compiler bugs and internal errors (not user errors).
 
 define_domain_errors! {
     /// Internal errors (KIN domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0014
     pub enum InternalError {
         /// KIN9001: Internal error (generic)
         InternalError {
@@ -37,29 +38,31 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl InternalError {
-    pub fn internal(reason: impl Into<String>) -> Self {
-        Self::InternalError {
+    pub fn internal(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InternalError {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn failed_namespace_ctx() -> Self {
-        Self::FailedToCreateNamespaceCtx { span: None }
+    pub fn failed_namespace_ctx() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::FailedToCreateNamespaceCtx { span: None })
     }
 
-    pub fn unreachable(location: impl Into<String>) -> Self {
-        Self::UnreachableCode {
+    pub fn unreachable(location: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnreachableCode {
             location: location.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn assertion(condition: impl Into<String>) -> Self {
-        Self::AssertionFailed {
+    pub fn assertion(condition: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::AssertionFailed {
             condition: condition.into(),
             span: None,
-        }
+        })
     }
 }

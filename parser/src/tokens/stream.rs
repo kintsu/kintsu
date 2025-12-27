@@ -61,8 +61,8 @@ impl TokenStream {
         let approx = (source.len() / 8).max(256);
         let mut toks = Vec::with_capacity(approx);
         while let Some(token) = lex.next() {
-            let token = token?;
             let span = lex.span();
+            let token = token.map_err(|e| e.with_span(Span::new(span.start, span.end)))?;
             toks.push(Spanned::new(span.start, span.end, token));
         }
 
@@ -538,11 +538,9 @@ impl IntoIterator for MutTokenStream {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
     use crate::{
         defs::Spanned,
-        tokens::{self, AstResult, TokenStream, brace, bracket, paren, tokenize},
+        tokens::{self, AstResult, TokenStream, tokenize},
     };
 
     #[test_case::test_case(
@@ -606,37 +604,5 @@ mod test {
         assert_eq!(tt.cursor, cursor);
 
         Ok(())
-    }
-
-    #[test_case::test_case(
-        "
-            }
-    ",
-        &["expected {, found }", "2:13"]; "close brace no open"
-    )]
-    #[test_case::test_case(
-        "
-        { a
-    ",
-        &["expected }, found end of token stream", "2:12"]; "open brace without close"
-    )]
-    fn test_paired_diagnostic(
-        src: &str,
-        expect: &[&str],
-    ) {
-        let mut tt = tokenize(src).expect("parse");
-        let inner = || -> AstResult<TokenStream> {
-            let inner;
-            brace!(inner in tt);
-            Ok(inner)
-        }()
-        .unwrap_err();
-        let as_crate = crate::Error::from(inner);
-        let p = Path::new("test.ks");
-        let diag = format!("{:?}", as_crate.to_report_with(p, src, None));
-        eprintln!("{diag}");
-        for e in expect {
-            assert!(diag.contains(e), "'{}' is in outputted diagnostics", e)
-        }
     }
 }

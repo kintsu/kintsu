@@ -225,6 +225,9 @@ impl TypeExtractor {
                         );
                     }
                 },
+                crate::ast::variadic::Variant::Unit { .. } => {
+                    // Unit variants have no type dependencies
+                },
             }
         }
 
@@ -273,6 +276,9 @@ impl TypeExtractor {
                             ns_ctx,
                         );
                     }
+                },
+                crate::ast::variadic::Variant::Unit { .. } => {
+                    // Unit variants have no type dependencies
                 },
             }
         }

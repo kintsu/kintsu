@@ -19,6 +19,7 @@ db = ["dep:sea-orm", "dep:serde_json"]
 [dependencies]
 kintsu-cli-core = { path = "../cli-core" }
 kintsu-errors = { path = "../errors" }
+kintsu-events = { path = "../events" }
 kintsu-fs = { path = "../fs" }
 kintsu-manifests = { path = "../manifests" }
 bon = { workspace = true }

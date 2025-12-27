@@ -88,6 +88,8 @@ pub struct CliErrorTest {
     pub expected_error_code: Option<String>,
     /// Whether the test expects the command to fail
     pub expect_failure: bool,
+    /// Whether this expects a warning (success + code present)
+    pub expect_warning: bool,
     /// Tags for categorization
     pub tags: Vec<Tag>,
     /// Memory filesystem with test files
@@ -107,6 +109,7 @@ impl CliErrorTest {
             purpose: String::new(),
             expected_error_code: None,
             expect_failure: true,
+            expect_warning: false,
             tags: vec![Tag::Validations],
             fs: MemoryFileSystem::new(),
             root: "pkg".to_string(),
@@ -139,6 +142,18 @@ impl CliErrorTest {
     ) -> Self {
         self.expected_error_code = Some(code.into());
         self.expect_failure = true;
+        self.expect_warning = false;
+        self
+    }
+
+    /// Expect a warning code (compilation succeeds but warning emitted).
+    pub fn expect_warning(
+        mut self,
+        code: impl Into<String>,
+    ) -> Self {
+        self.expected_error_code = Some(code.into());
+        self.expect_failure = false;
+        self.expect_warning = true;
         self
     }
 
@@ -262,7 +277,9 @@ version = "1.0.0"
             (Some(_), None) => false,
         };
 
-        let exit_matches = if self.expect_failure {
+        let exit_matches = if self.expect_warning {
+            exit_code == 0
+        } else if self.expect_failure {
             exit_code != 0
         } else {
             exit_code == 0
@@ -304,7 +321,15 @@ version = "1.0.0"
     pub fn run_and_assert(&self) -> CliTestResult {
         let result = self.run();
 
-        if self.expect_failure {
+        if self.expect_warning {
+            assert!(
+                result.exit_code == 0,
+                "Expected warning (exit 0) but CLI failed with code {}.\nTest: {}\nstderr: {}",
+                result.exit_code,
+                self.id,
+                result.stderr
+            );
+        } else if self.expect_failure {
             assert!(
                 result.exit_code != 0,
                 "Expected CLI to fail but it succeeded.\nTest: {}\nstdout: {}\nstderr: {}",
@@ -328,7 +353,7 @@ version = "1.0.0"
                 result
                     .actual_error_code
                     .as_ref()
-                    .map_or(false, |a| a.starts_with(expected)),
+                    .is_some_and(|a| a.starts_with(expected)),
                 "Expected error code starting with '{}', got {:?}.\nTest: {}\nstderr: {}",
                 expected,
                 result.actual_error_code,
@@ -366,7 +391,7 @@ fn run_cli(args: &[&str]) -> Output {
         .args(args)
         .env("NO_COLOR", "1")
         .env("TERM", "dumb")
-        .env("LOG_LEVEL", "warn")
+        .env("LOG_LEVEL", "off")
         .output()
         .expect("failed to execute kintsu command")
 }

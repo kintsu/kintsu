@@ -1,0 +1,18 @@
+---
+source: test-suite/tests/cli_ktg_tests.rs
+expression: result.stderr
+---
+KTG3004
+
+  × untagged union has duplicate type 'builtin:str' at indices 0, 1
+   ╭─[./tmp/cli_test_ktg3004_untagged_duplicate_type/pkg/schema/types.ks:5:16]
+ 1 │     namespace types;
+ 2 │     
+ 3 │     #[tag(untagged)]
+ 4 │     oneof StringOrString {
+ 5 │ ╭─▶     First(str),
+ 6 │ ├─▶     Second(str)
+   · ╰──── untagged union has duplicate type 'builtin:str' at indices 0, 1
+ 7 │     };
+   ╰────
+  help: untagged unions require all variants to have distinct types

@@ -1,8 +1,9 @@
-//! Parsing errors (KPR) - ERR-0003
+//! Parsing errors (KPR) - [ERR-0003](https://docs.kintsu.dev/specs/err/ERR-0003)
 //! Errors during AST construction from token stream.
 
 define_domain_errors! {
     /// Parsing errors (KPR domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0003
     pub enum ParsingError {
         /// KPR0001: Unexpected token
         UnexpectedToken {
@@ -81,63 +82,65 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl ParsingError {
     pub fn unexpected(
         expected: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::UnexpectedToken {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnexpectedToken {
             expected: expected.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn eof(expected: impl Into<String>) -> Self {
-        Self::UnexpectedEndOfFile {
+    pub fn eof(expected: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnexpectedEndOfFile {
             expected: expected.into(),
             span: None,
-        }
+        })
     }
 
     pub fn expected_one_of(
         alternatives: impl Into<String>,
         found: impl Into<String>,
-    ) -> Self {
-        Self::ExpectedOneOf {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::ExpectedOneOf {
             alternatives: alternatives.into(),
             found: found.into(),
             span: None,
-        }
+        })
     }
 
     pub fn invalid_path(
         path: impl Into<String>,
         reason: impl Into<String>,
-    ) -> Self {
-        Self::InvalidPath {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidPath {
             path: path.into(),
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn unknown_attribute(name: impl Into<String>) -> Self {
-        Self::UnknownAttribute {
+    pub fn unknown_attribute(name: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::UnknownAttribute {
             name: name.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn lib_multi_segment_import() -> Self {
-        Self::LibKsMultiSegmentImport { span: None }
+    pub fn lib_multi_segment_import() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::LibKsMultiSegmentImport { span: None })
     }
 
-    pub fn lib_invalid_item() -> Self {
-        Self::LibKsInvalidItem { span: None }
+    pub fn lib_invalid_item() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::LibKsInvalidItem { span: None })
     }
 
-    pub fn lib_missing_namespace() -> Self {
-        Self::LibKsMissingNamespace { span: None }
+    pub fn lib_missing_namespace() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::LibKsMissingNamespace { span: None })
     }
 }

@@ -1,8 +1,10 @@
-//! Tagging errors (KTG) - ERR-0009
+//! Tagging errors (KTG) - [ERR-0009](https://docs.kintsu.dev/specs/err/ERR-0009)
+//!
 //! Errors related to variant tagging in oneof and error types.
 
 define_domain_errors! {
     /// Tagging errors (KTG domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0009
     pub enum TaggingError {
         /// KTG2001: Tag parameter must be string
         TagParameterInvalidType {
@@ -67,73 +69,77 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl TaggingError {
-    pub fn invalid_param_type(param: impl Into<String>) -> Self {
-        Self::TagParameterInvalidType {
+    pub fn invalid_param_type(param: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TagParameterInvalidType {
             param: param.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn non_variant_type() -> Self {
-        Self::TagOnNonVariantType { span: None }
+    pub fn non_variant_type() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::TagOnNonVariantType { span: None })
     }
 
-    pub fn internal_requires_struct() -> Self {
-        Self::InternalTagRequiresStruct { span: None }
+    pub fn internal_requires_struct() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InternalTagRequiresStruct { span: None })
     }
 
-    pub fn multiple_styles() -> Self {
-        Self::MultipleTagStyles { span: None }
+    pub fn multiple_styles() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::MultipleTagStyles { span: None })
     }
 
     pub fn internal_field_conflict(
         name: impl Into<String>,
         index: usize,
-    ) -> Self {
-        Self::InternalTagFieldConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InternalTagFieldConflict {
             name: name.into(),
             index,
             span: None,
-        }
+        })
     }
 
     pub fn adjacent_field_conflict(
         tag_field: impl Into<String>,
         content_field: impl Into<String>,
-    ) -> Self {
-        Self::AdjacentFieldNameConflict {
+    ) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::AdjacentFieldNameConflict {
             tag_field: tag_field.into(),
             content_field: content_field.into(),
             span: None,
-        }
+        })
     }
 
     pub fn untagged_duplicate(
         type_name: impl Into<String>,
         indices: impl IntoIterator<Item = usize>,
-    ) -> Self {
+    ) -> ErrorBuilder<Unspanned, Self> {
         let indices = indices
             .into_iter()
             .map(|i| i.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        Self::UntaggedDuplicateType {
+        ErrorBuilder::new(Self::UntaggedDuplicateType {
             type_name: type_name.into(),
             indices,
             span: None,
-        }
+        })
     }
 
-    pub fn untagged_indistinguishable(indices: impl IntoIterator<Item = usize>) -> Self {
+    pub fn untagged_indistinguishable(
+        indices: impl IntoIterator<Item = usize>
+    ) -> ErrorBuilder<Unspanned, Self> {
         let indices = indices
             .into_iter()
             .map(|i| i.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        Self::UntaggedIndistinguishable {
+        ErrorBuilder::new(Self::UntaggedIndistinguishable {
             indices,
             span: None,
-        }
+        })
     }
 }

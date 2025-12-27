@@ -1,0 +1,13 @@
+---
+source: test-suite/tests/cli_kns_tests.rs
+expression: result.stderr
+---
+KNS4001
+
+  × use statement 'models' does not correspond to a .ks file or directory
+   ╭─[./tmp/cli_test_kns4001_use_path_not_found/pkg/schema/lib.ks:1:15]
+ 1 │ ╭─▶ namespace pkg;
+ 2 │ ├─▶ use models;
+   · ╰──── use statement 'models' does not correspond to a .ks file or directory
+   ╰────
+  help: check the path exists or define the namespace

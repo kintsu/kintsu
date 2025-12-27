@@ -1,8 +1,9 @@
-//! Filesystem errors (KFS) - ERR-0013
+//! Filesystem errors (KFS) - [ERR-0013](https://docs.kintsu.dev/specs/err/ERR-0013)
 //! Errors related to file operations and I/O during compilation.
 
 define_domain_errors! {
     /// Filesystem errors (KFS domain)
+    /// https://docs.kintsu.dev/specs/err/ERR-0013
     pub enum FilesystemError {
         /// KFS2001: Invalid glob pattern
         InvalidGlobPattern {
@@ -51,52 +52,54 @@ define_domain_errors! {
     }
 }
 
+use crate::builder::{ErrorBuilder, Unspanned};
+
 impl FilesystemError {
-    pub fn invalid_glob(reason: impl Into<String>) -> Self {
-        Self::InvalidGlobPattern {
+    pub fn invalid_glob(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::InvalidGlobPattern {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn empty_file_list() -> Self {
-        Self::EmptyFileList { span: None }
+    pub fn empty_file_list() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::EmptyFileList { span: None })
     }
 
-    pub fn file_not_found(path: impl Into<String>) -> Self {
-        Self::FileNotFound {
+    pub fn file_not_found(path: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::FileNotFound {
             path: path.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn missing_lib_ks() -> Self {
-        Self::MissingLibKs { span: None }
+    pub fn missing_lib_ks() -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::MissingLibKs { span: None })
     }
 
-    pub fn io_error(reason: impl Into<String>) -> Self {
-        Self::IoError {
+    pub fn io_error(reason: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::IoError {
             reason: reason.into(),
             span: None,
-        }
+        })
     }
 
-    pub fn permission_denied(path: impl Into<String>) -> Self {
-        Self::PermissionDenied {
+    pub fn permission_denied(path: impl Into<String>) -> ErrorBuilder<Unspanned, Self> {
+        ErrorBuilder::new(Self::PermissionDenied {
             path: path.into(),
             span: None,
-        }
+        })
     }
 }
 
-impl From<std::io::Error> for FilesystemError {
+impl From<std::io::Error> for ErrorBuilder<Unspanned, FilesystemError> {
     fn from(err: std::io::Error) -> Self {
-        Self::io_error(err.to_string())
+        FilesystemError::io_error(err.to_string())
     }
 }
 
-impl From<glob::PatternError> for FilesystemError {
+impl From<glob::PatternError> for ErrorBuilder<Unspanned, FilesystemError> {
     fn from(err: glob::PatternError) -> Self {
-        Self::invalid_glob(err.to_string())
+        FilesystemError::invalid_glob(err.to_string())
     }
 }

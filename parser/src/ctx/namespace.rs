@@ -117,7 +117,11 @@ impl NamespaceCtx {
         registry: TypeRegistry,
     ) -> crate::Result<Self> {
         if paths.is_empty() {
-            return Err(crate::Error::EmptyFileList);
+            return Err(crate::Error::Compiler(
+                crate::FilesystemError::empty_file_list()
+                    .unlocated()
+                    .build(),
+            ));
         }
 
         use futures_util::future::join_all;
@@ -162,25 +166,33 @@ impl NamespaceCtx {
                 if let Some(required) = required_namespace
                     && ctx.namespace.value.def.name.borrow_string() != required.borrow_string()
                 {
-                    let err = crate::Error::NamespaceMismatch {
-                        expected: required.borrow_string().to_string(),
-                        found: ctx
-                            .namespace
-                            .value
-                            .def
-                            .name
-                            .borrow_string()
-                            .to_string(),
-                    }
-                    .with_source(path.clone(), source);
-                    return Err(err);
+                    let expected = required.borrow_string().to_string();
+                    let found = ctx
+                        .namespace
+                        .value
+                        .def
+                        .name
+                        .borrow_string()
+                        .to_string();
+                    return Err(crate::Error::Compiler(
+                        crate::NamespaceError::mismatch(&expected, &found)
+                            .unlocated()
+                            .build()
+                            .with_source_arc(path.clone(), source),
+                    ));
                 }
 
                 namespace_ctx = Some(ctx);
             }
         }
 
-        namespace_ctx.ok_or_else(|| crate::Error::FailedToCreateNamespaceCtx)
+        namespace_ctx.ok_or_else(|| {
+            crate::Error::Compiler(
+                crate::InternalError::failed_namespace_ctx()
+                    .unlocated()
+                    .build(),
+            )
+        })
     }
 
     fn handle_use(
@@ -225,7 +237,8 @@ impl NamespaceCtx {
             &mut version,
             &mut error,
             &mut tag,
-        )?;
+        )
+        .map_err(|err| err.with_source(path.clone(), Arc::clone(&source)))?;
 
         let ast_p = path.clone();
         let ast_s = source.clone();
@@ -246,12 +259,24 @@ impl NamespaceCtx {
                         if ns_def.def.name.borrow_string()
                             != existing.value.def.name.borrow_string()
                         {
-                            let err = crate::Error::ns_dir(
-                                &existing.value.def.name,
-                                &ns_def.def.name,
-                                path.clone(),
-                            );
-                            return Err(err.with_source(path, source));
+                            let parent = existing
+                                .value
+                                .def
+                                .name
+                                .borrow_string()
+                                .to_string();
+                            let attempted = ns_def.def.name.borrow_string().to_string();
+                            let ns_span = ns_def.def.name.span();
+                            return Err(crate::Error::Compiler(
+                                crate::NamespaceError::dir_conflict(
+                                    path.to_string_lossy().to_string(),
+                                    &parent,
+                                    &attempted,
+                                )
+                                .at(crate::Span::new(ns_span.start, ns_span.end))
+                                .build()
+                                .with_source_arc(path, source),
+                            ));
                         }
                     } else {
                         namespace = Some(ns_def.with_source(path.clone()));
@@ -277,8 +302,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -301,8 +330,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -325,8 +358,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -349,8 +386,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -373,8 +414,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -397,8 +442,12 @@ impl NamespaceCtx {
                     let ns_name = namespace
                         .as_ref()
                         .ok_or_else(|| {
-                            crate::Error::NsNotDeclared
-                                .with_source(path.clone(), Arc::clone(&source))
+                            crate::Error::Compiler(
+                                crate::NamespaceError::not_declared()
+                                    .at_node(&def.def)
+                                    .build()
+                                    .with_source_arc(path.clone(), Arc::clone(&source)),
+                            )
                         })?
                         .value
                         .def
@@ -420,7 +469,12 @@ impl NamespaceCtx {
         }
 
         let namespace = namespace.ok_or_else(|| {
-            crate::Error::NsNotDeclared.with_source(path.clone(), Arc::clone(&source))
+            crate::Error::Compiler(
+                crate::NamespaceError::not_declared()
+                    .unlocated()
+                    .build()
+                    .with_source_arc(path.clone(), Arc::clone(&source)),
+            )
         })?;
 
         Ok(Self {
@@ -456,7 +510,8 @@ impl NamespaceCtx {
             &mut self.version,
             &mut self.error,
             &mut self.tag,
-        )?;
+        )
+        .map_err(|err| err.with_source(path.clone(), Arc::clone(&source)))?;
 
         for item in ast.nodes {
             match item.value {
@@ -464,12 +519,25 @@ impl NamespaceCtx {
                     if ns_def.def.name.borrow_string()
                         != self.namespace.value.def.name.borrow_string()
                     {
-                        let err = crate::Error::ns_dir(
-                            &self.namespace.value.def.name,
-                            &ns_def.def.name,
-                            path.clone(),
-                        );
-                        return Err(err.with_source(path, source));
+                        let parent = self
+                            .namespace
+                            .value
+                            .def
+                            .name
+                            .borrow_string()
+                            .to_string();
+                        let attempted = ns_def.def.name.borrow_string().to_string();
+                        let ns_span = ns_def.def.name.span();
+                        return Err(crate::Error::Compiler(
+                            crate::NamespaceError::dir_conflict(
+                                path.to_string_lossy().to_string(),
+                                &parent,
+                                &attempted,
+                            )
+                            .at(crate::Span::new(ns_span.start, ns_span.end))
+                            .build()
+                            .with_source_arc(path, source),
+                        ));
                     }
 
                     *found_namespace_decl = true;
@@ -599,18 +667,17 @@ impl NamespaceCtx {
     where
         F: FnOnce() -> NamespaceChild, {
         let qual = ctx.item(name.clone());
+        let sp = name.span();
+        let err_span = kintsu_errors::Span::new(sp.start, sp.end);
         crate::utils::insert_unique_ident(
             namespace_name,
             children,
             qual,
             type_tag,
             constructor().with_source(path.to_path_buf()),
+            Some(err_span),
         )
-        .map_err(|e| {
-            let span = name.span();
-            e.with_span(span.start, span.end)
-                .with_source(path.to_path_buf(), Arc::clone(source))
-        })
+        .map_err(|e| e.with_source(path.to_path_buf(), Arc::clone(source)))
     }
 
     pub fn process_spanned_namespace(
@@ -638,11 +705,12 @@ impl NamespaceCtx {
 
         if children.contains_key(&qual_name) {
             let span = name.span();
-            let err = crate::Error::DuplicateNamespace {
-                name: name.borrow_string().to_string(),
-            }
-            .with_span(span.start, span.end);
-            return Err(err.with_source(path.to_path_buf(), Arc::clone(source)));
+            return Err(crate::Error::Compiler(
+                crate::NamespaceError::duplicate(name.borrow_string())
+                    .at(crate::Span::new(span.start, span.end))
+                    .build()
+                    .with_source_arc(path.to_path_buf(), Arc::clone(source)),
+            ));
         }
 
         children.insert(qual_name, child.with_source(path.to_path_buf()));
@@ -661,29 +729,47 @@ impl NamespaceCtx {
                 match meta_item {
                     ItemMetaItem::Version(v) => {
                         if version.is_some() {
-                            return Err(crate::Error::DuplicateMetaAttribute {
-                                attribute: "version".to_string(),
-                                path: path.to_path_buf(),
-                            });
+                            let dup_span = v.span();
+                            let span = crate::Span::new(dup_span.start, dup_span.end);
+                            return Err(crate::Error::Compiler(
+                                crate::MetadataError::duplicate_attribute(
+                                    "version",
+                                    path.display().to_string(),
+                                )
+                                .at(span)
+                                .build(),
+                            ));
                         }
                         *version = Some(v.clone().with_source(path.to_path_buf()));
                     },
                     ItemMetaItem::Error(e) => {
                         if error.is_some() {
-                            return Err(crate::Error::DuplicateMetaAttribute {
-                                attribute: "error".to_string(),
-                                path: path.to_path_buf(),
-                            });
+                            let dup_span = e.span();
+                            let span = crate::Span::new(dup_span.start, dup_span.end);
+                            return Err(crate::Error::Compiler(
+                                crate::MetadataError::duplicate_attribute(
+                                    "error",
+                                    path.display().to_string(),
+                                )
+                                .at(span)
+                                .build(),
+                            ));
                         }
                         *error = Some(e.clone().with_source(path.to_path_buf()));
                     },
                     ItemMetaItem::Tag(t) => {
                         // Namespace-level tag: #![tag(...)] per SPEC-0016 Phase 4
                         if tag.is_some() {
-                            return Err(crate::Error::DuplicateMetaAttribute {
-                                attribute: "tag".to_string(),
-                                path: path.to_path_buf(),
-                            });
+                            let dup_span = t.span();
+                            let span = crate::Span::new(dup_span.start, dup_span.end);
+                            return Err(crate::Error::Compiler(
+                                crate::MetadataError::duplicate_attribute(
+                                    "tag",
+                                    path.display().to_string(),
+                                )
+                                .at(span)
+                                .build(),
+                            ));
                         }
                         *tag = Some(
                             t.value

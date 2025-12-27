@@ -136,6 +136,9 @@ fn from_oneof(
                     name_gen.pop();
                 }
             },
+            Variant::Unit { .. } => {
+                // Unit variants have no inner type - nothing to extract
+            },
         }
         name_gen.pop();
     }
