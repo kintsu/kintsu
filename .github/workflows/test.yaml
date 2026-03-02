@@ -82,14 +82,14 @@ jobs:
 
       - name: Upload snapshots of failed tests
         if: ${{ failure() && steps.cargo_test.outcome == 'failure' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: failed-snapshots
           path: "**/snapshots/*.snap.new"
 
       - name: Upload Test Suite Cases
         if: ${{ matrix.runner == 'ubuntu-latest' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-suite-cases
           path: |
