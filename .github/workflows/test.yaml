@@ -41,7 +41,7 @@ jobs:
 
       - name: Set up Docker
         if: matrix.runner != 'macos-26'
-        uses: docker/setup-docker-action@v4
+        uses: docker/setup-docker-action@v5
         with:
           set-host: true
 
@@ -112,7 +112,7 @@ jobs:
       - uses: jdx/mise-action@v3
 
       - name: Set up Docker
-        uses: docker/setup-docker-action@v4
+        uses: docker/setup-docker-action@v5
         with:
           set-host: true
 
